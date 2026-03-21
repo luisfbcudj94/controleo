@@ -1,6 +1,6 @@
 param(
     [string]$AvdName = "Medium_Phone_API_36.1",
-    [switch]$SkipApi,
+    [switch]$UseLocalApi,
     [switch]$SkipEmulator
 )
 
@@ -16,12 +16,28 @@ function Ensure-Command([string]$Name) {
     }
 }
 
+function Wait-ApiReady([string]$Url, [int]$TimeoutSeconds = 40) {
+    $sw = [System.Diagnostics.Stopwatch]::StartNew()
+    while ($sw.Elapsed.TotalSeconds -lt $TimeoutSeconds) {
+        try {
+            $null = Invoke-RestMethod -Uri $Url -Method Get -TimeoutSec 3
+            return
+        }
+        catch {
+            Start-Sleep -Milliseconds 800
+        }
+    }
+
+    throw "La API no respondió en '$Url' dentro de $TimeoutSeconds segundos."
+}
+
 $RepoRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $ApiProject = Join-Path $RepoRoot "Controleo.Api\Controleo.Api.csproj"
 $MobileProject = Join-Path $RepoRoot "Controleo.Mobile\Controleo.Mobile.csproj"
 
-if (-not (Test-Path $ApiProject)) { throw "No existe: $ApiProject" }
 if (-not (Test-Path $MobileProject)) { throw "No existe: $MobileProject" }
+
+if ($UseLocalApi -and -not (Test-Path $ApiProject)) { throw "No existe: $ApiProject" }
 
 if (-not $env:JAVA_HOME) {
     $studioJbr = "C:\Program Files\Android\Android Studio\jbr"
@@ -53,14 +69,27 @@ Ensure-Command adb
 $adbExe = Join-Path $env:ANDROID_SDK_ROOT "platform-tools\adb.exe"
 $emulatorExe = Join-Path $env:ANDROID_SDK_ROOT "emulator\emulator.exe"
 
-if (-not $SkipApi) {
+if ($UseLocalApi) {
     Write-Step "Iniciando API (.NET)"
     Start-Process powershell -ArgumentList @(
         "-NoExit",
         "-Command",
-        "cd '$RepoRoot'; dotnet run --project '$ApiProject'"
+        "cd '$RepoRoot'; dotnet run --project '$ApiProject' --launch-profile http"
     ) | Out-Null
-    Start-Sleep -Seconds 2
+
+    Write-Step "Esperando API en http://localhost:5051/api/catalogs"
+    Wait-ApiReady -Url "http://localhost:5051/api/catalogs" -TimeoutSeconds 45
+}
+else {
+    Write-Step "Usando API desplegada en Cloud Run (no se inicia API local)"
+
+    # Configuración local opcional para futuro desarrollo:
+    # Start-Process powershell -ArgumentList @(
+    #     "-NoExit",
+    #     "-Command",
+    #     "cd '$RepoRoot'; dotnet run --project '$ApiProject' --launch-profile http"
+    # ) | Out-Null
+    # Wait-ApiReady -Url "http://localhost:5051/api/catalogs" -TimeoutSeconds 45
 }
 
 if (-not $SkipEmulator) {

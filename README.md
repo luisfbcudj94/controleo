@@ -1,10 +1,10 @@
 # Controleo
 
-App móvil de control de gastos en .NET MAUI (Android/iOS) con API ASP.NET Core que guarda registros en Excel.
+App móvil de control de gastos en .NET MAUI (Android/iOS) con API ASP.NET Core que guarda registros en Firebase (Cloud Firestore).
 
 ## Estructura
 
-- `Controleo.Api`: API para registrar gastos y escribir en Excel.
+- `Controleo.Api`: API para registrar gastos y escribir en Firebase Firestore.
 - `Controleo.Mobile`: App MAUI con formulario móvil.
 
 ## Datos capturados
@@ -15,23 +15,25 @@ App móvil de control de gastos en .NET MAUI (Android/iOS) con API ASP.NET Core 
 - Tipo de movimiento
 - Medio de pago
 
-## Configuración Excel (Drive)
+## Configuración Firebase (Firestore)
 
 La API usa `Controleo.Api/appsettings.Development.json`:
 
 ```json
-"ExcelStorage": {
-  "FilePath": "C:\\Users\\v-tgeethanat\\Google Drive\\controleo\\gastos.xlsx",
-  "WorksheetName": "Gastos",
-  "DateColumnHeader": "Fecha",
-  "DescriptionColumnHeader": "Descripcion",
-  "AmountColumnHeader": "Valor",
-  "MovementTypeColumnHeader": "TipoMovimiento",
-  "PaymentMethodColumnHeader": "MedioPago"
+"FirebaseStorage": {
+   "ProjectId": "TU_FIREBASE_PROJECT_ID",
+   "CredentialsFilePath": "C:\\Users\\v-tgeethanat\\Desktop\\secrets\\firebase-service-account.json",
+   "CollectionName": "expenses"
 }
 ```
 
-Ajusta `FilePath` y encabezados si tu Excel tiene una estructura distinta.
+### Pasos en Firebase
+
+1. Crea un proyecto en Firebase y habilita Firestore en modo nativo.
+2. En Google Cloud Console, crea una Service Account para ese proyecto.
+3. Descarga la llave JSON y guárdala fuera del repo (ej. `C:\Users\...\secrets\firebase-service-account.json`).
+4. Dale al service account rol `Cloud Datastore User` (o `Editor` para pruebas).
+5. Configura `ProjectId` y `CredentialsFilePath` en `appsettings.Development.json`.
 
 ## Ejecutar en VS Code
 

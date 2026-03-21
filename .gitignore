@@ -1,0 +1,14 @@
+# Build outputs
+**/bin/
+**/obj/
+
+# User-specific IDE files
+.vscode/
+
+# Secrets and credentials
+**/*firebase-adminsdk*.json
+**/firebase-service-account.json
+secrets/
+
+# Local settings overrides
+**/appsettings.Local.json

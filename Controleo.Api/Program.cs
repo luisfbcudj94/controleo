@@ -6,13 +6,13 @@ using Microsoft.Extensions.Options;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddOpenApi();
-builder.Services.Configure<ExcelStorageOptions>(builder.Configuration.GetSection(ExcelStorageOptions.SectionName));
-builder.Services.PostConfigure<ExcelStorageOptions>(options =>
+builder.Services.Configure<FirebaseStorageOptions>(builder.Configuration.GetSection(FirebaseStorageOptions.SectionName));
+builder.Services.PostConfigure<FirebaseStorageOptions>(options =>
 {
     options.MovementTypes = NormalizeCatalog(options.MovementTypes, GetDefaultMovementTypes());
     options.PaymentMethods = NormalizeCatalog(options.PaymentMethods, GetDefaultPaymentMethods());
 });
-builder.Services.AddSingleton<IExpenseStorageService, ExcelExpenseStorageService>();
+builder.Services.AddSingleton<IExpenseStorageService, FirestoreExpenseStorageService>();
 
 var app = builder.Build();
 
@@ -21,9 +21,12 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 }
 
-app.UseHttpsRedirection();
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
 
-app.MapGet("/api/catalogs", (IOptions<ExcelStorageOptions> options) =>
+app.MapGet("/api/catalogs", (IOptions<FirebaseStorageOptions> options) =>
 {
     var config = options.Value;
     return Results.Ok(new ExpenseCatalog(config.MovementTypes, config.PaymentMethods));
