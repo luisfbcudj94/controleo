@@ -51,9 +51,9 @@
         "net9.0": {
           "targetAlias": "net9.0",
           "dependencies": {
-            "ClosedXML": {
+            "Google.Cloud.Firestore": {
               "target": "Package",
-              "version": "[0.104.2, )"
+              "version": "[3.11.0, )"
             },
             "Microsoft.AspNetCore.OpenApi": {
               "target": "Package",

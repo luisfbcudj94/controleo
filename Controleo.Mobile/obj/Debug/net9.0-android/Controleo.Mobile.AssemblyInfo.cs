@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("Controleo.Mobile")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0+ef3f2f5e01ea05de5b24cdbf231ec9e08a7bead3")]
 [assembly: System.Reflection.AssemblyProductAttribute("Controleo.Mobile")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Controleo.Mobile")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

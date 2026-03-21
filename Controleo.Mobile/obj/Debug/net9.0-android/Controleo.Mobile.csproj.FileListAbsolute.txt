@@ -1351,3 +1351,4 @@ C:\Users\v-tgeethanat\Desktop\controleo\Controleo.Mobile\obj\Debug\net9.0-androi
 C:\Users\v-tgeethanat\Desktop\controleo\Controleo.Mobile\obj\Debug\net9.0-android\stamp\_GenerateJavaStubs.stamp
 C:\Users\v-tgeethanat\Desktop\controleo\Controleo.Mobile\obj\Debug\net9.0-android\stamp\_GeneratePackageManagerJava.stamp
 C:\Users\v-tgeethanat\Desktop\controleo\Controleo.Mobile\obj\Debug\net9.0-android\stamp\_ResolveLibraryProjectImports.stamp
+C:\Users\v-tgeethanat\Desktop\controleo\Controleo.Mobile\obj\Debug\net9.0-android\Controleo.Mobile.sourcelink.json
