@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "dgSpecHash": "+Oq7TvnX3lY=",
+  "dgSpecHash": "8nJLjPqEfJ4=",
   "success": true,
   "projectFilePath": "C:\\Users\\v-tgeethanat\\Desktop\\controleo\\Controleo.Mobile\\Controleo.Mobile.csproj",
   "expectedPackageFiles": [
@@ -118,6 +118,10 @@
     "C:\\Users\\v-tgeethanat\\.nuget\\packages\\xamarin.kotlinx.coroutines.core.jvm\\1.9.0.3\\xamarin.kotlinx.coroutines.core.jvm.1.9.0.3.nupkg.sha512",
     "C:\\Users\\v-tgeethanat\\.nuget\\packages\\xamarin.kotlinx.serialization.core\\1.7.3.4\\xamarin.kotlinx.serialization.core.1.7.3.4.nupkg.sha512",
     "C:\\Users\\v-tgeethanat\\.nuget\\packages\\xamarin.kotlinx.serialization.core.jvm\\1.7.3.4\\xamarin.kotlinx.serialization.core.jvm.1.7.3.4.nupkg.sha512",
+    "C:\\Users\\v-tgeethanat\\.nuget\\packages\\microsoft.netcore.app.runtime.win-x64\\9.0.14\\microsoft.netcore.app.runtime.win-x64.9.0.14.nupkg.sha512",
+    "C:\\Users\\v-tgeethanat\\.nuget\\packages\\microsoft.windowsdesktop.app.runtime.win-x64\\9.0.14\\microsoft.windowsdesktop.app.runtime.win-x64.9.0.14.nupkg.sha512",
+    "C:\\Users\\v-tgeethanat\\.nuget\\packages\\microsoft.aspnetcore.app.runtime.win-x64\\9.0.14\\microsoft.aspnetcore.app.runtime.win-x64.9.0.14.nupkg.sha512",
+    "C:\\Users\\v-tgeethanat\\.nuget\\packages\\microsoft.netcore.app.crossgen2.win-x64\\9.0.14\\microsoft.netcore.app.crossgen2.win-x64.9.0.14.nupkg.sha512",
     "C:\\Users\\v-tgeethanat\\.nuget\\packages\\microsoft.windows.sdk.net.ref\\10.0.19041.57\\microsoft.windows.sdk.net.ref.10.0.19041.57.nupkg.sha512"
   ],
   "logs": []
