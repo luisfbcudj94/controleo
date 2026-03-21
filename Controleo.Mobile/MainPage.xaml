@@ -1,0 +1,44 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Controleo.Mobile.MainPage"
+             Title="Controleo - Gastos">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="20" Spacing="12">
+            <Label Text="Registrar gasto"
+                   FontSize="24"
+                   FontAttributes="Bold" />
+
+            <Label Text="Fecha" />
+            <DatePicker x:Name="DatePickerField" />
+
+            <Label Text="Descripción" />
+            <Entry x:Name="DescriptionField"
+                   Placeholder="Ej: Mercado de la semana"
+                   ClearButtonVisibility="WhileEditing" />
+
+            <Label Text="Valor" />
+            <Entry x:Name="AmountField"
+                   Placeholder="Ej: 45000"
+                   Keyboard="Numeric" />
+
+            <Label Text="Tipo de movimiento" />
+            <Picker x:Name="MovementTypePicker"
+                    Title="Selecciona tipo" />
+
+            <Label Text="Medio de pago" />
+            <Picker x:Name="PaymentMethodPicker"
+                    Title="Selecciona medio" />
+
+            <Button x:Name="SaveButton"
+                    Text="Guardar gasto"
+                    Clicked="OnSaveClicked" />
+
+            <Label x:Name="StatusLabel"
+                   FontSize="14"
+                   TextColor="Gray" />
+        </VerticalStackLayout>
+    </ScrollView>
+
+</ContentPage>

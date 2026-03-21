@@ -1,0 +1,62 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "API: Run",
+      "type": "shell",
+      "command": "dotnet",
+      "args": [
+        "run",
+        "--project",
+        "Controleo.Api/Controleo.Api.csproj",
+        "--launch-profile",
+        "http"
+      ],
+      "isBackground": true,
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "Mobile: Build Windows",
+      "type": "shell",
+      "command": "dotnet",
+      "args": [
+        "build",
+        "Controleo.Mobile/Controleo.Mobile.csproj",
+        "-f",
+        "net9.0-windows10.0.19041.0"
+      ],
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "Mobile: Build Android",
+      "type": "shell",
+      "command": "dotnet",
+      "args": [
+        "build",
+        "Controleo.Mobile/Controleo.Mobile.csproj",
+        "-f",
+        "net9.0-android"
+      ],
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "Mobile: Publish Android APK",
+      "type": "shell",
+      "command": "dotnet",
+      "args": [
+        "publish",
+        "Controleo.Mobile/Controleo.Mobile.csproj",
+        "-f",
+        "net9.0-android",
+        "-c",
+        "Release",
+        "-p:AndroidPackageFormat=apk"
+      ],
+      "group": "build",
+      "problemMatcher": []
+    }
+  ]
+}
