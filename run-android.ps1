@@ -1,6 +1,6 @@
 param(
     [string]$AvdName = "Medium_Phone_API_36.1",
-    [switch]$UseLocalApi,
+    [switch]$UseCloudApi,
     [switch]$SkipEmulator
 )
 
@@ -37,7 +37,7 @@ $MobileProject = Join-Path $RepoRoot "Controleo.Mobile\Controleo.Mobile.csproj"
 
 if (-not (Test-Path $MobileProject)) { throw "No existe: $MobileProject" }
 
-if ($UseLocalApi -and -not (Test-Path $ApiProject)) { throw "No existe: $ApiProject" }
+if (-not $UseCloudApi -and -not (Test-Path $ApiProject)) { throw "No existe: $ApiProject" }
 
 if (-not $env:JAVA_HOME) {
     $studioJbr = "C:\Program Files\Android\Android Studio\jbr"
@@ -69,7 +69,7 @@ Ensure-Command adb
 $adbExe = Join-Path $env:ANDROID_SDK_ROOT "platform-tools\adb.exe"
 $emulatorExe = Join-Path $env:ANDROID_SDK_ROOT "emulator\emulator.exe"
 
-if ($UseLocalApi) {
+if (-not $UseCloudApi) {
     Write-Step "Iniciando API (.NET)"
     Start-Process powershell -ArgumentList @(
         "-NoExit",

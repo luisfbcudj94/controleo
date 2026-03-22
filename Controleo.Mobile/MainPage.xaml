@@ -5,39 +5,62 @@
              Title="Controleo - Gastos">
 
     <ScrollView>
-        <VerticalStackLayout Padding="20" Spacing="12">
-            <Label Text="Registrar gasto"
-                   FontSize="24"
-                   FontAttributes="Bold" />
+       <VerticalStackLayout Padding="18" Spacing="14">
+           <Border StrokeThickness="0"
+                  BackgroundColor="{AppThemeBinding Light={StaticResource Primary}, Dark={StaticResource Gray700}}"
+                  Padding="16"
+                  StrokeShape="RoundRectangle 16">
+              <VerticalStackLayout Spacing="6">
+                  <Label Text="Registrar gasto"
+                        FontSize="28"
+                        FontAttributes="Bold"
+                        TextColor="White" />
+                  <Label Text="Controla tus movimientos diarios de forma rápida."
+                        TextColor="White"
+                        Opacity="0.9" />
+              </VerticalStackLayout>
+           </Border>
 
-            <Label Text="Fecha" />
-            <DatePicker x:Name="DatePickerField" />
+           <Border StrokeShape="RoundRectangle 14"
+                  Padding="14">
+              <VerticalStackLayout Spacing="10">
+                  <Label Text="Fecha" FontAttributes="Bold" />
+                  <DatePicker x:Name="DatePickerField" />
 
-            <Label Text="Descripción" />
-            <Entry x:Name="DescriptionField"
-                   Placeholder="Ej: Mercado de la semana"
-                   ClearButtonVisibility="WhileEditing" />
+                  <Label Text="Descripción" FontAttributes="Bold" />
+                  <Entry x:Name="DescriptionField"
+                        Placeholder="Ej: Mercado de la semana"
+                        ClearButtonVisibility="WhileEditing" />
 
-            <Label Text="Valor" />
-            <Entry x:Name="AmountField"
-                   Placeholder="Ej: 45000"
-                   Keyboard="Numeric" />
+                  <Label Text="Valor" FontAttributes="Bold" />
+                  <Entry x:Name="AmountField"
+                        Placeholder="Ej: 45000"
+                        Keyboard="Numeric" />
 
-            <Label Text="Tipo de movimiento" />
-            <Picker x:Name="MovementTypePicker"
-                    Title="Selecciona tipo" />
+                  <Label Text="Tipo de movimiento" FontAttributes="Bold" />
+                  <Picker x:Name="MovementTypePicker"
+                         Title="Selecciona tipo" />
 
-            <Label Text="Medio de pago" />
-            <Picker x:Name="PaymentMethodPicker"
-                    Title="Selecciona medio" />
+                  <Label Text="Medio de pago" FontAttributes="Bold" />
+                  <Picker x:Name="PaymentMethodPicker"
+                         Title="Selecciona medio" />
 
-            <Button x:Name="SaveButton"
-                    Text="Guardar gasto"
-                    Clicked="OnSaveClicked" />
+                  <Button x:Name="SaveButton"
+                         Margin="0,8,0,0"
+                         Text="Guardar gasto"
+                         Clicked="OnSaveClicked" />
+              </VerticalStackLayout>
+           </Border>
 
-            <Label x:Name="StatusLabel"
-                   FontSize="14"
-                   TextColor="Gray" />
+           <Button Text="Ver lista de gastos"
+                  Clicked="OnGoToExpensesClicked"
+                  BackgroundColor="{AppThemeBinding Light={StaticResource Gray900}, Dark={StaticResource Gray200}}"
+                  TextColor="{AppThemeBinding Light={StaticResource White}, Dark={StaticResource Black}}" />
+
+           <Label x:Name="StatusLabel"
+                 FontSize="13"
+                 TextColor="Gray"
+                 LineBreakMode="WordWrap" />
         </VerticalStackLayout>
     </ScrollView>
 

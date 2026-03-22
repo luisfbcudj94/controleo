@@ -1,14 +1,48 @@
 # Build outputs
-**/bin/
-**/obj/
+**/[Bb]in/
+**/[Oo]bj/
+artifacts/
+TestResults/
+
+# Packages and publish artifacts
+*.nupkg
+*.snupkg
+packages/
+*.apk
+*.aab
+*.apks
+*.msix
+*.msixbundle
+*.appx
+*.appxbundle
 
 # User-specific IDE files
 .vscode/
+.vs/
+.idea/
+*.user
+*.suo
+*.tmp
+*.userosscache
+*.sln.docstates
+
+# Logs and diagnostics
+*.log
+*.cache
 
 # Secrets and credentials
 **/*firebase-adminsdk*.json
 **/firebase-service-account.json
 secrets/
+*.keystore
+*.jks
+*.p12
 
 # Local settings overrides
 **/appsettings.Local.json
+**/appsettings.*.Local.json
+
+# OS metadata
+.DS_Store
+Thumbs.db
+Desktop.ini

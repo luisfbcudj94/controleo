@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:model="clr-namespace:Controleo.Mobile.Models"
+             x:Class="Controleo.Mobile.ExpensesPage"
+             Title="Gastos">
+
+    <Grid RowDefinitions="Auto,*,Auto" Padding="16" RowSpacing="10">
+        <HorizontalStackLayout Spacing="8">
+            <Button Text="Ir a registrar"
+                    Clicked="OnGoToRegisterClicked" />
+            <Button Text="Recargar"
+                    Clicked="OnReloadClicked"
+                    BackgroundColor="{AppThemeBinding Light={StaticResource Gray900}, Dark={StaticResource Gray200}}"
+                    TextColor="{AppThemeBinding Light={StaticResource White}, Dark={StaticResource Black}}" />
+        </HorizontalStackLayout>
+
+        <RefreshView Grid.Row="1">
+            <CollectionView x:Name="ExpensesCollection"
+                            SelectionMode="None">
+                <CollectionView.EmptyView>
+                    <Label Text="Aún no hay gastos registrados."
+                           HorizontalOptions="Center"
+                           VerticalOptions="Center" />
+                </CollectionView.EmptyView>
+                <CollectionView.ItemTemplate>
+                    <DataTemplate x:DataType="model:ExpenseItem">
+                        <Border Padding="12"
+                                Margin="0,0,0,10"
+                                StrokeShape="RoundRectangle 12">
+                            <VerticalStackLayout Spacing="6">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <Label Text="{Binding Description}"
+                                           FontAttributes="Bold"
+                                           FontSize="16" />
+                                    <Label Grid.Column="1"
+                                           Text="{Binding Amount, StringFormat='${0:N0}'}"
+                                           FontAttributes="Bold"
+                                           TextColor="{StaticResource Primary}" />
+                                </Grid>
+                                <Label Text="{Binding Date, StringFormat='Fecha: {0:yyyy-MM-dd}'}"
+                                       FontSize="12"
+                                       TextColor="Gray" />
+                                <Label Text="{Binding MovementType, StringFormat='Sección: {0}'}" FontSize="12" />
+                                <Label Text="{Binding PaymentMethod, StringFormat='Medio de pago: {0}'}" FontSize="12" />
+                                <HorizontalStackLayout Spacing="8">
+                                    <Button Text="Editar"
+                                            CommandParameter="{Binding .}"
+                                            Clicked="OnEditExpenseClicked" />
+                                    <Button Text="Eliminar"
+                                            BackgroundColor="{AppThemeBinding Light={StaticResource Gray900}, Dark={StaticResource Gray200}}"
+                                            TextColor="{AppThemeBinding Light={StaticResource White}, Dark={StaticResource Black}}"
+                                            CommandParameter="{Binding .}"
+                                            Clicked="OnDeleteExpenseClicked" />
+                                </HorizontalStackLayout>
+                            </VerticalStackLayout>
+                        </Border>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+        </RefreshView>
+
+        <Border Grid.Row="2"
+                x:Name="EditPanel"
+                IsVisible="False"
+                Padding="12"
+                StrokeShape="RoundRectangle 12">
+            <VerticalStackLayout Spacing="8">
+                <Label Text="Editar gasto" FontAttributes="Bold" FontSize="18" />
+                <DatePicker x:Name="EditDatePicker" />
+                <Entry x:Name="EditDescriptionEntry" Placeholder="Descripción" />
+                <Entry x:Name="EditAmountEntry" Placeholder="Valor" Keyboard="Numeric" />
+                <Picker x:Name="EditMovementPicker" Title="Tipo de movimiento" />
+                <Picker x:Name="EditPaymentPicker" Title="Medio de pago" />
+                <HorizontalStackLayout Spacing="8">
+                    <Button x:Name="SaveEditButton" Text="Guardar cambios" Clicked="OnSaveEditClicked" />
+                    <Button Text="Cancelar"
+                            Clicked="OnCancelEditClicked"
+                            BackgroundColor="{AppThemeBinding Light={StaticResource Gray900}, Dark={StaticResource Gray200}}"
+                            TextColor="{AppThemeBinding Light={StaticResource White}, Dark={StaticResource Black}}" />
+                </HorizontalStackLayout>
+                <Label x:Name="StatusLabel" FontSize="12" TextColor="Gray" />
+            </VerticalStackLayout>
+        </Border>
+    </Grid>
+
+</ContentPage>

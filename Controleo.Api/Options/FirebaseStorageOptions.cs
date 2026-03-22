@@ -7,6 +7,9 @@ public sealed class FirebaseStorageOptions
     public string ProjectId { get; set; } = string.Empty;
     public string CredentialsFilePath { get; set; } = string.Empty;
     public string CollectionName { get; set; } = "expenses";
+    public string BudgetsCollectionName { get; set; } = "budgets";
+    public string SettingsCollectionName { get; set; } = "app_settings";
+    public string CatalogDocumentId { get; set; } = "catalogs";
 
     public string[] MovementTypes { get; set; } = [];
 

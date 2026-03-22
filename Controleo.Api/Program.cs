@@ -1,7 +1,6 @@
 using Controleo.Api.Models;
 using Controleo.Api.Options;
 using Controleo.Api.Services;
-using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -26,10 +25,27 @@ if (!app.Environment.IsDevelopment())
     app.UseHttpsRedirection();
 }
 
-app.MapGet("/api/catalogs", (IOptions<FirebaseStorageOptions> options) =>
+app.MapGet("/api/catalogs", async (IExpenseStorageService expenseStorageService, CancellationToken cancellationToken) =>
 {
-    var config = options.Value;
-    return Results.Ok(new ExpenseCatalog(config.MovementTypes, config.PaymentMethods));
+    var catalog = await expenseStorageService.GetCatalogsAsync(cancellationToken);
+    return Results.Ok(catalog);
+});
+
+app.MapPut("/api/catalogs", async (UpdateCatalogsRequest request, IExpenseStorageService expenseStorageService, CancellationToken cancellationToken) =>
+{
+    if (request.MovementTypes is null || request.PaymentMethods is null)
+    {
+        return Results.BadRequest(new OperationResult(false, "Debes enviar secciones y medios de pago."));
+    }
+
+    var result = await expenseStorageService.UpdateCatalogsAsync(request, cancellationToken);
+    return result.IsSuccess ? Results.Ok(result) : Results.BadRequest(result);
+});
+
+app.MapGet("/api/expenses", async (IExpenseStorageService expenseStorageService, CancellationToken cancellationToken) =>
+{
+    var data = await expenseStorageService.GetExpensesAsync(cancellationToken);
+    return Results.Ok(data);
 });
 
 app.MapPost("/api/expenses", async (ExpenseEntryRequest request, IExpenseStorageService expenseStorageService, CancellationToken cancellationToken) =>
@@ -44,6 +60,48 @@ app.MapPost("/api/expenses", async (ExpenseEntryRequest request, IExpenseStorage
     return result.IsSuccess
         ? Results.Created($"/api/expenses/{result.RowNumber}", result)
         : Results.BadRequest(result);
+});
+
+app.MapPut("/api/expenses/{id}", async (string id, ExpenseEntryRequest request, IExpenseStorageService expenseStorageService, CancellationToken cancellationToken) =>
+{
+    var validationErrors = ValidateRequest(request);
+    if (validationErrors.Count > 0)
+    {
+        return Results.ValidationProblem(validationErrors);
+    }
+
+    var result = await expenseStorageService.UpdateExpenseAsync(id, request, cancellationToken);
+    return result.IsSuccess ? Results.Ok(result) : Results.BadRequest(result);
+});
+
+app.MapDelete("/api/expenses/{id}", async (string id, IExpenseStorageService expenseStorageService, CancellationToken cancellationToken) =>
+{
+    var result = await expenseStorageService.DeleteExpenseAsync(id, cancellationToken);
+    return result.IsSuccess ? Results.Ok(result) : Results.BadRequest(result);
+});
+
+app.MapGet("/api/budgets", async (IExpenseStorageService expenseStorageService, CancellationToken cancellationToken) =>
+{
+    var data = await expenseStorageService.GetBudgetsAsync(cancellationToken);
+    return Results.Ok(data);
+});
+
+app.MapPut("/api/budgets/{movementType}", async (string movementType, BudgetUpsertRequest request, IExpenseStorageService expenseStorageService, CancellationToken cancellationToken) =>
+{
+    var result = await expenseStorageService.UpsertBudgetAsync(movementType, request, cancellationToken);
+    return result.IsSuccess ? Results.Ok(result) : Results.BadRequest(result);
+});
+
+app.MapDelete("/api/budgets/{movementType}", async (string movementType, IExpenseStorageService expenseStorageService, CancellationToken cancellationToken) =>
+{
+    var result = await expenseStorageService.DeleteBudgetAsync(movementType, cancellationToken);
+    return result.IsSuccess ? Results.Ok(result) : Results.BadRequest(result);
+});
+
+app.MapGet("/api/dashboard/by-category", async (IExpenseStorageService expenseStorageService, CancellationToken cancellationToken) =>
+{
+    var data = await expenseStorageService.GetDashboardByCategoryAsync(cancellationToken);
+    return Results.Ok(data);
 });
 
 app.Run();

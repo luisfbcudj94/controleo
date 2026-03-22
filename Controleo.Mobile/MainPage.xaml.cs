@@ -114,4 +114,16 @@ public partial class MainPage : ContentPage
 
 		return true;
 	}
+
+	private async void OnGoToExpensesClicked(object? sender, EventArgs e)
+	{
+		var rootPage = Application.Current?.Windows.FirstOrDefault()?.Page;
+		if (rootPage is TabbedPage tabbedPage && tabbedPage.Children.Count > 1)
+		{
+			tabbedPage.CurrentPage = tabbedPage.Children[1];
+			return;
+		}
+
+		await DisplayAlert("Navegación", "No fue posible abrir la lista de gastos.", "OK");
+	}
 }
