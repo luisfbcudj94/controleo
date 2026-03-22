@@ -14,22 +14,56 @@ public sealed class FirestoreExpenseStorageService : IExpenseStorageService
     {
         _options = options.Value;
 
-        if (string.IsNullOrWhiteSpace(_options.ProjectId))
+        var projectId = ResolveProjectId(_options.ProjectId);
+
+        if (string.IsNullOrWhiteSpace(projectId))
         {
-            throw new InvalidOperationException("Debes configurar FirebaseStorage:ProjectId en appsettings.");
+            throw new InvalidOperationException("No se pudo resolver el ProjectId de Firebase. Configura FirebaseStorage:ProjectId o las variables GOOGLE_CLOUD_PROJECT/FIREBASE_PROJECT_ID.");
         }
 
         var builder = new FirestoreDbBuilder
         {
-            ProjectId = _options.ProjectId
+            ProjectId = projectId
         };
 
-        if (!string.IsNullOrWhiteSpace(_options.CredentialsFilePath))
+        var credentialsPath = ResolveCredentialsPath(_options.CredentialsFilePath);
+        if (!string.IsNullOrWhiteSpace(credentialsPath))
         {
-            builder.CredentialsPath = _options.CredentialsFilePath;
+            builder.CredentialsPath = credentialsPath;
         }
 
         _firestoreDb = builder.Build();
+    }
+
+    private static string ResolveProjectId(string configuredProjectId)
+    {
+        if (!string.IsNullOrWhiteSpace(configuredProjectId) && !configuredProjectId.StartsWith("TU_", StringComparison.OrdinalIgnoreCase))
+        {
+            return configuredProjectId.Trim();
+        }
+
+        var fromEnv = Environment.GetEnvironmentVariable("GOOGLE_CLOUD_PROJECT")
+            ?? Environment.GetEnvironmentVariable("GCP_PROJECT")
+            ?? Environment.GetEnvironmentVariable("GCLOUD_PROJECT")
+            ?? Environment.GetEnvironmentVariable("FIREBASE_PROJECT_ID");
+
+        return fromEnv?.Trim() ?? string.Empty;
+    }
+
+    private static string ResolveCredentialsPath(string configuredCredentialsPath)
+    {
+        if (!string.IsNullOrWhiteSpace(configuredCredentialsPath) && File.Exists(configuredCredentialsPath))
+        {
+            return configuredCredentialsPath;
+        }
+
+        var fromEnv = Environment.GetEnvironmentVariable("GOOGLE_APPLICATION_CREDENTIALS");
+        if (!string.IsNullOrWhiteSpace(fromEnv) && File.Exists(fromEnv))
+        {
+            return fromEnv;
+        }
+
+        return string.Empty;
     }
 
     public async Task<SaveExpenseResult> SaveAsync(ExpenseEntryRequest request, CancellationToken cancellationToken)
