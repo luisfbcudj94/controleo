@@ -53,6 +53,36 @@ app.MapGet("/api/expenses", async (string? month, IExpenseStorageService expense
     return Results.Ok(data);
 });
 
+app.MapGet("/api/expenses/paged", async (
+    string? month,
+    int? pageNumber,
+    int? pageSize,
+    string? movementType,
+    IExpenseStorageService expenseStorageService,
+    CancellationToken cancellationToken) =>
+{
+    if (!TryResolveMonth(month, out var monthKey))
+    {
+        return Results.BadRequest(new OperationResult(false, "Mes inválido. Usa formato yyyy-MM."));
+    }
+
+    var resolvedPageNumber = pageNumber.GetValueOrDefault(1);
+    if (resolvedPageNumber < 1)
+    {
+        resolvedPageNumber = 1;
+    }
+
+    var resolvedPageSize = NormalizePageSize(pageSize.GetValueOrDefault(5));
+    var data = await expenseStorageService.GetExpensesPageAsync(monthKey, resolvedPageNumber, resolvedPageSize, movementType, cancellationToken);
+    return Results.Ok(data);
+});
+
+app.MapGet("/api/expenses/months", async (IExpenseStorageService expenseStorageService, CancellationToken cancellationToken) =>
+{
+    var data = await expenseStorageService.GetAvailableMonthKeysAsync(cancellationToken);
+    return Results.Ok(data);
+});
+
 app.MapPost("/api/expenses", async (ExpenseEntryRequest request, IExpenseStorageService expenseStorageService, CancellationToken cancellationToken) =>
 {
     var validationErrors = ValidateRequest(request);
@@ -85,36 +115,21 @@ app.MapDelete("/api/expenses/{id}", async (string id, IExpenseStorageService exp
     return result.IsSuccess ? Results.Ok(result) : Results.BadRequest(result);
 });
 
-app.MapGet("/api/budgets", async (string? month, IExpenseStorageService expenseStorageService, CancellationToken cancellationToken) =>
+app.MapGet("/api/budgets", async (IExpenseStorageService expenseStorageService, CancellationToken cancellationToken) =>
 {
-    if (!TryResolveMonth(month, out var monthKey))
-    {
-        return Results.BadRequest(new OperationResult(false, "Mes inválido. Usa formato yyyy-MM."));
-    }
-
-    var data = await expenseStorageService.GetBudgetsAsync(monthKey, cancellationToken);
+    var data = await expenseStorageService.GetBudgetsAsync(cancellationToken);
     return Results.Ok(data);
 });
 
-app.MapPut("/api/budgets/{movementType}", async (string movementType, string? month, BudgetUpsertRequest request, IExpenseStorageService expenseStorageService, CancellationToken cancellationToken) =>
+app.MapPut("/api/budgets/{movementType}", async (string movementType, BudgetUpsertRequest request, IExpenseStorageService expenseStorageService, CancellationToken cancellationToken) =>
 {
-    if (!TryResolveMonth(month, out var monthKey))
-    {
-        return Results.BadRequest(new OperationResult(false, "Mes inválido. Usa formato yyyy-MM."));
-    }
-
-    var result = await expenseStorageService.UpsertBudgetAsync(movementType, monthKey, request, cancellationToken);
+    var result = await expenseStorageService.UpsertBudgetAsync(movementType, request, cancellationToken);
     return result.IsSuccess ? Results.Ok(result) : Results.BadRequest(result);
 });
 
-app.MapDelete("/api/budgets/{movementType}", async (string movementType, string? month, IExpenseStorageService expenseStorageService, CancellationToken cancellationToken) =>
+app.MapDelete("/api/budgets/{movementType}", async (string movementType, IExpenseStorageService expenseStorageService, CancellationToken cancellationToken) =>
 {
-    if (!TryResolveMonth(month, out var monthKey))
-    {
-        return Results.BadRequest(new OperationResult(false, "Mes inválido. Usa formato yyyy-MM."));
-    }
-
-    var result = await expenseStorageService.DeleteBudgetAsync(movementType, monthKey, cancellationToken);
+    var result = await expenseStorageService.DeleteBudgetAsync(movementType, cancellationToken);
     return result.IsSuccess ? Results.Ok(result) : Results.BadRequest(result);
 });
 
@@ -228,4 +243,14 @@ static bool TryResolveMonth(string? month, out string monthKey)
 
     monthKey = string.Empty;
     return false;
+}
+
+static int NormalizePageSize(int value)
+{
+    return value switch
+    {
+        10 => 10,
+        20 => 20,
+        _ => 5
+    };
 }

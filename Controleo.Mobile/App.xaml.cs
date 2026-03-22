@@ -30,6 +30,17 @@ public partial class App : Application
 			}
 		};
 
+		ApplyTabColors(tabs);
+		RequestedThemeChanged += (_, __) => ApplyTabColors(tabs);
+
 		return new Window(tabs);
+	}
+
+	private static void ApplyTabColors(TabbedPage tabs)
+	{
+		tabs.BarBackgroundColor = Color.FromArgb("#0A0A0A");
+		tabs.SelectedTabColor = Color.FromArgb("#C8F55A");
+		tabs.UnselectedTabColor = Color.FromArgb("#7B7B7B");
+		tabs.BarTextColor = tabs.UnselectedTabColor;
 	}
 }

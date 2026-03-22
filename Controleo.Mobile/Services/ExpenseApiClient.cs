@@ -11,6 +11,7 @@ public sealed class ExpenseApiClient(HttpClient httpClient)
     private readonly ConcurrentDictionary<string, CacheEntry<IReadOnlyList<ExpenseItem>>> _expensesCache = new();
     private readonly ConcurrentDictionary<string, CacheEntry<IReadOnlyList<DashboardCategoryItem>>> _dashboardCache = new();
     private readonly ConcurrentDictionary<string, CacheEntry<IReadOnlyList<BudgetItem>>> _budgetsCache = new();
+    private CacheEntry<IReadOnlyList<string>>? _monthsCache;
 
     private static readonly ExpenseCatalog FallbackCatalog = new(
     [
@@ -70,6 +71,53 @@ public sealed class ExpenseApiClient(HttpClient httpClient)
         }
     }
 
+    public async Task<PagedExpenseResult> GetExpensesPageAsync(
+        string monthKey,
+        int pageNumber,
+        int pageSize,
+        string? movementType,
+        CancellationToken cancellationToken)
+    {
+        var resolvedPageNumber = Math.Max(1, pageNumber);
+        var resolvedPageSize = pageSize is 10 or 20 ? pageSize : 5;
+        var movementSegment = string.IsNullOrWhiteSpace(movementType)
+            ? string.Empty
+            : $"&movementType={Uri.EscapeDataString(movementType)}";
+
+        try
+        {
+            var data = await httpClient.GetFromJsonAsync<PagedExpenseResult>(
+                $"api/expenses/paged?month={Uri.EscapeDataString(monthKey)}&pageNumber={resolvedPageNumber}&pageSize={resolvedPageSize}{movementSegment}",
+                cancellationToken);
+
+            return data ?? new PagedExpenseResult([], 1, resolvedPageSize, 0, 0m, 1, false, false);
+        }
+        catch
+        {
+            return new PagedExpenseResult([], 1, resolvedPageSize, 0, 0m, 1, false, false);
+        }
+    }
+
+    public async Task<IReadOnlyList<string>> GetAvailableMonthsAsync(CancellationToken cancellationToken)
+    {
+        if (_monthsCache is not null && DateTimeOffset.UtcNow - _monthsCache.CreatedAt <= CacheTtl)
+        {
+            return _monthsCache.Data;
+        }
+
+        try
+        {
+            var data = await httpClient.GetFromJsonAsync<List<string>>("api/expenses/months", cancellationToken);
+            var result = (IReadOnlyList<string>)(data ?? []);
+            _monthsCache = new CacheEntry<IReadOnlyList<string>>(DateTimeOffset.UtcNow, result);
+            return result;
+        }
+        catch
+        {
+            return [];
+        }
+    }
+
     public async Task<SaveExpenseResult> SaveExpenseAsync(ExpenseEntryRequest request, CancellationToken cancellationToken)
     {
         try
@@ -80,6 +128,7 @@ public sealed class ExpenseApiClient(HttpClient httpClient)
                 var result = await response.Content.ReadFromJsonAsync<SaveExpenseResult>(cancellationToken: cancellationToken);
                 _expensesCache.TryRemove(request.Date.ToString("yyyy-MM"), out _);
                 _dashboardCache.TryRemove(request.Date.ToString("yyyy-MM"), out _);
+                _monthsCache = null;
                 return result ?? new SaveExpenseResult(false, "Respuesta inválida del servidor.", 0);
             }
 
@@ -102,6 +151,7 @@ public sealed class ExpenseApiClient(HttpClient httpClient)
                 var result = await response.Content.ReadFromJsonAsync<OperationResult>(cancellationToken: cancellationToken);
                 _expensesCache.Clear();
                 _dashboardCache.Clear();
+                _monthsCache = null;
                 return result ?? new OperationResult(false, "Respuesta inválida del servidor.");
             }
 
@@ -124,6 +174,7 @@ public sealed class ExpenseApiClient(HttpClient httpClient)
                 var result = await response.Content.ReadFromJsonAsync<OperationResult>(cancellationToken: cancellationToken);
                 _expensesCache.Clear();
                 _dashboardCache.Clear();
+                _monthsCache = null;
                 return result ?? new OperationResult(true, "Gasto eliminado correctamente.");
             }
 
@@ -156,18 +207,19 @@ public sealed class ExpenseApiClient(HttpClient httpClient)
         }
     }
 
-    public async Task<IReadOnlyList<BudgetItem>> GetBudgetsAsync(string monthKey, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<BudgetItem>> GetBudgetsAsync(CancellationToken cancellationToken)
     {
-        if (TryGetCache(_budgetsCache, monthKey, out var cachedData))
+        const string cacheKey = "global";
+        if (TryGetCache(_budgetsCache, cacheKey, out var cachedData))
         {
             return cachedData;
         }
 
         try
         {
-            var data = await httpClient.GetFromJsonAsync<List<BudgetItem>>($"api/budgets?month={Uri.EscapeDataString(monthKey)}", cancellationToken);
+            var data = await httpClient.GetFromJsonAsync<List<BudgetItem>>("api/budgets", cancellationToken);
             var result = (IReadOnlyList<BudgetItem>)(data ?? []);
-            _budgetsCache[monthKey] = new CacheEntry<IReadOnlyList<BudgetItem>>(DateTimeOffset.UtcNow, result);
+            _budgetsCache[cacheKey] = new CacheEntry<IReadOnlyList<BudgetItem>>(DateTimeOffset.UtcNow, result);
             return result;
         }
         catch
@@ -176,16 +228,16 @@ public sealed class ExpenseApiClient(HttpClient httpClient)
         }
     }
 
-    public async Task<OperationResult> UpsertBudgetAsync(string movementType, decimal amount, string monthKey, CancellationToken cancellationToken)
+    public async Task<OperationResult> UpsertBudgetAsync(string movementType, decimal amount, CancellationToken cancellationToken)
     {
         try
         {
-            var response = await httpClient.PutAsJsonAsync($"api/budgets/{Uri.EscapeDataString(movementType)}?month={Uri.EscapeDataString(monthKey)}", new BudgetUpsertRequest(amount), cancellationToken);
+            var response = await httpClient.PutAsJsonAsync($"api/budgets/{Uri.EscapeDataString(movementType)}", new BudgetUpsertRequest(amount), cancellationToken);
             if (response.IsSuccessStatusCode)
             {
                 var result = await response.Content.ReadFromJsonAsync<OperationResult>(cancellationToken: cancellationToken);
-                _budgetsCache.TryRemove(monthKey, out _);
-                _dashboardCache.TryRemove(monthKey, out _);
+                _budgetsCache.Clear();
+                _dashboardCache.Clear();
                 return result ?? new OperationResult(true, "Presupuesto guardado correctamente.");
             }
 
@@ -198,16 +250,16 @@ public sealed class ExpenseApiClient(HttpClient httpClient)
         }
     }
 
-    public async Task<OperationResult> DeleteBudgetAsync(string movementType, string monthKey, CancellationToken cancellationToken)
+    public async Task<OperationResult> DeleteBudgetAsync(string movementType, CancellationToken cancellationToken)
     {
         try
         {
-            var response = await httpClient.DeleteAsync($"api/budgets/{Uri.EscapeDataString(movementType)}?month={Uri.EscapeDataString(monthKey)}", cancellationToken);
+            var response = await httpClient.DeleteAsync($"api/budgets/{Uri.EscapeDataString(movementType)}", cancellationToken);
             if (response.IsSuccessStatusCode)
             {
                 var result = await response.Content.ReadFromJsonAsync<OperationResult>(cancellationToken: cancellationToken);
-                _budgetsCache.TryRemove(monthKey, out _);
-                _dashboardCache.TryRemove(monthKey, out _);
+                _budgetsCache.Clear();
+                _dashboardCache.Clear();
                 return result ?? new OperationResult(true, "Presupuesto eliminado correctamente.");
             }
 

@@ -19,6 +19,50 @@ function Parse-Amount([string]$raw) {
     return $value
 }
 
+function Resolve-Date(
+    [string]$rawDate,
+    [string]$section,
+    [int]$targetYear,
+    [hashtable]$sectionMonthMap,
+    [ref]$yearFixCount,
+    [ref]$monthFixCount,
+    [ref]$swapFixCount
+) {
+    $parts = $rawDate -split '/'
+    if ($parts.Count -ne 3) {
+        throw "Fecha inválida: $rawDate"
+    }
+
+    $p1 = [int]$parts[0]
+    $p2 = [int]$parts[1]
+    $rawYear = [int]$parts[2]
+
+    $day = $p1
+    $month = $p2
+    $year = $rawYear
+
+    if (-not [string]::IsNullOrWhiteSpace($section)) {
+        $expectedMonth = [int]$sectionMonthMap[$section]
+
+        if ($month -ne $expectedMonth -and $day -eq $expectedMonth) {
+            $day = $p2
+            $month = $p1
+            $swapFixCount.Value++
+        }
+        elseif ($month -ne $expectedMonth) {
+            $month = $expectedMonth
+            $monthFixCount.Value++
+        }
+
+        if ($year -ne $targetYear) {
+            $year = $targetYear
+            $yearFixCount.Value++
+        }
+    }
+
+    return [DateTime]::new($year, $month, $day)
+}
+
 Write-Host "Purgando datos actuales..." -ForegroundColor Cyan
 Invoke-RestMethod -Uri "$ApiBaseUrl/api/admin/purge-data" -Method Post | Out-Null
 
@@ -112,12 +156,12 @@ Fecha	Descripción	Tipo de molvimiento	Valor	Medio de pago
 FEBRERO
 Fecha	Descripción	Tipo de molvimiento	Valor	Medio de pago
 01/02/2026	Netflix	Suscripciones	 $19.000	TC Black
-01/02/2026	Mesa y silla Natalia	Hogar	 $175.000	TC Black
-01/02/2026	Accesorio celular Natalia	Bienestar	 $22.000	Nequi
-01/02/2026	Parqueadero santa fe	Salidas	 $6.000	TD Bancolombia
-01/02/2026	Comida alitas	Salidas	 $56.000	Efectivo
-01/02/2026	Granizados, cigarrillos	Salidas	 $32.000	Efectivo
-01/02/2026	Regalo navidad Hanyi	Bienestar	 $209.000	TC Black
+02/02/2026	Mesa y silla Natalia	Hogar	 $175.000	TC Black
+03/02/2026	Accesorio celular Natalia	Bienestar	 $22.000	Nequi
+04/02/2026	Parqueadero santa fe	Salidas	 $6.000	TD Bancolombia
+05/02/2026	Comida alitas	Salidas	 $56.000	Efectivo
+06/02/2026	Granizados, cigarrillos	Salidas	 $32.000	Efectivo
+07/02/2026	Regalo navidad Hanyi	Bienestar	 $209.000	TC Black
 01/02/2026	Papitas envigado	Salidas	 $51.000	Efectivo
 02/02/2026	Pago arriendo	Basicos para vivir	 $1.060.000	Transferencia
 02/02/2026	Herbalife	Basicos para vivir	 $407.000	TC Black
@@ -232,7 +276,7 @@ Fecha	Descripción	Tipo de molvimiento	Valor	Medio de pago
 28/02/2026	Airbn sogamoso	Viajes	 $105.000	TC Rappi
 28/02/2026	Gasolina furia	Viajes	 $29.000	TC Black
 21/02/2026	Abono sogamoso maestro	Sogamoso obra	 $1.500.000	Transferencia
-28/02/2026	Retorno mercado	Basicos para vivir	- $380.000	Transferencia
+27/02/2026	Retorno mercado	Basicos para vivir	- $380.000	Transferencia
 
 ENERO
 Fecha	Descripción	Tipo de molvimiento	Valor	Medio de pago
@@ -344,6 +388,17 @@ Fecha	Descripción	Tipo de molvimiento	Valor	Medio de pago
 $movementPattern = 'Basicos para vivir|Hogar|Salidas|Imprevistos|Suscripciones|Deudas|Prestamo|Bienestar|Viajes|Sogamoso obra|-'
 $paymentPattern = 'TC Black|TC Rappi|TD Bancolombia|TC Nu|Efectivo|Transferencia|Nequi|-'
 $linePattern = '^(?<date>\d{1,2}/\d{1,2}/\d{4})\s+(?<desc>.+?)\s+(?<movement>' + $movementPattern + ')\s+(?<value>-?\s*\$?\s*[\d\.,]+)\s+(?<payment>' + $paymentPattern + ')$'
+$sectionMonthMap = @{
+    'ENERO' = 1
+    'FEBRERO' = 2
+    'MARZO' = 3
+}
+
+$targetYear = 2026
+$currentSection = ''
+$yearFixCount = 0
+$monthFixCount = 0
+$swapFixCount = 0
 
 $lines = $rawData -split "`r?`n"
 $inserted = 0
@@ -352,7 +407,11 @@ $failed = 0
 foreach ($line in $lines) {
     $text = ($line -replace "`t", ' ').Trim()
     if ([string]::IsNullOrWhiteSpace($text)) { continue }
-    if ($text -match '^(Marzo|FEBRERO|ENERO)$') { continue }
+
+    if ($text -match 'MARZO') { $currentSection = 'MARZO'; continue }
+    if ($text -match 'FEBRERO') { $currentSection = 'FEBRERO'; continue }
+    if ($text -match 'ENERO') { $currentSection = 'ENERO'; continue }
+
     if ($text -match '^Fecha\s+') { continue }
 
     $text = ($text -replace '\s{2,}', ' ').Trim()
@@ -364,7 +423,7 @@ foreach ($line in $lines) {
     }
 
     try {
-        $date = [DateTime]::ParseExact($matches.date, 'd/M/yyyy', [System.Globalization.CultureInfo]::InvariantCulture)
+        $date = Resolve-Date -rawDate $matches.date -section $currentSection -targetYear $targetYear -sectionMonthMap $sectionMonthMap -yearFixCount ([ref]$yearFixCount) -monthFixCount ([ref]$monthFixCount) -swapFixCount ([ref]$swapFixCount)
         $amount = Parse-Amount $matches.value
 
         $payload = @{
@@ -387,3 +446,6 @@ foreach ($line in $lines) {
 
 Write-Host "Insertados: $inserted" -ForegroundColor Green
 Write-Host "Fallidos:   $failed" -ForegroundColor Yellow
+Write-Host "Ajustes año:        $yearFixCount" -ForegroundColor DarkCyan
+Write-Host "Ajustes mes fijo:   $monthFixCount" -ForegroundColor DarkCyan
+Write-Host "Ajustes día/mes:    $swapFixCount" -ForegroundColor DarkCyan

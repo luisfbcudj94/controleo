@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Controleo.Mobile.StyledSelectorModalPage"
+             BackgroundColor="#AA000000"
+             Shell.NavBarIsVisible="False">
+
+    <Grid Padding="20">
+        <Border VerticalOptions="Center"
+                StrokeShape="RoundRectangle 18"
+                Padding="14"
+                BackgroundColor="#121212"
+                Stroke="#2D2D2D">
+            <Grid RowDefinitions="Auto,*" RowSpacing="10">
+                <Grid ColumnDefinitions="*,Auto" VerticalOptions="Center">
+                    <Label x:Name="TitleLabel"
+                           FontSize="18"
+                           FontAttributes="Bold"
+                           TextColor="White" />
+                    <Button Grid.Column="1"
+                            Text="✕"
+                            WidthRequest="40"
+                            HeightRequest="40"
+                            CornerRadius="20"
+                            BackgroundColor="#2B2B2B"
+                            TextColor="White"
+                            Clicked="OnCloseClicked" />
+                </Grid>
+
+                <CollectionView Grid.Row="1"
+                                x:Name="OptionsCollection"
+                                SelectionMode="None"
+                                HeightRequest="360">
+                    <CollectionView.ItemTemplate>
+                        <DataTemplate>
+                            <Border Padding="12,10"
+                                    Margin="0,0,0,8"
+                                    StrokeShape="RoundRectangle 12"
+                                    BackgroundColor="#1A1A1A"
+                                    Stroke="#2B2B2B"
+                                    MinimumHeightRequest="48">
+                                <Label Text="{Binding .}"
+                                       FontSize="15"
+                                       TextColor="White"
+                                        HorizontalTextAlignment="Center"
+                                        HorizontalOptions="Fill"
+                                       VerticalTextAlignment="Center"
+                                       VerticalOptions="Center" />
+                                <Border.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="OnOptionTapped" />
+                                </Border.GestureRecognizers>
+                            </Border>
+                        </DataTemplate>
+                    </CollectionView.ItemTemplate>
+                </CollectionView>
+            </Grid>
+        </Border>
+    </Grid>
+
+</ContentPage>

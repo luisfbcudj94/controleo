@@ -16,16 +16,26 @@ public partial class MainPage : ContentPage
 		InitializeComponent();
 		_apiClient = apiClient;
 		_monthContext = monthContext;
-		MonthPicker.ItemsSource = _monthContext.MonthOptions.ToList();
+		RefreshMonthPickerItems();
 		_monthContext.MonthChanged += OnMonthChanged;
+		_monthContext.MonthOptionsChanged += OnMonthOptionsChanged;
 		SyncMonthSelection();
-		DatePickerField.Date = DateTime.Today;
+		ApplyDateBoundsForSelectedMonth();
 	}
 
 	protected override async void OnAppearing()
 	{
 		base.OnAppearing();
+		await RefreshMonthOptionsAsync();
 		await LoadCatalogsAsync();
+	}
+
+	private async Task RefreshMonthOptionsAsync()
+	{
+		var monthKeys = await _apiClient.GetAvailableMonthsAsync(CancellationToken.None);
+		_monthContext.SetAvailableMonths(monthKeys);
+		RefreshMonthPickerItems();
+		SyncMonthSelection();
 	}
 
 	private async Task LoadCatalogsAsync()
@@ -110,7 +120,8 @@ public partial class MainPage : ContentPage
 		{
 			DescriptionField.Text = string.Empty;
 			AmountField.Text = string.Empty;
-			DatePickerField.Date = DateTime.Today;
+			ApplyDateBoundsForSelectedMonth();
+			await RefreshMonthOptionsAsync();
 		}
 
 		SaveButton.IsEnabled = true;
@@ -138,6 +149,13 @@ public partial class MainPage : ContentPage
 		if (amount == 0)
 		{
 			errorMessage = "El valor debe ser diferente de cero.";
+			return false;
+		}
+
+		var selectedDate = DateOnly.FromDateTime(DatePickerField.Date);
+		if (selectedDate.Year != _monthContext.SelectedMonth.Year || selectedDate.Month != _monthContext.SelectedMonth.Month)
+		{
+			errorMessage = "La fecha debe pertenecer al mes seleccionado.";
 			return false;
 		}
 
@@ -193,9 +211,26 @@ public partial class MainPage : ContentPage
 		MainThread.BeginInvokeOnMainThread(() =>
 		{
 			SyncMonthSelection();
-			var day = Math.Min(DatePickerField.Date.Day, DateTime.DaysInMonth(month.Year, month.Month));
-			DatePickerField.Date = new DateTime(month.Year, month.Month, day);
+			HeaderMonthBadgeLabel.Text = month.ToString("MMM yyyy", CultureInfo.InvariantCulture);
+			ApplyDateBoundsForSelectedMonth();
 		});
+	}
+
+	private void OnMonthOptionsChanged(object? sender, EventArgs e)
+	{
+		MainThread.BeginInvokeOnMainThread(() =>
+		{
+			RefreshMonthPickerItems();
+			SyncMonthSelection();
+			ApplyDateBoundsForSelectedMonth();
+		});
+	}
+
+	private void RefreshMonthPickerItems()
+	{
+		MonthPicker.ItemsSource = _monthContext.MonthOptions.ToList();
+		MonthSelectorLabel.Text = _monthContext.MonthOptions.FirstOrDefault(item => item.Value == _monthContext.SelectedMonth)?.Label
+			?? _monthContext.SelectedMonth.ToString("MMMM yyyy", CultureInfo.GetCultureInfo("es-CO"));
 	}
 
 	private void SyncMonthSelection()
@@ -209,10 +244,94 @@ public partial class MainPage : ContentPage
 		_isMonthPickerSyncing = true;
 		MonthPicker.SelectedItem = selected;
 		_isMonthPickerSyncing = false;
+		HeaderMonthBadgeLabel.Text = _monthContext.SelectedMonth.ToString("MMM yyyy", CultureInfo.InvariantCulture);
+		MonthSelectorLabel.Text = selected.Label;
+
+		if (MovementTypePicker.SelectedItem is string movement)
+		{
+			MovementTypeSelectorLabel.Text = movement;
+		}
+
+		if (PaymentMethodPicker.SelectedItem is string payment)
+		{
+			PaymentMethodSelectorLabel.Text = payment;
+		}
 	}
 
 	private void SetLoading(bool isLoading)
 	{
 		LoadingOverlay.IsVisible = isLoading;
+	}
+
+	private void ApplyDateBoundsForSelectedMonth()
+	{
+		var month = _monthContext.SelectedMonth;
+		var minDate = new DateTime(month.Year, month.Month, 1);
+		var maxDate = new DateTime(month.Year, month.Month, DateTime.DaysInMonth(month.Year, month.Month));
+
+		DatePickerField.MinimumDate = minDate;
+		DatePickerField.MaximumDate = maxDate;
+
+		var current = DatePickerField.Date;
+		if (current < minDate || current > maxDate)
+		{
+			DatePickerField.Date = minDate;
+		}
+	}
+
+	private async void OnMonthSelectorTapped(object? sender, TappedEventArgs e)
+	{
+		var options = _monthContext.MonthOptions.ToList();
+		var labels = options.Select(item => item.Label).ToList();
+		var current = options.FirstOrDefault(item => item.Value == _monthContext.SelectedMonth)?.Label;
+		var selectedLabel = await StyledSelectorModalPage.PickAsync(this, "Selecciona mes", labels, current);
+		if (string.IsNullOrWhiteSpace(selectedLabel))
+		{
+			return;
+		}
+
+		var selectedOption = options.FirstOrDefault(item => string.Equals(item.Label, selectedLabel, StringComparison.Ordinal));
+		if (selectedOption is not null)
+		{
+			_monthContext.SetMonth(selectedOption.Value);
+		}
+	}
+
+	private async void OnMovementTypeSelectorTapped(object? sender, TappedEventArgs e)
+	{
+		var options = MovementTypePicker.ItemsSource?.Cast<string>().ToList() ?? [];
+		if (options.Count == 0)
+		{
+			return;
+		}
+
+		var current = MovementTypePicker.SelectedItem?.ToString();
+		var selected = await StyledSelectorModalPage.PickAsync(this, "Selecciona tipo", options, current);
+		if (string.IsNullOrWhiteSpace(selected))
+		{
+			return;
+		}
+
+		MovementTypePicker.SelectedItem = selected;
+		MovementTypeSelectorLabel.Text = selected;
+	}
+
+	private async void OnPaymentMethodSelectorTapped(object? sender, TappedEventArgs e)
+	{
+		var options = PaymentMethodPicker.ItemsSource?.Cast<string>().ToList() ?? [];
+		if (options.Count == 0)
+		{
+			return;
+		}
+
+		var current = PaymentMethodPicker.SelectedItem?.ToString();
+		var selected = await StyledSelectorModalPage.PickAsync(this, "Selecciona medio de pago", options, current);
+		if (string.IsNullOrWhiteSpace(selected))
+		{
+			return;
+		}
+
+		PaymentMethodPicker.SelectedItem = selected;
+		PaymentMethodSelectorLabel.Text = selected;
 	}
 }

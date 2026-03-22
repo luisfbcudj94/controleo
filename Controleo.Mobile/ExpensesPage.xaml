@@ -5,25 +5,68 @@
              x:Class="Controleo.Mobile.ExpensesPage"
              Title="Gastos">
 
-    <Grid RowDefinitions="Auto,Auto,*,Auto" Padding="16" RowSpacing="10">
-        <Border StrokeShape="RoundRectangle 12" Padding="10">
+    <Grid RowDefinitions="Auto,Auto,Auto,Auto,*,Auto" Padding="16" RowSpacing="10">
+        <Label Text="Gastos" FontSize="40" FontAttributes="Bold" FontFamily="OpenSansSemibold" />
+
+        <Border Grid.Row="1" StrokeShape="RoundRectangle 16" Padding="10">
             <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
-                <Button Grid.Column="0" Text="◀" WidthRequest="44" Clicked="OnPrevMonthClicked" />
-                <Picker Grid.Column="1"
-                        x:Name="MonthPicker"
-                        Title="Mes"
-                        ItemDisplayBinding="{Binding Label}"
-                        SelectedIndexChanged="OnMonthPickerChanged" />
-                <Button Grid.Column="2" Text="▶" WidthRequest="44" Clicked="OnNextMonthClicked" />
+                <Button Grid.Column="0" Text="◀" WidthRequest="42" HeightRequest="42" CornerRadius="21" Clicked="OnPrevMonthClicked" />
+                <Border Grid.Column="1" StrokeShape="RoundRectangle 12" BackgroundColor="#1D1D1D" Stroke="#2A2A2A" Padding="12,10">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <Label x:Name="MonthSelectorLabel" VerticalOptions="Center" />
+                        <Label Grid.Column="1" Text="▼" FontSize="11" TextColor="{StaticResource AppHint}" VerticalOptions="Center" />
+                    </Grid>
+                    <Border.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnMonthSelectorTapped" />
+                    </Border.GestureRecognizers>
+                </Border>
+                <Button Grid.Column="2" Text="▶" WidthRequest="42" HeightRequest="42" CornerRadius="21" Clicked="OnNextMonthClicked" />
             </Grid>
         </Border>
 
-        <HorizontalStackLayout Grid.Row="1" Spacing="8">
+        <HorizontalStackLayout Grid.Row="2" Spacing="8">
             <Button Text="Ir a registrar"
-                    Clicked="OnGoToRegisterClicked" />
+                    Clicked="OnGoToRegisterClicked"
+                    BackgroundColor="#25253A"
+                    TextColor="{StaticResource AppText}" />
         </HorizontalStackLayout>
 
-        <RefreshView Grid.Row="2"
+        <Border Grid.Row="3" Padding="14" StrokeShape="RoundRectangle 16" BackgroundColor="#111111">
+            <Grid ColumnDefinitions="*" RowDefinitions="Auto,Auto">
+                <Label Text="Movimientos del mes" FontSize="12" TextColor="{StaticResource AppHint}" />
+                <Grid Grid.Row="1" ColumnDefinitions="Auto,Auto,*,Auto,Auto" ColumnSpacing="8" VerticalOptions="Center" Margin="0,8,0,0">
+                    <Label Text="Mostrar" VerticalOptions="Center" FontSize="12" TextColor="{StaticResource AppHint}" />
+                    <Border Grid.Column="1" StrokeShape="RoundRectangle 12" BackgroundColor="#1D1D1D" Stroke="#2A2A2A" Padding="10,8">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <Label x:Name="PageSizeSelectorLabel" VerticalOptions="Center" HorizontalTextAlignment="Center" />
+                            <Label Grid.Column="1" Text="▼" FontSize="11" TextColor="{StaticResource AppHint}" VerticalOptions="Center" />
+                        </Grid>
+                        <Border.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnPageSizeSelectorTapped" />
+                        </Border.GestureRecognizers>
+                    </Border>
+                    <Label Grid.Column="2"
+                           x:Name="PaginationStatusLabel"
+                           HorizontalTextAlignment="Center"
+                           VerticalOptions="Center"
+                           FontSize="12"
+                           TextColor="{StaticResource AppHint}" />
+                    <Button Grid.Column="3" x:Name="PrevPageButton" Text="◀" WidthRequest="40" HeightRequest="40" CornerRadius="20" Clicked="OnPrevPageClicked" />
+                    <Button Grid.Column="4" x:Name="NextPageButton" Text="▶" WidthRequest="40" HeightRequest="40" CornerRadius="20" Clicked="OnNextPageClicked" />
+                </Grid>
+            </Grid>
+        </Border>
+
+        <Picker x:Name="MonthPicker"
+                IsVisible="False"
+                ItemDisplayBinding="{Binding Label}"
+                SelectedIndexChanged="OnMonthPickerChanged" />
+
+        <Picker x:Name="PageSizePicker"
+                IsVisible="False"
+                SelectedIndexChanged="OnPageSizeChanged" />
+
+        <RefreshView Grid.Row="4"
                      x:Name="ExpensesRefreshView"
                      Refreshing="OnRefreshing">
             <CollectionView x:Name="ExpensesCollection"
@@ -35,33 +78,46 @@
                 </CollectionView.EmptyView>
                 <CollectionView.ItemTemplate>
                     <DataTemplate x:DataType="model:ExpenseItem">
-                        <Border Padding="12"
+                        <Border Padding="14"
                                 Margin="0,0,0,10"
-                                StrokeShape="RoundRectangle 12">
+                                StrokeShape="RoundRectangle 16"
+                                BackgroundColor="#111111"
+                                Stroke="#262626">
                             <VerticalStackLayout Spacing="6">
                                 <Grid ColumnDefinitions="*,Auto">
                                     <Label Text="{Binding Description}"
                                            FontAttributes="Bold"
-                                           FontSize="16" />
+                                           FontSize="18" />
                                     <Label Grid.Column="1"
                                            Text="{Binding Amount, StringFormat='${0:N0}'}"
                                            FontAttributes="Bold"
-                                           TextColor="{StaticResource Primary}" />
+                                           FontSize="22"
+                                           TextColor="#B39DFA" />
                                 </Grid>
                                 <Label Text="{Binding Date, StringFormat='Fecha: {0:yyyy-MM-dd}'}"
                                        FontSize="12"
-                                       TextColor="Gray" />
+                                       TextColor="{StaticResource AppHint}" />
                                 <Label Text="{Binding MovementType, StringFormat='Sección: {0}'}" FontSize="12" />
                                 <Label Text="{Binding PaymentMethod, StringFormat='Medio de pago: {0}'}" FontSize="12" />
                                 <HorizontalStackLayout Spacing="8">
-                                    <Button Text="Editar"
-                                            CommandParameter="{Binding .}"
-                                            Clicked="OnEditExpenseClicked" />
-                                    <Button Text="Eliminar"
-                                            BackgroundColor="{AppThemeBinding Light={StaticResource Gray900}, Dark={StaticResource Gray200}}"
-                                            TextColor="{AppThemeBinding Light={StaticResource White}, Dark={StaticResource Black}}"
-                                            CommandParameter="{Binding .}"
-                                            Clicked="OnDeleteExpenseClicked" />
+                                    <ImageButton Source="bi_pencil.svg"
+                                                 WidthRequest="36"
+                                                 HeightRequest="36"
+                                                 CornerRadius="8"
+                                                 Padding="6"
+                                                 BackgroundColor="{StaticResource ActionEdit}"
+                                         SemanticProperties.Description="Editar gasto"
+                                         CommandParameter="{Binding .}"
+                                         Clicked="OnEditExpenseClicked" />
+                                    <ImageButton Source="bi_trash.svg"
+                                                 WidthRequest="36"
+                                                 HeightRequest="36"
+                                                 CornerRadius="8"
+                                                 Padding="6"
+                                                 BackgroundColor="{StaticResource ActionDelete}"
+                                         SemanticProperties.Description="Eliminar gasto"
+                                         CommandParameter="{Binding .}"
+                                         Clicked="OnDeleteExpenseClicked" />
                                 </HorizontalStackLayout>
                             </VerticalStackLayout>
                         </Border>
@@ -70,7 +126,7 @@
             </CollectionView>
         </RefreshView>
 
-        <Border Grid.Row="3"
+        <Border Grid.Row="5"
                 x:Name="EditPanel"
                 IsVisible="False"
                 Padding="12"
@@ -83,21 +139,30 @@
                 <Picker x:Name="EditMovementPicker" Title="Tipo de movimiento" />
                 <Picker x:Name="EditPaymentPicker" Title="Medio de pago" />
                 <HorizontalStackLayout Spacing="8">
-                    <Button x:Name="SaveEditButton" Text="Guardar cambios" Clicked="OnSaveEditClicked" />
+                    <ImageButton x:Name="SaveEditButton"
+                                 Source="bi_floppy.svg"
+                                 WidthRequest="44"
+                                 HeightRequest="44"
+                                 CornerRadius="8"
+                                 Padding="7"
+                                 BackgroundColor="{StaticResource ActionSave}"
+                                 SemanticProperties.Description="Guardar cambios"
+                                 Clicked="OnSaveEditClicked" />
                     <Button Text="Cancelar"
                             Clicked="OnCancelEditClicked"
-                            BackgroundColor="{AppThemeBinding Light={StaticResource Gray900}, Dark={StaticResource Gray200}}"
-                            TextColor="{AppThemeBinding Light={StaticResource White}, Dark={StaticResource Black}}" />
+                            BackgroundColor="#2B2B2B"
+                            TextColor="{StaticResource AppText}" />
                 </HorizontalStackLayout>
                 <Label x:Name="StatusLabel" FontSize="12" TextColor="Gray" />
             </VerticalStackLayout>
         </Border>
 
         <Grid x:Name="LoadingOverlay"
-              Grid.RowSpan="4"
+              Grid.RowSpan="6"
               IsVisible="False"
               BackgroundColor="#66000000"
-              InputTransparent="False">
+              InputTransparent="False"
+              Margin="-16">
             <ActivityIndicator IsRunning="True"
                                WidthRequest="52"
                                HeightRequest="52"

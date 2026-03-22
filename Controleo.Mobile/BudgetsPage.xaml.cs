@@ -19,17 +19,28 @@ public partial class BudgetsPage : ContentPage
         InitializeComponent();
         _apiClient = apiClient;
         _monthContext = monthContext;
-        MonthPicker.ItemsSource = _monthContext.MonthOptions.ToList();
+        RefreshMonthPickerItems();
         _monthContext.MonthChanged += OnMonthChanged;
+        _monthContext.MonthOptionsChanged += OnMonthOptionsChanged;
         SyncMonthSelection();
         BudgetsCollection.ItemsSource = _budgets;
+        MovementTypeSelectorLabel.Text = "Seleccionar sección";
     }
 
     protected override async void OnAppearing()
     {
         base.OnAppearing();
         _isActive = true;
+        await RefreshMonthOptionsAsync();
         await LoadDataAsync();
+    }
+
+    private async Task RefreshMonthOptionsAsync()
+    {
+        var monthKeys = await _apiClient.GetAvailableMonthsAsync(CancellationToken.None);
+        _monthContext.SetAvailableMonths(monthKeys);
+        RefreshMonthPickerItems();
+        SyncMonthSelection();
     }
 
     protected override void OnDisappearing()
@@ -63,7 +74,9 @@ public partial class BudgetsPage : ContentPage
                 MovementTypePicker.SelectedIndex = 0;
             }
 
-            var items = await _apiClient.GetBudgetsAsync(_monthContext.SelectedMonthKey, CancellationToken.None);
+            MovementTypeSelectorLabel.Text = MovementTypePicker.SelectedItem?.ToString() ?? "Seleccionar sección";
+
+            var items = await _apiClient.GetBudgetsAsync(CancellationToken.None);
             _budgets.Clear();
             foreach (var item in items.OrderBy(row => row.MovementType))
             {
@@ -101,7 +114,7 @@ public partial class BudgetsPage : ContentPage
 
         SaveBudgetButton.IsEnabled = false;
         SetLoading(true);
-        var result = await _apiClient.UpsertBudgetAsync(MovementTypePicker.SelectedItem.ToString()!, amount, _monthContext.SelectedMonthKey, CancellationToken.None);
+        var result = await _apiClient.UpsertBudgetAsync(MovementTypePicker.SelectedItem.ToString()!, amount, CancellationToken.None);
         StatusLabel.Text = result.Message;
         SaveBudgetButton.IsEnabled = true;
         SetLoading(false);
@@ -115,7 +128,7 @@ public partial class BudgetsPage : ContentPage
 
     private async void OnDeleteBudgetClicked(object? sender, EventArgs e)
     {
-        if ((sender as Button)?.CommandParameter is not string movementType)
+        if ((sender as ImageButton)?.CommandParameter is not string movementType)
         {
             return;
         }
@@ -127,7 +140,7 @@ public partial class BudgetsPage : ContentPage
         }
 
         SetLoading(true);
-        var result = await _apiClient.DeleteBudgetAsync(movementType, _monthContext.SelectedMonthKey, CancellationToken.None);
+        var result = await _apiClient.DeleteBudgetAsync(movementType, CancellationToken.None);
         StatusLabel.Text = result.Message;
         if (result.IsSuccess)
         {
@@ -175,6 +188,20 @@ public partial class BudgetsPage : ContentPage
         });
     }
 
+    private void OnMonthOptionsChanged(object? sender, EventArgs e)
+    {
+        MainThread.BeginInvokeOnMainThread(() =>
+        {
+            RefreshMonthPickerItems();
+            SyncMonthSelection();
+        });
+    }
+
+    private void RefreshMonthPickerItems()
+    {
+        MonthPicker.ItemsSource = _monthContext.MonthOptions.ToList();
+    }
+
     private void SyncMonthSelection()
     {
         var selected = _monthContext.MonthOptions.FirstOrDefault(item => item.Value == _monthContext.SelectedMonth);
@@ -186,10 +213,56 @@ public partial class BudgetsPage : ContentPage
         _isMonthPickerSyncing = true;
         MonthPicker.SelectedItem = selected;
         _isMonthPickerSyncing = false;
+        MonthSelectorLabel.Text = selected.Label;
     }
 
     private void SetLoading(bool isLoading)
     {
         LoadingOverlay.IsVisible = isLoading;
+    }
+
+    private async void OnMonthSelectorTapped(object? sender, EventArgs e)
+    {
+        var monthOptions = _monthContext.MonthOptions.ToList();
+        if (monthOptions.Count == 0)
+        {
+            return;
+        }
+
+        var options = monthOptions.Select(option => option.Label).ToList();
+        var selected = await StyledSelectorModalPage.PickAsync(this, "Seleccionar mes", options, MonthSelectorLabel.Text);
+        if (selected is null)
+        {
+            return;
+        }
+
+        var selectedMonth = monthOptions.FirstOrDefault(option => option.Label == selected);
+        if (selectedMonth is not null)
+        {
+            _monthContext.SetMonth(selectedMonth.Value);
+        }
+    }
+
+    private async void OnMovementTypeSelectorTapped(object? sender, EventArgs e)
+    {
+        var movementTypes = MovementTypePicker.ItemsSource?.Cast<string>().ToList() ?? [];
+        if (movementTypes.Count == 0)
+        {
+            return;
+        }
+
+        var selected = await StyledSelectorModalPage.PickAsync(this, "Seleccionar sección", movementTypes, MovementTypeSelectorLabel.Text);
+        if (selected is null)
+        {
+            return;
+        }
+
+        if (MovementTypePicker.SelectedItem?.ToString() == selected)
+        {
+            return;
+        }
+
+        MovementTypePicker.SelectedItem = selected;
+        MovementTypeSelectorLabel.Text = selected;
     }
 }

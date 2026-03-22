@@ -147,6 +147,68 @@ public sealed class FirestoreExpenseStorageService : IExpenseStorageService
             .ToArray();
     }
 
+    public async Task<PagedExpenseResult> GetExpensesPageAsync(string monthKey, int pageNumber, int pageSize, string? movementType, CancellationToken cancellationToken)
+    {
+        var normalizedPageNumber = pageNumber < 1 ? 1 : pageNumber;
+        var normalizedPageSize = pageSize <= 0 ? 5 : pageSize;
+
+        var data = await GetExpensesAsync(monthKey, cancellationToken);
+
+        if (!string.IsNullOrWhiteSpace(movementType))
+        {
+            data = data
+                .Where(item => string.Equals(item.MovementType, movementType.Trim(), StringComparison.OrdinalIgnoreCase))
+                .ToArray();
+        }
+
+        var totalCount = data.Count;
+        var totalAmount = data.Sum(item => item.Amount);
+        var totalPages = totalCount == 0 ? 1 : (int)Math.Ceiling(totalCount / (double)normalizedPageSize);
+        var safePageNumber = Math.Min(normalizedPageNumber, totalPages);
+        var skip = (safePageNumber - 1) * normalizedPageSize;
+        var items = data
+            .Skip(skip)
+            .Take(normalizedPageSize)
+            .ToArray();
+
+        return new PagedExpenseResult(
+            items,
+            safePageNumber,
+            normalizedPageSize,
+            totalCount,
+                totalAmount,
+            totalPages,
+            safePageNumber > 1,
+            safePageNumber < totalPages);
+    }
+
+    public async Task<IReadOnlyList<string>> GetAvailableMonthKeysAsync(CancellationToken cancellationToken)
+    {
+        var snapshot = await _firestoreDb
+            .Collection(_options.CollectionName)
+            .Limit(5000)
+            .GetSnapshotAsync(cancellationToken);
+
+        var monthKeys = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var doc in snapshot.Documents)
+        {
+            if (doc.TryGetValue("monthKey", out string? monthKey) && IsValidMonthKey(monthKey))
+            {
+                monthKeys.Add(monthKey!);
+                continue;
+            }
+
+            if (doc.TryGetValue("date", out string? dateText) && TryParseDate(dateText, out var date))
+            {
+                monthKeys.Add(date.ToString("yyyy-MM"));
+            }
+        }
+
+        return monthKeys
+            .OrderBy(item => item, StringComparer.Ordinal)
+            .ToArray();
+    }
+
     public async Task<OperationResult> UpdateExpenseAsync(string expenseId, ExpenseEntryRequest request, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(expenseId))
@@ -285,22 +347,23 @@ public sealed class FirestoreExpenseStorageService : IExpenseStorageService
         }
     }
 
-    public async Task<IReadOnlyList<BudgetItem>> GetBudgetsAsync(string monthKey, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<BudgetItem>> GetBudgetsAsync(CancellationToken cancellationToken)
     {
         var query = _firestoreDb
-            .Collection(_options.BudgetsCollectionName)
-            .WhereEqualTo("monthKey", monthKey);
+            .Collection(_options.BudgetsCollectionName);
 
         var snapshot = await query.GetSnapshotAsync(cancellationToken);
         return snapshot.Documents
             .Select(MapBudget)
             .Where(item => item is not null)
             .Cast<BudgetItem>()
+            .GroupBy(item => item.MovementType, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.OrderByDescending(item => item.UpdatedAt).First())
             .OrderBy(item => item.MovementType)
             .ToArray();
     }
 
-    public async Task<OperationResult> UpsertBudgetAsync(string movementType, string monthKey, BudgetUpsertRequest request, CancellationToken cancellationToken)
+    public async Task<OperationResult> UpsertBudgetAsync(string movementType, BudgetUpsertRequest request, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(movementType))
         {
@@ -312,20 +375,20 @@ public sealed class FirestoreExpenseStorageService : IExpenseStorageService
             return new OperationResult(false, "El presupuesto no puede ser negativo.");
         }
 
+        var normalizedMovementType = movementType.Trim();
         var catalog = await GetCatalogsAsync(cancellationToken);
-        if (!IsAllowedValue(movementType, catalog.MovementTypes))
+        if (!IsAllowedValue(normalizedMovementType, catalog.MovementTypes))
         {
             return new OperationResult(false, "La sección no existe en configuración.");
         }
 
         try
         {
-            var key = BuildBudgetKey(movementType, monthKey);
+            var key = BuildGlobalBudgetKey(normalizedMovementType);
             var doc = _firestoreDb.Collection(_options.BudgetsCollectionName).Document(key);
             await doc.SetAsync(new Dictionary<string, object>
             {
-                ["movementType"] = movementType.Trim(),
-                ["monthKey"] = monthKey,
+                ["movementType"] = normalizedMovementType,
                 ["amount"] = Convert.ToDouble(request.Amount),
                 ["updatedAt"] = Timestamp.GetCurrentTimestamp()
             }, cancellationToken: cancellationToken);
@@ -338,7 +401,7 @@ public sealed class FirestoreExpenseStorageService : IExpenseStorageService
         }
     }
 
-    public async Task<OperationResult> DeleteBudgetAsync(string movementType, string monthKey, CancellationToken cancellationToken)
+    public async Task<OperationResult> DeleteBudgetAsync(string movementType, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(movementType))
         {
@@ -347,8 +410,27 @@ public sealed class FirestoreExpenseStorageService : IExpenseStorageService
 
         try
         {
-            var key = BuildBudgetKey(movementType, monthKey);
-            await _firestoreDb.Collection(_options.BudgetsCollectionName).Document(key).DeleteAsync();
+            var normalizedMovementType = movementType.Trim();
+            var collection = _firestoreDb.Collection(_options.BudgetsCollectionName);
+
+            var key = BuildGlobalBudgetKey(normalizedMovementType);
+            await collection.Document(key).DeleteAsync();
+
+            var legacyEntries = await collection
+                .WhereEqualTo("movementType", normalizedMovementType)
+                .GetSnapshotAsync(cancellationToken);
+
+            if (legacyEntries.Count > 0)
+            {
+                var batch = _firestoreDb.StartBatch();
+                foreach (var doc in legacyEntries.Documents)
+                {
+                    batch.Delete(doc.Reference);
+                }
+
+                await batch.CommitAsync(cancellationToken);
+            }
+
             return new OperationResult(true, "Presupuesto eliminado correctamente.");
         }
         catch (Exception ex)
@@ -360,7 +442,7 @@ public sealed class FirestoreExpenseStorageService : IExpenseStorageService
     public async Task<IReadOnlyList<DashboardCategoryItem>> GetDashboardByCategoryAsync(string monthKey, CancellationToken cancellationToken)
     {
         var catalog = await GetCatalogsAsync(cancellationToken);
-        var budgets = await GetBudgetsAsync(monthKey, cancellationToken);
+        var budgets = await GetBudgetsAsync(cancellationToken);
         var expenses = await GetExpensesAsync(monthKey, cancellationToken);
 
         var budgetMap = budgets.ToDictionary(item => item.MovementType, item => item.Amount, StringComparer.OrdinalIgnoreCase);
@@ -415,10 +497,35 @@ public sealed class FirestoreExpenseStorageService : IExpenseStorageService
             .ToArray();
     }
 
-    private static string BuildBudgetKey(string movementType, string monthKey)
+    private static string BuildGlobalBudgetKey(string movementType)
     {
         var safeMovementType = movementType.Trim().Replace("/", "_", StringComparison.Ordinal).ToLowerInvariant();
-        return $"{monthKey}-{safeMovementType}";
+        return $"global-{safeMovementType}";
+    }
+
+    private static bool IsValidMonthKey(string? monthKey)
+    {
+        if (string.IsNullOrWhiteSpace(monthKey))
+        {
+            return false;
+        }
+
+        return DateOnly.TryParseExact(
+            $"{monthKey}-01",
+            "yyyy-MM-dd",
+            System.Globalization.CultureInfo.InvariantCulture,
+            System.Globalization.DateTimeStyles.None,
+            out _);
+    }
+
+    private static bool TryParseDate(string? rawDate, out DateOnly date)
+    {
+        if (DateOnly.TryParseExact(rawDate, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out date))
+        {
+            return true;
+        }
+
+        return DateOnly.TryParse(rawDate, out date);
     }
 
     private static ExpenseItem? MapExpense(DocumentSnapshot doc)

@@ -12,6 +12,8 @@ public partial class SettingsPage : ContentPage
     private readonly ObservableCollection<string> _paymentMethods = [];
     private string? _selectedMovement;
     private string? _selectedPayment;
+    private bool _isEditingMovement;
+    private string? _editingOriginalValue;
     private bool _isRefreshing;
     private bool _isMonthPickerSyncing;
     private bool _isActive;
@@ -21,8 +23,9 @@ public partial class SettingsPage : ContentPage
         InitializeComponent();
         _apiClient = apiClient;
         _monthContext = monthContext;
-        MonthPicker.ItemsSource = _monthContext.MonthOptions.ToList();
+        RefreshMonthPickerItems();
         _monthContext.MonthChanged += OnMonthChanged;
+        _monthContext.MonthOptionsChanged += OnMonthOptionsChanged;
         SyncMonthSelection();
         MovementCollection.ItemsSource = _movementTypes;
         PaymentCollection.ItemsSource = _paymentMethods;
@@ -32,7 +35,16 @@ public partial class SettingsPage : ContentPage
     {
         base.OnAppearing();
         _isActive = true;
+        await RefreshMonthOptionsAsync();
         await LoadDataAsync();
+    }
+
+    private async Task RefreshMonthOptionsAsync()
+    {
+        var monthKeys = await _apiClient.GetAvailableMonthsAsync(CancellationToken.None);
+        _monthContext.SetAvailableMonths(monthKeys);
+        RefreshMonthPickerItems();
+        SyncMonthSelection();
     }
 
     protected override void OnDisappearing()
@@ -78,17 +90,23 @@ public partial class SettingsPage : ContentPage
         }
     }
 
-    private void OnAddMovementClicked(object? sender, EventArgs e)
+    private async void OnAddMovementClicked(object? sender, EventArgs e)
     {
-        AddItem(_movementTypes, NewMovementEntry, "sección");
+        if (AddItem(_movementTypes, NewMovementEntry, "sección"))
+        {
+            await SaveCatalogsAsync();
+        }
     }
 
-    private void OnAddPaymentClicked(object? sender, EventArgs e)
+    private async void OnAddPaymentClicked(object? sender, EventArgs e)
     {
-        AddItem(_paymentMethods, NewPaymentEntry, "medio de pago");
+        if (AddItem(_paymentMethods, NewPaymentEntry, "medio de pago"))
+        {
+            await SaveCatalogsAsync();
+        }
     }
 
-    private async void OnEditMovementClicked(object? sender, EventArgs e)
+    private void OnEditMovementClicked(object? sender, EventArgs e)
     {
         if (string.IsNullOrWhiteSpace(_selectedMovement))
         {
@@ -96,17 +114,14 @@ public partial class SettingsPage : ContentPage
             return;
         }
 
-        var edited = await DisplayPromptAsync("Editar sección", "Nuevo nombre:", initialValue: _selectedMovement);
-        if (string.IsNullOrWhiteSpace(edited))
-        {
-            return;
-        }
-
-        ReplaceItem(_movementTypes, _selectedMovement, edited.Trim());
-        _selectedMovement = edited.Trim();
+        _isEditingMovement = true;
+        _editingOriginalValue = _selectedMovement;
+        EditModalTitleLabel.Text = "Editar sección";
+        EditModalEntry.Text = _selectedMovement;
+        EditOverlay.IsVisible = true;
     }
 
-    private async void OnEditPaymentClicked(object? sender, EventArgs e)
+    private void OnEditPaymentClicked(object? sender, EventArgs e)
     {
         if (string.IsNullOrWhiteSpace(_selectedPayment))
         {
@@ -114,35 +129,34 @@ public partial class SettingsPage : ContentPage
             return;
         }
 
-        var edited = await DisplayPromptAsync("Editar medio de pago", "Nuevo nombre:", initialValue: _selectedPayment);
-        if (string.IsNullOrWhiteSpace(edited))
-        {
-            return;
-        }
-
-        ReplaceItem(_paymentMethods, _selectedPayment, edited.Trim());
-        _selectedPayment = edited.Trim();
+        _isEditingMovement = false;
+        _editingOriginalValue = _selectedPayment;
+        EditModalTitleLabel.Text = "Editar medio de pago";
+        EditModalEntry.Text = _selectedPayment;
+        EditOverlay.IsVisible = true;
     }
 
-    private void OnDeleteMovementClicked(object? sender, EventArgs e)
+    private async void OnDeleteMovementClicked(object? sender, EventArgs e)
     {
         if (!string.IsNullOrWhiteSpace(_selectedMovement))
         {
             _movementTypes.Remove(_selectedMovement);
             _selectedMovement = null;
+            await SaveCatalogsAsync();
         }
     }
 
-    private void OnDeletePaymentClicked(object? sender, EventArgs e)
+    private async void OnDeletePaymentClicked(object? sender, EventArgs e)
     {
         if (!string.IsNullOrWhiteSpace(_selectedPayment))
         {
             _paymentMethods.Remove(_selectedPayment);
             _selectedPayment = null;
+            await SaveCatalogsAsync();
         }
     }
 
-    private async void OnSaveSettingsClicked(object? sender, EventArgs e)
+    private async Task SaveCatalogsAsync()
     {
         if (_movementTypes.Count == 0 || _paymentMethods.Count == 0)
         {
@@ -150,14 +164,12 @@ public partial class SettingsPage : ContentPage
             return;
         }
 
-        SaveSettingsButton.IsEnabled = false;
         SetLoading(true);
 
         var request = new UpdateCatalogsRequest(_movementTypes.ToList(), _paymentMethods.ToList());
         var result = await _apiClient.UpdateCatalogsAsync(request, CancellationToken.None);
 
         StatusLabel.Text = result.Message;
-        SaveSettingsButton.IsEnabled = true;
         SetLoading(false);
     }
 
@@ -171,24 +183,25 @@ public partial class SettingsPage : ContentPage
         _selectedPayment = e.CurrentSelection.FirstOrDefault()?.ToString();
     }
 
-    private void AddItem(ObservableCollection<string> source, Entry entry, string label)
+    private bool AddItem(ObservableCollection<string> source, Entry entry, string label)
     {
         var value = entry.Text?.Trim();
         if (string.IsNullOrWhiteSpace(value))
         {
             StatusLabel.Text = $"Ingresa un nombre de {label}.";
-            return;
+            return false;
         }
 
         if (source.Any(item => string.Equals(item, value, StringComparison.OrdinalIgnoreCase)))
         {
             StatusLabel.Text = $"Ese {label} ya existe.";
-            return;
+            return false;
         }
 
         source.Add(value);
         entry.Text = string.Empty;
         StatusLabel.Text = string.Empty;
+        return true;
     }
 
     private static void ReplaceItem(ObservableCollection<string> source, string oldValue, string newValue)
@@ -236,6 +249,20 @@ public partial class SettingsPage : ContentPage
         MainThread.BeginInvokeOnMainThread(SyncMonthSelection);
     }
 
+    private void OnMonthOptionsChanged(object? sender, EventArgs e)
+    {
+        MainThread.BeginInvokeOnMainThread(() =>
+        {
+            RefreshMonthPickerItems();
+            SyncMonthSelection();
+        });
+    }
+
+    private void RefreshMonthPickerItems()
+    {
+        MonthPicker.ItemsSource = _monthContext.MonthOptions.ToList();
+    }
+
     private void SyncMonthSelection()
     {
         var selected = _monthContext.MonthOptions.FirstOrDefault(item => item.Value == _monthContext.SelectedMonth);
@@ -247,10 +274,75 @@ public partial class SettingsPage : ContentPage
         _isMonthPickerSyncing = true;
         MonthPicker.SelectedItem = selected;
         _isMonthPickerSyncing = false;
+        MonthSelectorLabel.Text = selected.Label;
     }
 
     private void SetLoading(bool isLoading)
     {
         LoadingOverlay.IsVisible = isLoading;
+    }
+
+    private void OnCancelEditModalClicked(object? sender, EventArgs e)
+    {
+        EditOverlay.IsVisible = false;
+        _editingOriginalValue = null;
+    }
+
+    private async void OnMonthSelectorTapped(object? sender, EventArgs e)
+    {
+        var monthOptions = _monthContext.MonthOptions.ToList();
+        if (monthOptions.Count == 0)
+        {
+            return;
+        }
+
+        var options = monthOptions.Select(option => option.Label).ToList();
+        var selected = await StyledSelectorModalPage.PickAsync(this, "Seleccionar mes", options, MonthSelectorLabel.Text);
+        if (selected is null)
+        {
+            return;
+        }
+
+        var selectedMonth = monthOptions.FirstOrDefault(option => option.Label == selected);
+        if (selectedMonth is not null)
+        {
+            _monthContext.SetMonth(selectedMonth.Value);
+        }
+    }
+
+    private async void OnConfirmEditModalClicked(object? sender, EventArgs e)
+    {
+        var edited = EditModalEntry.Text?.Trim();
+        if (string.IsNullOrWhiteSpace(edited) || string.IsNullOrWhiteSpace(_editingOriginalValue))
+        {
+            return;
+        }
+
+        if (_isEditingMovement)
+        {
+            if (_movementTypes.Any(item => !string.Equals(item, _editingOriginalValue, StringComparison.OrdinalIgnoreCase) && string.Equals(item, edited, StringComparison.OrdinalIgnoreCase)))
+            {
+                StatusLabel.Text = "Esa sección ya existe.";
+                return;
+            }
+
+            ReplaceItem(_movementTypes, _editingOriginalValue, edited);
+            _selectedMovement = edited;
+        }
+        else
+        {
+            if (_paymentMethods.Any(item => !string.Equals(item, _editingOriginalValue, StringComparison.OrdinalIgnoreCase) && string.Equals(item, edited, StringComparison.OrdinalIgnoreCase)))
+            {
+                StatusLabel.Text = "Ese medio de pago ya existe.";
+                return;
+            }
+
+            ReplaceItem(_paymentMethods, _editingOriginalValue, edited);
+            _selectedPayment = edited;
+        }
+
+        EditOverlay.IsVisible = false;
+        _editingOriginalValue = null;
+        await SaveCatalogsAsync();
     }
 }

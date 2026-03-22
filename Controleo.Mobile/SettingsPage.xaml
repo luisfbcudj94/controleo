@@ -4,18 +4,23 @@
              x:Class="Controleo.Mobile.SettingsPage"
              Title="Configuración">
 
-    <RefreshView x:Name="SettingsRefreshView"
-                 Refreshing="OnRefreshing">
-    <ScrollView>
-        <VerticalStackLayout Padding="16" Spacing="12">
+    <Grid RowDefinitions="*">
+        <RefreshView x:Name="SettingsRefreshView"
+                     Refreshing="OnRefreshing">
+            <ScrollView>
+                <VerticalStackLayout Padding="16" Spacing="12">
             <Border StrokeShape="RoundRectangle 12" Padding="10">
                 <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
                     <Button Grid.Column="0" Text="◀" WidthRequest="44" Clicked="OnPrevMonthClicked" />
-                    <Picker Grid.Column="1"
-                            x:Name="MonthPicker"
-                            Title="Mes"
-                            ItemDisplayBinding="{Binding Label}"
-                            SelectedIndexChanged="OnMonthPickerChanged" />
+                    <Border Grid.Column="1" StrokeShape="RoundRectangle 12" BackgroundColor="#1D1D1D" Stroke="#2A2A2A" Padding="12,10">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <Label x:Name="MonthSelectorLabel" VerticalOptions="Center" />
+                            <Label Grid.Column="1" Text="▼" FontSize="11" TextColor="{StaticResource AppHint}" VerticalOptions="Center" />
+                        </Grid>
+                        <Border.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnMonthSelectorTapped" />
+                        </Border.GestureRecognizers>
+                    </Border>
                     <Button Grid.Column="2" Text="▶" WidthRequest="44" Clicked="OnNextMonthClicked" />
                 </Grid>
             </Border>
@@ -25,13 +30,32 @@
                     <Label Text="Secciones de gasto" FontAttributes="Bold" FontSize="18" />
                     <Entry x:Name="NewMovementEntry" Placeholder="Nueva sección" />
                     <Button Text="Agregar sección" Clicked="OnAddMovementClicked" />
-                    <CollectionView x:Name="MovementCollection" SelectionMode="Single" SelectionChanged="OnMovementSelectionChanged" HeightRequest="180" />
+                    <CollectionView x:Name="MovementCollection" SelectionMode="Single" SelectionChanged="OnMovementSelectionChanged" HeightRequest="180">
+                        <CollectionView.ItemTemplate>
+                            <DataTemplate>
+                                <Border Padding="10" Margin="0,0,0,6" StrokeShape="RoundRectangle 10">
+                                    <Label Text="{Binding .}" />
+                                </Border>
+                            </DataTemplate>
+                        </CollectionView.ItemTemplate>
+                    </CollectionView>
                     <HorizontalStackLayout Spacing="8">
-                        <Button Text="Editar" Clicked="OnEditMovementClicked" />
-                        <Button Text="Eliminar"
-                                Clicked="OnDeleteMovementClicked"
-                                BackgroundColor="{AppThemeBinding Light={StaticResource Gray900}, Dark={StaticResource Gray200}}"
-                                TextColor="{AppThemeBinding Light={StaticResource White}, Dark={StaticResource Black}}" />
+                        <ImageButton Source="bi_pencil.svg"
+                                     WidthRequest="36"
+                                     HeightRequest="36"
+                                     CornerRadius="8"
+                                     Padding="6"
+                                     BackgroundColor="{StaticResource ActionEdit}"
+                                 SemanticProperties.Description="Editar sección"
+                                 Clicked="OnEditMovementClicked" />
+                        <ImageButton Source="bi_trash.svg"
+                                     WidthRequest="36"
+                                     HeightRequest="36"
+                                     CornerRadius="8"
+                                     Padding="6"
+                                     BackgroundColor="{StaticResource ActionDelete}"
+                                 SemanticProperties.Description="Eliminar sección"
+                                 Clicked="OnDeleteMovementClicked" />
                     </HorizontalStackLayout>
                 </VerticalStackLayout>
             </Border>
@@ -41,36 +65,88 @@
                     <Label Text="Medios de pago" FontAttributes="Bold" FontSize="18" />
                     <Entry x:Name="NewPaymentEntry" Placeholder="Nuevo medio de pago" />
                     <Button Text="Agregar medio" Clicked="OnAddPaymentClicked" />
-                    <CollectionView x:Name="PaymentCollection" SelectionMode="Single" SelectionChanged="OnPaymentSelectionChanged" HeightRequest="180" />
+                    <CollectionView x:Name="PaymentCollection" SelectionMode="Single" SelectionChanged="OnPaymentSelectionChanged" HeightRequest="180">
+                        <CollectionView.ItemTemplate>
+                            <DataTemplate>
+                                <Border Padding="10" Margin="0,0,0,6" StrokeShape="RoundRectangle 10">
+                                    <Label Text="{Binding .}" />
+                                </Border>
+                            </DataTemplate>
+                        </CollectionView.ItemTemplate>
+                    </CollectionView>
                     <HorizontalStackLayout Spacing="8">
-                        <Button Text="Editar" Clicked="OnEditPaymentClicked" />
-                        <Button Text="Eliminar"
-                                Clicked="OnDeletePaymentClicked"
-                                BackgroundColor="{AppThemeBinding Light={StaticResource Gray900}, Dark={StaticResource Gray200}}"
-                                TextColor="{AppThemeBinding Light={StaticResource White}, Dark={StaticResource Black}}" />
+                        <ImageButton Source="bi_pencil.svg"
+                                     WidthRequest="36"
+                                     HeightRequest="36"
+                                     CornerRadius="8"
+                                     Padding="6"
+                                     BackgroundColor="{StaticResource ActionEdit}"
+                                 SemanticProperties.Description="Editar medio de pago"
+                                 Clicked="OnEditPaymentClicked" />
+                        <ImageButton Source="bi_trash.svg"
+                                     WidthRequest="36"
+                                     HeightRequest="36"
+                                     CornerRadius="8"
+                                     Padding="6"
+                                     BackgroundColor="{StaticResource ActionDelete}"
+                                 SemanticProperties.Description="Eliminar medio de pago"
+                                 Clicked="OnDeletePaymentClicked" />
                     </HorizontalStackLayout>
                 </VerticalStackLayout>
             </Border>
 
-            <Button x:Name="SaveSettingsButton"
-                    Text="Guardar configuración"
-                    Clicked="OnSaveSettingsClicked" />
-
             <Label x:Name="StatusLabel" FontSize="12" TextColor="Gray" />
-        </VerticalStackLayout>
-    </ScrollView>
-    </RefreshView>
+                </VerticalStackLayout>
+            </ScrollView>
+        </RefreshView>
+
+        <Grid x:Name="EditOverlay"
+              IsVisible="False"
+              BackgroundColor="#AA000000"
+              InputTransparent="False"
+              ZIndex="20">
+            <Border StrokeShape="RoundRectangle 16"
+                    Padding="14"
+                    Margin="20"
+                    VerticalOptions="Center"
+                    BackgroundColor="#121212"
+                    Stroke="#2D2D2D">
+                <VerticalStackLayout Spacing="10">
+                    <Label x:Name="EditModalTitleLabel" Text="Editar" FontSize="18" FontAttributes="Bold" />
+                    <Label Text="Nuevo nombre" FontSize="12" TextColor="{StaticResource AppHint}" />
+                    <Entry x:Name="EditModalEntry" Placeholder="Nombre" />
+                    <HorizontalStackLayout HorizontalOptions="End" Spacing="8">
+                        <Button Text="Cancelar"
+                                Clicked="OnCancelEditModalClicked"
+                                BackgroundColor="#2B2B2B"
+                                TextColor="{StaticResource AppText}" />
+                        <Button Text="Guardar"
+                                Clicked="OnConfirmEditModalClicked"
+                                BackgroundColor="{StaticResource ActionSave}"
+                                TextColor="White" />
+                    </HorizontalStackLayout>
+                </VerticalStackLayout>
+            </Border>
+        </Grid>
 
         <Grid x:Name="LoadingOverlay"
-                    IsVisible="False"
-                    BackgroundColor="#66000000"
-                    InputTransparent="False">
-                <ActivityIndicator IsRunning="True"
-                                                     WidthRequest="52"
-                                                     HeightRequest="52"
-                                                     Color="White"
-                                                     HorizontalOptions="Center"
-                                                     VerticalOptions="Center" />
+              Grid.Row="0"
+              IsVisible="False"
+              BackgroundColor="#66000000"
+              InputTransparent="False"
+              ZIndex="10">
+            <ActivityIndicator IsRunning="True"
+                               WidthRequest="52"
+                               HeightRequest="52"
+                               Color="White"
+                               HorizontalOptions="Center"
+                               VerticalOptions="Center" />
         </Grid>
+
+                    <Picker x:Name="MonthPicker"
+                        IsVisible="False"
+                        ItemDisplayBinding="{Binding Label}"
+                        SelectedIndexChanged="OnMonthPickerChanged" />
+    </Grid>
 
 </ContentPage>

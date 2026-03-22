@@ -5,12 +5,14 @@
              x:Class="Controleo.Mobile.SectionExpensesModalPage"
              Title="Detalle sección">
 
-    <Grid Padding="16" RowSpacing="10" RowDefinitions="Auto,Auto,*">
+        <Grid Padding="16" RowSpacing="10" RowDefinitions="Auto,Auto,Auto,*">
         <HorizontalStackLayout Grid.Row="0" Spacing="8">
-            <Button Text="Cerrar"
+            <Button Text="✕"
+                WidthRequest="44"
+                HeightRequest="44"
                     Clicked="OnCloseClicked"
-                    BackgroundColor="{AppThemeBinding Light={StaticResource Gray900}, Dark={StaticResource Gray200}}"
-                    TextColor="{AppThemeBinding Light={StaticResource White}, Dark={StaticResource Black}}" />
+                BackgroundColor="{StaticResource ActionDelete}"
+                TextColor="{StaticResource White}" />
             <Label x:Name="SectionTitleLabel"
                    VerticalOptions="Center"
                    FontAttributes="Bold"
@@ -22,7 +24,30 @@
                FontSize="13"
                TextColor="Gray" />
 
-        <CollectionView Grid.Row="2"
+        <Border Grid.Row="2" Padding="10" StrokeShape="RoundRectangle 12">
+            <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto" ColumnSpacing="8" VerticalOptions="Center">
+                <Label Text="Mostrar" VerticalOptions="Center" FontSize="12" TextColor="Gray" />
+                <Border Grid.Column="1" StrokeShape="RoundRectangle 12" BackgroundColor="#1D1D1D" Stroke="#2A2A2A" Padding="10,8">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <Label x:Name="PageSizeSelectorLabel" VerticalOptions="Center" HorizontalTextAlignment="Center" />
+                        <Label Grid.Column="1" Text="▼" FontSize="11" TextColor="{StaticResource AppHint}" VerticalOptions="Center" />
+                    </Grid>
+                    <Border.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnPageSizeSelectorTapped" />
+                    </Border.GestureRecognizers>
+                </Border>
+                <Label Grid.Column="2"
+                       x:Name="PaginationStatusLabel"
+                       HorizontalTextAlignment="Center"
+                       VerticalOptions="Center"
+                       FontSize="12"
+                       TextColor="Gray" />
+                <Button Grid.Column="3" x:Name="PrevPageButton" Text="◀" WidthRequest="44" Clicked="OnPrevPageClicked" />
+                <Button Grid.Column="4" x:Name="NextPageButton" Text="▶" WidthRequest="44" Clicked="OnNextPageClicked" />
+            </Grid>
+        </Border>
+
+        <CollectionView Grid.Row="3"
                         x:Name="ExpensesBySectionCollection"
                         SelectionMode="None">
             <CollectionView.EmptyView>
@@ -54,6 +79,10 @@
                 </DataTemplate>
             </CollectionView.ItemTemplate>
         </CollectionView>
+
+        <Picker x:Name="PageSizePicker"
+                IsVisible="False"
+                SelectedIndexChanged="OnPageSizeChanged" />
     </Grid>
 
 </ContentPage>
