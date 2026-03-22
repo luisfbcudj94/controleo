@@ -7,42 +7,81 @@ namespace Controleo.Mobile;
 public partial class MainPage : ContentPage
 {
 	private readonly ExpenseApiClient _apiClient;
-	private bool _isLoaded;
+	private readonly MonthContextService _monthContext;
+	private bool _isRefreshing;
+	private bool _isMonthPickerSyncing;
 
-	public MainPage(ExpenseApiClient apiClient)
+	public MainPage(ExpenseApiClient apiClient, MonthContextService monthContext)
 	{
 		InitializeComponent();
 		_apiClient = apiClient;
+		_monthContext = monthContext;
+		MonthPicker.ItemsSource = _monthContext.MonthOptions.ToList();
+		_monthContext.MonthChanged += OnMonthChanged;
+		SyncMonthSelection();
 		DatePickerField.Date = DateTime.Today;
 	}
 
 	protected override async void OnAppearing()
 	{
 		base.OnAppearing();
+		await LoadCatalogsAsync();
+	}
 
-		if (_isLoaded)
+	private async Task LoadCatalogsAsync()
+	{
+		if (_isRefreshing)
 		{
 			return;
 		}
 
-		StatusLabel.Text = "Cargando catálogos...";
-		var catalog = await _apiClient.GetCatalogsAsync(CancellationToken.None);
-
-		MovementTypePicker.ItemsSource = catalog.MovementTypes.ToList();
-		PaymentMethodPicker.ItemsSource = catalog.PaymentMethods.ToList();
-
-		if (MovementTypePicker.ItemsSource.Count > 0)
+		try
 		{
-			MovementTypePicker.SelectedIndex = 0;
-		}
+			_isRefreshing = true;
+			SetLoading(true);
+			StatusLabel.Text = "Cargando catálogos...";
+			var selectedMovement = MovementTypePicker.SelectedItem?.ToString();
+			var selectedPayment = PaymentMethodPicker.SelectedItem?.ToString();
 
-		if (PaymentMethodPicker.ItemsSource.Count > 0)
+			var catalog = await _apiClient.GetCatalogsAsync(CancellationToken.None);
+
+			var movements = catalog.MovementTypes.ToList();
+			var payments = catalog.PaymentMethods.ToList();
+
+			MovementTypePicker.ItemsSource = movements;
+			PaymentMethodPicker.ItemsSource = payments;
+
+			if (!string.IsNullOrWhiteSpace(selectedMovement) && movements.Contains(selectedMovement))
+			{
+				MovementTypePicker.SelectedItem = selectedMovement;
+			}
+			else if (movements.Count > 0)
+			{
+				MovementTypePicker.SelectedIndex = 0;
+			}
+
+			if (!string.IsNullOrWhiteSpace(selectedPayment) && payments.Contains(selectedPayment))
+			{
+				PaymentMethodPicker.SelectedItem = selectedPayment;
+			}
+			else if (payments.Count > 0)
+			{
+				PaymentMethodPicker.SelectedIndex = 0;
+			}
+
+			StatusLabel.Text = "Listo para registrar.";
+		}
+		finally
 		{
-			PaymentMethodPicker.SelectedIndex = 0;
+			_isRefreshing = false;
+			MainRefreshView.IsRefreshing = false;
+			SetLoading(false);
 		}
+	}
 
-		StatusLabel.Text = "Listo para registrar.";
-		_isLoaded = true;
+	private async void OnRefreshing(object? sender, EventArgs e)
+	{
+		await LoadCatalogsAsync();
 	}
 
 	private async void OnSaveClicked(object? sender, EventArgs e)
@@ -54,6 +93,7 @@ public partial class MainPage : ContentPage
 		}
 
 		SaveButton.IsEnabled = false;
+		SetLoading(true);
 		StatusLabel.Text = "Guardando...";
 
 		var request = new ExpenseEntryRequest(
@@ -74,6 +114,7 @@ public partial class MainPage : ContentPage
 		}
 
 		SaveButton.IsEnabled = true;
+		SetLoading(false);
 	}
 
 	private bool ValidateForm(out decimal amount, out string errorMessage)
@@ -94,9 +135,9 @@ public partial class MainPage : ContentPage
 			return false;
 		}
 
-		if (amount <= 0)
+		if (amount == 0)
 		{
-			errorMessage = "El valor debe ser mayor a cero.";
+			errorMessage = "El valor debe ser diferente de cero.";
 			return false;
 		}
 
@@ -125,5 +166,53 @@ public partial class MainPage : ContentPage
 		}
 
 		await DisplayAlert("Navegación", "No fue posible abrir la lista de gastos.", "OK");
+	}
+
+	private void OnPrevMonthClicked(object? sender, EventArgs e)
+	{
+		_monthContext.MoveMonths(-1);
+	}
+
+	private void OnNextMonthClicked(object? sender, EventArgs e)
+	{
+		_monthContext.MoveMonths(1);
+	}
+
+	private void OnMonthPickerChanged(object? sender, EventArgs e)
+	{
+		if (_isMonthPickerSyncing || MonthPicker.SelectedItem is not MonthContextService.MonthOption option)
+		{
+			return;
+		}
+
+		_monthContext.SetMonth(option.Value);
+	}
+
+	private void OnMonthChanged(object? sender, DateOnly month)
+	{
+		MainThread.BeginInvokeOnMainThread(() =>
+		{
+			SyncMonthSelection();
+			var day = Math.Min(DatePickerField.Date.Day, DateTime.DaysInMonth(month.Year, month.Month));
+			DatePickerField.Date = new DateTime(month.Year, month.Month, day);
+		});
+	}
+
+	private void SyncMonthSelection()
+	{
+		var selected = _monthContext.MonthOptions.FirstOrDefault(item => item.Value == _monthContext.SelectedMonth);
+		if (selected is null)
+		{
+			return;
+		}
+
+		_isMonthPickerSyncing = true;
+		MonthPicker.SelectedItem = selected;
+		_isMonthPickerSyncing = false;
+	}
+
+	private void SetLoading(bool isLoading)
+	{
+		LoadingOverlay.IsVisible = isLoading;
 	}
 }

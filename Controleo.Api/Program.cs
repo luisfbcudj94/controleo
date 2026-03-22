@@ -42,9 +42,14 @@ app.MapPut("/api/catalogs", async (UpdateCatalogsRequest request, IExpenseStorag
     return result.IsSuccess ? Results.Ok(result) : Results.BadRequest(result);
 });
 
-app.MapGet("/api/expenses", async (IExpenseStorageService expenseStorageService, CancellationToken cancellationToken) =>
+app.MapGet("/api/expenses", async (string? month, IExpenseStorageService expenseStorageService, CancellationToken cancellationToken) =>
 {
-    var data = await expenseStorageService.GetExpensesAsync(cancellationToken);
+    if (!TryResolveMonth(month, out var monthKey))
+    {
+        return Results.BadRequest(new OperationResult(false, "Mes inválido. Usa formato yyyy-MM."));
+    }
+
+    var data = await expenseStorageService.GetExpensesAsync(monthKey, cancellationToken);
     return Results.Ok(data);
 });
 
@@ -80,29 +85,58 @@ app.MapDelete("/api/expenses/{id}", async (string id, IExpenseStorageService exp
     return result.IsSuccess ? Results.Ok(result) : Results.BadRequest(result);
 });
 
-app.MapGet("/api/budgets", async (IExpenseStorageService expenseStorageService, CancellationToken cancellationToken) =>
+app.MapGet("/api/budgets", async (string? month, IExpenseStorageService expenseStorageService, CancellationToken cancellationToken) =>
 {
-    var data = await expenseStorageService.GetBudgetsAsync(cancellationToken);
+    if (!TryResolveMonth(month, out var monthKey))
+    {
+        return Results.BadRequest(new OperationResult(false, "Mes inválido. Usa formato yyyy-MM."));
+    }
+
+    var data = await expenseStorageService.GetBudgetsAsync(monthKey, cancellationToken);
     return Results.Ok(data);
 });
 
-app.MapPut("/api/budgets/{movementType}", async (string movementType, BudgetUpsertRequest request, IExpenseStorageService expenseStorageService, CancellationToken cancellationToken) =>
+app.MapPut("/api/budgets/{movementType}", async (string movementType, string? month, BudgetUpsertRequest request, IExpenseStorageService expenseStorageService, CancellationToken cancellationToken) =>
 {
-    var result = await expenseStorageService.UpsertBudgetAsync(movementType, request, cancellationToken);
+    if (!TryResolveMonth(month, out var monthKey))
+    {
+        return Results.BadRequest(new OperationResult(false, "Mes inválido. Usa formato yyyy-MM."));
+    }
+
+    var result = await expenseStorageService.UpsertBudgetAsync(movementType, monthKey, request, cancellationToken);
     return result.IsSuccess ? Results.Ok(result) : Results.BadRequest(result);
 });
 
-app.MapDelete("/api/budgets/{movementType}", async (string movementType, IExpenseStorageService expenseStorageService, CancellationToken cancellationToken) =>
+app.MapDelete("/api/budgets/{movementType}", async (string movementType, string? month, IExpenseStorageService expenseStorageService, CancellationToken cancellationToken) =>
 {
-    var result = await expenseStorageService.DeleteBudgetAsync(movementType, cancellationToken);
+    if (!TryResolveMonth(month, out var monthKey))
+    {
+        return Results.BadRequest(new OperationResult(false, "Mes inválido. Usa formato yyyy-MM."));
+    }
+
+    var result = await expenseStorageService.DeleteBudgetAsync(movementType, monthKey, cancellationToken);
     return result.IsSuccess ? Results.Ok(result) : Results.BadRequest(result);
 });
 
-app.MapGet("/api/dashboard/by-category", async (IExpenseStorageService expenseStorageService, CancellationToken cancellationToken) =>
+app.MapGet("/api/dashboard/by-category", async (string? month, IExpenseStorageService expenseStorageService, CancellationToken cancellationToken) =>
 {
-    var data = await expenseStorageService.GetDashboardByCategoryAsync(cancellationToken);
+    if (!TryResolveMonth(month, out var monthKey))
+    {
+        return Results.BadRequest(new OperationResult(false, "Mes inválido. Usa formato yyyy-MM."));
+    }
+
+    var data = await expenseStorageService.GetDashboardByCategoryAsync(monthKey, cancellationToken);
     return Results.Ok(data);
 });
+
+if (app.Environment.IsDevelopment())
+{
+    app.MapPost("/api/admin/purge-data", async (IExpenseStorageService expenseStorageService, CancellationToken cancellationToken) =>
+    {
+        var result = await expenseStorageService.PurgeAllDataAsync(cancellationToken);
+        return result.IsSuccess ? Results.Ok(result) : Results.BadRequest(result);
+    });
+}
 
 app.Run();
 
@@ -120,9 +154,9 @@ static Dictionary<string, string[]> ValidateRequest(ExpenseEntryRequest request)
         errors["description"] = ["La descripción es requerida."];
     }
 
-    if (request.Amount <= 0)
+    if (request.Amount == 0)
     {
-        errors["amount"] = ["El valor debe ser mayor a cero."];
+        errors["amount"] = ["El valor debe ser diferente de cero."];
     }
 
     if (string.IsNullOrWhiteSpace(request.MovementType))
@@ -177,3 +211,21 @@ static string[] GetDefaultPaymentMethods() =>
     "-",
     "Nequi"
 ];
+
+static bool TryResolveMonth(string? month, out string monthKey)
+{
+    if (string.IsNullOrWhiteSpace(month))
+    {
+        monthKey = DateTime.UtcNow.ToString("yyyy-MM");
+        return true;
+    }
+
+    if (DateOnly.TryParseExact($"{month}-01", "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var parsedMonth))
+    {
+        monthKey = parsedMonth.ToString("yyyy-MM");
+        return true;
+    }
+
+    monthKey = string.Empty;
+    return false;
+}

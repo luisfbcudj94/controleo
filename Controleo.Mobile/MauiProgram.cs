@@ -24,6 +24,7 @@ public static class MauiProgram
 		// var apiBaseUrl = "https://controleo-api-414008451882.us-central1.run.app/";
 
 		builder.Services.AddSingleton(new HttpClient { BaseAddress = new Uri(apiBaseUrl) });
+		builder.Services.AddSingleton<MonthContextService>();
 		builder.Services.AddSingleton<ExpenseApiClient>();
 		builder.Services.AddSingleton<MainPage>();
 		builder.Services.AddSingleton<ExpensesPage>();

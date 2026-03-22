@@ -1,10 +1,17 @@
 using System.Net.Http.Json;
+using System.Collections.Concurrent;
 using Controleo.Mobile.Models;
 
 namespace Controleo.Mobile.Services;
 
 public sealed class ExpenseApiClient(HttpClient httpClient)
 {
+    private static readonly TimeSpan CacheTtl = TimeSpan.FromSeconds(20);
+
+    private readonly ConcurrentDictionary<string, CacheEntry<IReadOnlyList<ExpenseItem>>> _expensesCache = new();
+    private readonly ConcurrentDictionary<string, CacheEntry<IReadOnlyList<DashboardCategoryItem>>> _dashboardCache = new();
+    private readonly ConcurrentDictionary<string, CacheEntry<IReadOnlyList<BudgetItem>>> _budgetsCache = new();
+
     private static readonly ExpenseCatalog FallbackCatalog = new(
     [
         "Basicos para vivir",
@@ -43,12 +50,19 @@ public sealed class ExpenseApiClient(HttpClient httpClient)
         }
     }
 
-    public async Task<IReadOnlyList<ExpenseItem>> GetExpensesAsync(CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<ExpenseItem>> GetExpensesAsync(string monthKey, CancellationToken cancellationToken)
     {
+        if (TryGetCache(_expensesCache, monthKey, out var cachedData))
+        {
+            return cachedData;
+        }
+
         try
         {
-            var data = await httpClient.GetFromJsonAsync<List<ExpenseItem>>("api/expenses", cancellationToken);
-            return data ?? [];
+            var data = await httpClient.GetFromJsonAsync<List<ExpenseItem>>($"api/expenses?month={Uri.EscapeDataString(monthKey)}", cancellationToken);
+            var result = (IReadOnlyList<ExpenseItem>)(data ?? []);
+            _expensesCache[monthKey] = new CacheEntry<IReadOnlyList<ExpenseItem>>(DateTimeOffset.UtcNow, result);
+            return result;
         }
         catch
         {
@@ -64,6 +78,8 @@ public sealed class ExpenseApiClient(HttpClient httpClient)
             if (response.IsSuccessStatusCode)
             {
                 var result = await response.Content.ReadFromJsonAsync<SaveExpenseResult>(cancellationToken: cancellationToken);
+                _expensesCache.TryRemove(request.Date.ToString("yyyy-MM"), out _);
+                _dashboardCache.TryRemove(request.Date.ToString("yyyy-MM"), out _);
                 return result ?? new SaveExpenseResult(false, "Respuesta inválida del servidor.", 0);
             }
 
@@ -84,6 +100,8 @@ public sealed class ExpenseApiClient(HttpClient httpClient)
             if (response.IsSuccessStatusCode)
             {
                 var result = await response.Content.ReadFromJsonAsync<OperationResult>(cancellationToken: cancellationToken);
+                _expensesCache.Clear();
+                _dashboardCache.Clear();
                 return result ?? new OperationResult(false, "Respuesta inválida del servidor.");
             }
 
@@ -104,6 +122,8 @@ public sealed class ExpenseApiClient(HttpClient httpClient)
             if (response.IsSuccessStatusCode)
             {
                 var result = await response.Content.ReadFromJsonAsync<OperationResult>(cancellationToken: cancellationToken);
+                _expensesCache.Clear();
+                _dashboardCache.Clear();
                 return result ?? new OperationResult(true, "Gasto eliminado correctamente.");
             }
 
@@ -116,12 +136,19 @@ public sealed class ExpenseApiClient(HttpClient httpClient)
         }
     }
 
-    public async Task<IReadOnlyList<DashboardCategoryItem>> GetDashboardByCategoryAsync(CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<DashboardCategoryItem>> GetDashboardByCategoryAsync(string monthKey, CancellationToken cancellationToken)
     {
+        if (TryGetCache(_dashboardCache, monthKey, out var cachedData))
+        {
+            return cachedData;
+        }
+
         try
         {
-            var data = await httpClient.GetFromJsonAsync<List<DashboardCategoryItem>>("api/dashboard/by-category", cancellationToken);
-            return data ?? [];
+            var data = await httpClient.GetFromJsonAsync<List<DashboardCategoryItem>>($"api/dashboard/by-category?month={Uri.EscapeDataString(monthKey)}", cancellationToken);
+            var result = (IReadOnlyList<DashboardCategoryItem>)(data ?? []);
+            _dashboardCache[monthKey] = new CacheEntry<IReadOnlyList<DashboardCategoryItem>>(DateTimeOffset.UtcNow, result);
+            return result;
         }
         catch
         {
@@ -129,12 +156,19 @@ public sealed class ExpenseApiClient(HttpClient httpClient)
         }
     }
 
-    public async Task<IReadOnlyList<BudgetItem>> GetBudgetsAsync(CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<BudgetItem>> GetBudgetsAsync(string monthKey, CancellationToken cancellationToken)
     {
+        if (TryGetCache(_budgetsCache, monthKey, out var cachedData))
+        {
+            return cachedData;
+        }
+
         try
         {
-            var data = await httpClient.GetFromJsonAsync<List<BudgetItem>>("api/budgets", cancellationToken);
-            return data ?? [];
+            var data = await httpClient.GetFromJsonAsync<List<BudgetItem>>($"api/budgets?month={Uri.EscapeDataString(monthKey)}", cancellationToken);
+            var result = (IReadOnlyList<BudgetItem>)(data ?? []);
+            _budgetsCache[monthKey] = new CacheEntry<IReadOnlyList<BudgetItem>>(DateTimeOffset.UtcNow, result);
+            return result;
         }
         catch
         {
@@ -142,14 +176,16 @@ public sealed class ExpenseApiClient(HttpClient httpClient)
         }
     }
 
-    public async Task<OperationResult> UpsertBudgetAsync(string movementType, decimal amount, CancellationToken cancellationToken)
+    public async Task<OperationResult> UpsertBudgetAsync(string movementType, decimal amount, string monthKey, CancellationToken cancellationToken)
     {
         try
         {
-            var response = await httpClient.PutAsJsonAsync($"api/budgets/{Uri.EscapeDataString(movementType)}", new BudgetUpsertRequest(amount), cancellationToken);
+            var response = await httpClient.PutAsJsonAsync($"api/budgets/{Uri.EscapeDataString(movementType)}?month={Uri.EscapeDataString(monthKey)}", new BudgetUpsertRequest(amount), cancellationToken);
             if (response.IsSuccessStatusCode)
             {
                 var result = await response.Content.ReadFromJsonAsync<OperationResult>(cancellationToken: cancellationToken);
+                _budgetsCache.TryRemove(monthKey, out _);
+                _dashboardCache.TryRemove(monthKey, out _);
                 return result ?? new OperationResult(true, "Presupuesto guardado correctamente.");
             }
 
@@ -162,14 +198,16 @@ public sealed class ExpenseApiClient(HttpClient httpClient)
         }
     }
 
-    public async Task<OperationResult> DeleteBudgetAsync(string movementType, CancellationToken cancellationToken)
+    public async Task<OperationResult> DeleteBudgetAsync(string movementType, string monthKey, CancellationToken cancellationToken)
     {
         try
         {
-            var response = await httpClient.DeleteAsync($"api/budgets/{Uri.EscapeDataString(movementType)}", cancellationToken);
+            var response = await httpClient.DeleteAsync($"api/budgets/{Uri.EscapeDataString(movementType)}?month={Uri.EscapeDataString(monthKey)}", cancellationToken);
             if (response.IsSuccessStatusCode)
             {
                 var result = await response.Content.ReadFromJsonAsync<OperationResult>(cancellationToken: cancellationToken);
+                _budgetsCache.TryRemove(monthKey, out _);
+                _dashboardCache.TryRemove(monthKey, out _);
                 return result ?? new OperationResult(true, "Presupuesto eliminado correctamente.");
             }
 
@@ -201,4 +239,18 @@ public sealed class ExpenseApiClient(HttpClient httpClient)
             return new OperationResult(false, $"No fue posible conectar con API: {ex.Message}");
         }
     }
+
+    private static bool TryGetCache<T>(ConcurrentDictionary<string, CacheEntry<T>> cache, string key, out T data)
+    {
+        if (cache.TryGetValue(key, out var entry) && DateTimeOffset.UtcNow - entry.CreatedAt <= CacheTtl)
+        {
+            data = entry.Data;
+            return true;
+        }
+
+        data = default!;
+        return false;
+    }
+
+    private sealed record CacheEntry<T>(DateTimeOffset CreatedAt, T Data);
 }

@@ -4,36 +4,56 @@
              x:Class="Controleo.Mobile.DashboardPage"
              Title="Dashboard">
 
-    <ScrollView>
-        <VerticalStackLayout Padding="16" Spacing="12">
-            <Border StrokeThickness="0"
-                    BackgroundColor="{AppThemeBinding Light={StaticResource Primary}, Dark={StaticResource Gray700}}"
-                    Padding="14"
-                    StrokeShape="RoundRectangle 14">
-                <VerticalStackLayout>
-                    <Label Text="Dashboard de gastos"
-                           FontSize="24"
-                           FontAttributes="Bold"
-                           TextColor="White" />
-                    <Label Text="Visualiza gasto por sección y comparación contra presupuesto."
-                           TextColor="White"
-                           Opacity="0.9" />
-                </VerticalStackLayout>
-            </Border>
+    <Grid Padding="16" RowSpacing="12" RowDefinitions="Auto,Auto,Auto,*">
+        <Border Grid.Row="0" StrokeShape="RoundRectangle 12" Padding="10">
+            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+                <Button Grid.Column="0" Text="◀" WidthRequest="44" Clicked="OnPrevMonthClicked" />
+                <Picker Grid.Column="1"
+                        x:Name="MonthPicker"
+                        Title="Mes"
+                        ItemDisplayBinding="{Binding Label}"
+                        SelectedIndexChanged="OnMonthPickerChanged" />
+                <Button Grid.Column="2" Text="▶" WidthRequest="44" Clicked="OnNextMonthClicked" />
+            </Grid>
+        </Border>
 
-            <Button Text="Recargar" Clicked="OnReloadClicked" />
+        <Border Grid.Row="1"
+                StrokeThickness="0"
+                BackgroundColor="{AppThemeBinding Light={StaticResource Primary}, Dark={StaticResource Gray700}}"
+                Padding="14"
+                StrokeShape="RoundRectangle 14">
+            <VerticalStackLayout>
+                <Label Text="Dashboard de gastos"
+                       FontSize="24"
+                       FontAttributes="Bold"
+                       TextColor="White" />
+                <Label Text="Visualiza gasto por sección y comparación contra presupuesto."
+                       TextColor="White"
+                       Opacity="0.9" />
+            </VerticalStackLayout>
+        </Border>
 
-            <Label x:Name="TotalsLabel"
-                   FontAttributes="Bold"
-                   FontSize="16" />
+         <Label Grid.Row="2"
+               x:Name="TotalsLabel"
+               FontAttributes="Bold"
+               FontSize="16" />
 
+         <RefreshView Grid.Row="3"
+                     x:Name="DashboardRefreshView"
+                     Refreshing="OnRefreshing">
             <CollectionView x:Name="ChartCollection" SelectionMode="None">
                 <CollectionView.EmptyView>
-                    <Label Text="No hay datos para mostrar en dashboard." HorizontalOptions="Center" />
+                    <Label Text="No hay datos para mostrar en dashboard."
+                           HorizontalOptions="Center"
+                           VerticalOptions="Center" />
                 </CollectionView.EmptyView>
                 <CollectionView.ItemTemplate>
                     <DataTemplate>
                         <Border Padding="12" Margin="0,0,0,8" StrokeShape="RoundRectangle 12">
+                            <Border.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="OnSectionTapped"
+                                                      CommandParameter="{Binding MovementType}" />
+                            </Border.GestureRecognizers>
                             <VerticalStackLayout Spacing="6">
                                 <Grid ColumnDefinitions="*,Auto">
                                     <Label Text="{Binding MovementType}" FontAttributes="Bold" />
@@ -42,14 +62,27 @@
                                 <ProgressBar Progress="{Binding ExpenseRatio}" HeightRequest="10" />
                                 <Grid ColumnDefinitions="*,*">
                                     <Label Text="{Binding BudgetTotal, StringFormat='Presupuesto: ${0:N0}'}" FontSize="12" TextColor="Gray" />
-                                    <Label Grid.Column="1" HorizontalTextAlignment="End" Text="{Binding Balance, StringFormat='Balance: ${0:N0}'}" FontSize="12" TextColor="Gray" />
+                                        <Label Grid.Column="1" HorizontalTextAlignment="End" Text="{Binding Balance, StringFormat='Balance: ${0:N0}'}" FontSize="12" TextColor="{Binding BalanceColor}" />
                                 </Grid>
                             </VerticalStackLayout>
                         </Border>
                     </DataTemplate>
                 </CollectionView.ItemTemplate>
             </CollectionView>
-        </VerticalStackLayout>
-    </ScrollView>
+        </RefreshView>
+
+        <Grid x:Name="LoadingOverlay"
+              Grid.RowSpan="4"
+              IsVisible="False"
+              BackgroundColor="#66000000"
+              InputTransparent="False">
+            <ActivityIndicator IsRunning="True"
+                       WidthRequest="52"
+                       HeightRequest="52"
+                       Color="White"
+                       HorizontalOptions="Center"
+                       VerticalOptions="Center" />
+        </Grid>
+    </Grid>
 
 </ContentPage>

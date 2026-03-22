@@ -1,11 +1,28 @@
 ﻿<?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:service="clr-namespace:Controleo.Mobile.Services"
              x:Class="Controleo.Mobile.MainPage"
              Title="Controleo - Gastos">
 
-    <ScrollView>
-       <VerticalStackLayout Padding="18" Spacing="14">
+       <Grid>
+
+        <RefreshView x:Name="MainRefreshView"
+                                     Refreshing="OnRefreshing">
+        <ScrollView>
+               <VerticalStackLayout Padding="18" Spacing="14">
+                       <Border StrokeShape="RoundRectangle 12" Padding="10">
+                              <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
+                              <Button Grid.Column="0" Text="◀" WidthRequest="44" Clicked="OnPrevMonthClicked" />
+                              <Picker Grid.Column="1"
+                                            x:Name="MonthPicker"
+                                            Title="Mes"
+                                            ItemDisplayBinding="{Binding Label}"
+                                            SelectedIndexChanged="OnMonthPickerChanged" />
+                              <Button Grid.Column="2" Text="▶" WidthRequest="44" Clicked="OnNextMonthClicked" />
+                       </Grid>
+                 </Border>
+
            <Border StrokeThickness="0"
                   BackgroundColor="{AppThemeBinding Light={StaticResource Primary}, Dark={StaticResource Gray700}}"
                   Padding="16"
@@ -63,5 +80,20 @@
                  LineBreakMode="WordWrap" />
         </VerticalStackLayout>
     </ScrollView>
+       </RefreshView>
+
+               <Grid x:Name="LoadingOverlay"
+                             IsVisible="False"
+                             BackgroundColor="#66000000"
+                             InputTransparent="False">
+                       <ActivityIndicator IsRunning="True"
+                                                                      WidthRequest="52"
+                                                                      HeightRequest="52"
+                                                                      Color="White"
+                                                                      HorizontalOptions="Center"
+                                                                      VerticalOptions="Center" />
+               </Grid>
+
+        </Grid>
 
 </ContentPage>

@@ -22,11 +22,11 @@ public partial class App : Application
 		{
 			Children =
 			{
-				new NavigationPage(registerPage) { Title = "Registrar" },
-				new NavigationPage(expensesPage) { Title = "Gastos" },
-				new NavigationPage(dashboardPage) { Title = "Dashboard" },
-				new NavigationPage(budgetsPage) { Title = "Presupuestos" },
-				new NavigationPage(settingsPage) { Title = "Configuración" }
+				new NavigationPage(registerPage) { Title = string.Empty, IconImageSource = "tab_home.svg" },
+				new NavigationPage(expensesPage) { Title = string.Empty, IconImageSource = "tab_expenses.svg" },
+				new NavigationPage(dashboardPage) { Title = string.Empty, IconImageSource = "tab_dashboard.svg" },
+				new NavigationPage(budgetsPage) { Title = string.Empty, IconImageSource = "tab_budgets.svg" },
+				new NavigationPage(settingsPage) { Title = string.Empty, IconImageSource = "tab_settings.svg" }
 			}
 		};
 
