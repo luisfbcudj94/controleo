@@ -2,38 +2,31 @@
 
 public partial class App : Application
 {
-	private readonly MainPage _registerPage;
-	private readonly ExpensesPage _expensesPage;
-	private readonly DashboardPage _dashboardPage;
-	private readonly BudgetsPage _budgetsPage;
-	private readonly SettingsPage _settingsPage;
+	private readonly IServiceProvider _serviceProvider;
 
-	public App(
-		MainPage registerPage,
-		ExpensesPage expensesPage,
-		DashboardPage dashboardPage,
-		BudgetsPage budgetsPage,
-		SettingsPage settingsPage)
+	public App(IServiceProvider serviceProvider)
 	{
 		InitializeComponent();
-		_registerPage = registerPage;
-		_expensesPage = expensesPage;
-		_dashboardPage = dashboardPage;
-		_budgetsPage = budgetsPage;
-		_settingsPage = settingsPage;
+		_serviceProvider = serviceProvider;
 	}
 
 	protected override Window CreateWindow(IActivationState? activationState)
 	{
+		var registerPage = _serviceProvider.GetRequiredService<MainPage>();
+		var expensesPage = _serviceProvider.GetRequiredService<ExpensesPage>();
+		var dashboardPage = _serviceProvider.GetRequiredService<DashboardPage>();
+		var budgetsPage = _serviceProvider.GetRequiredService<BudgetsPage>();
+		var settingsPage = _serviceProvider.GetRequiredService<SettingsPage>();
+
 		var tabs = new TabbedPage
 		{
 			Children =
 			{
-				new NavigationPage(_registerPage) { Title = "Registrar" },
-				new NavigationPage(_expensesPage) { Title = "Gastos" },
-				new NavigationPage(_dashboardPage) { Title = "Dashboard" },
-				new NavigationPage(_budgetsPage) { Title = "Presupuestos" },
-				new NavigationPage(_settingsPage) { Title = "Configuración" }
+				new NavigationPage(registerPage) { Title = "Registrar" },
+				new NavigationPage(expensesPage) { Title = "Gastos" },
+				new NavigationPage(dashboardPage) { Title = "Dashboard" },
+				new NavigationPage(budgetsPage) { Title = "Presupuestos" },
+				new NavigationPage(settingsPage) { Title = "Configuración" }
 			}
 		};
 
