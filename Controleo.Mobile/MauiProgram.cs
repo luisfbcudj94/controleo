@@ -19,9 +19,7 @@ public static class MauiProgram
 		var apiBaseUrl = Environment.GetEnvironmentVariable("CONTROLEO_API_BASE_URL");
 		if (string.IsNullOrWhiteSpace(apiBaseUrl))
 		{
-			apiBaseUrl = DeviceInfo.Platform == DevicePlatform.Android
-				? "http://10.0.2.2:5051/"
-				: "http://localhost:5051/";
+			apiBaseUrl = "https://controleo-api-414008451882.us-central1.run.app/";
 		}
 
 		if (!apiBaseUrl.EndsWith('/'))

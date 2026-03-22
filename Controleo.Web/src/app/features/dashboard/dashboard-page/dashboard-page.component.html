@@ -1,0 +1,119 @@
+<section class="dashboard-grid">
+	<article class="month-banner card">
+		<button class="btn btn-ghost" type="button" (click)="previousMonth()">◀</button>
+		<strong>{{ monthLabelText }}</strong>
+		<button class="btn btn-ghost" type="button" (click)="nextMonth()">▶</button>
+	</article>
+
+	<div class="dash-grid">
+		<article class="kpi-card">
+			<div class="kpi-header">
+				<div class="kpi-icon" style="background: var(--ac2)">💰</div>
+			</div>
+			<div class="kpi-val" style="color: var(--accent)">${{ totalBudget | number:'1.0-0' }}</div>
+			<div class="kpi-lbl">Presupuesto total</div>
+		</article>
+
+		<article class="kpi-card">
+			<div class="kpi-header">
+				<div class="kpi-icon" style="background: var(--dan2)">📤</div>
+			</div>
+			<div class="kpi-val" style="color: var(--danger)">${{ totalSpentFromBudget | number:'1.0-0' }}</div>
+			<div class="kpi-lbl">Presupuesto gastado</div>
+		</article>
+
+		<article class="kpi-card">
+			<div class="kpi-header">
+				<div class="kpi-icon" style="background: var(--tea2)">🏦</div>
+			</div>
+			<div class="kpi-val" [style.color]="available >= 0 ? 'var(--teal)' : 'var(--danger)'">${{ available | number:'1.0-0' }}</div>
+			<div class="kpi-lbl">Disponible</div>
+		</article>
+
+		<article class="kpi-card">
+			<div class="kpi-header">
+				<div class="kpi-icon" style="background: var(--amb2)">⚠️</div>
+			</div>
+			<div class="kpi-val" style="color: var(--amber)">${{ totalSpentWithExtras | number:'1.0-0' }}</div>
+			<div class="kpi-lbl">Total gastado</div>
+		</article>
+	</div>
+
+	@if (loading) {
+		<article class="card"><p class="muted">Cargando dashboard...</p></article>
+	} @else if (!rows.length) {
+		<article class="card"><p class="muted">Sin datos para este mes.</p></article>
+	} @else {
+		<div class="dash-bottom">
+			<article class="donut-card">
+				<div class="donut-wrap">
+					<svg class="donut-svg" viewBox="0 0 130 130">
+						<circle class="donut-track" cx="65" cy="65" r="56" />
+						<circle
+							class="donut-fill"
+							cx="65"
+							cy="65"
+							r="56"
+							[attr.stroke-dasharray]="donutCircumference"
+							[attr.stroke-dashoffset]="donutOffset" />
+					</svg>
+					<div class="donut-center">
+						<div class="donut-pct">{{ usagePercent | number:'1.0-0' }}%</div>
+						<div class="donut-lbl">USADO</div>
+					</div>
+				</div>
+
+				<div class="donut-stats">
+					<div class="ds-row">
+						<div class="ds-left">
+							<div class="ds-dot" style="background: var(--accent)"></div>
+							<div class="ds-name">Presupuesto total</div>
+						</div>
+						<div class="ds-val" style="color: var(--accent)">${{ totalBudget | number:'1.0-0' }}</div>
+					</div>
+					<div class="ds-row">
+						<div class="ds-left">
+							<div class="ds-dot" style="background: var(--danger)"></div>
+							<div class="ds-name">Presupuesto gastado</div>
+						</div>
+						<div class="ds-val" style="color: var(--danger)">${{ totalSpentFromBudget | number:'1.0-0' }}</div>
+					</div>
+					<div class="ds-row">
+						<div class="ds-left">
+							<div class="ds-dot" style="background: var(--teal)"></div>
+							<div class="ds-name">Disponible</div>
+						</div>
+						<div class="ds-val" [style.color]="available >= 0 ? 'var(--teal)' : 'var(--danger)'">${{ available | number:'1.0-0' }}</div>
+					</div>
+				</div>
+			</article>
+
+			<article class="cat-table-card">
+				<div class="ctc-header">
+					<div class="ctc-title">Por categoría</div>
+				</div>
+
+				@for (row of topRows; track trackByMovementType($index, row)) {
+					<div class="cat-row">
+						<div class="cr-icon" [style.background]="bgAt($index)">{{ iconAt($index) }}</div>
+						<div class="cr-name">{{ row.movementType }}</div>
+						<div class="cr-bar">
+							<div class="cr-track"><div class="cr-fill" [style.width.%]="barWidth(row)" [style.background]="colorAt($index)"></div></div>
+							<div class="cr-pct">{{ barWidth(row) | number:'1.0-0' }}%</div>
+						</div>
+						<div>
+							<div class="cr-amount" [style.color]="colorAt($index)">${{ row.expenseTotal | number:'1.0-0' }}</div>
+							<div class="cr-bal" [class.bal-g]="row.balance >= 0" [class.bal-r]="row.balance < 0">
+								{{ row.balance >= 0 ? '+' : '' }}${{ row.balance | number:'1.0-0' }}
+							</div>
+						</div>
+					</div>
+				}
+			</article>
+		</div>
+	}
+
+	@if (message) {
+		<p class="muted">{{ message }}</p>
+	}
+</section>

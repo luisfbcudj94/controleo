@@ -1,0 +1,52 @@
+<section class="budgets-grid">
+	<article class="card month-row">
+		<button class="btn btn-ghost" type="button" (click)="previousMonth()">◀</button>
+		<strong>{{ monthLabelText }}</strong>
+		<button class="btn btn-ghost" type="button" (click)="nextMonth()">▶</button>
+	</article>
+
+	<article class="card">
+		<h2 class="section-title">Configurar presupuesto global por sección</h2>
+		<form class="form-grid" [formGroup]="form" (ngSubmit)="save()">
+			<div class="field">
+				<label>Sección</label>
+				<select formControlName="movementType">
+					@for (item of movementTypes; track item) {
+						<option [value]="item">{{ item }}</option>
+					}
+				</select>
+			</div>
+
+			<div class="field">
+				<label>Valor presupuesto</label>
+				<input type="number" formControlName="amount" />
+			</div>
+
+			<button class="btn btn-primary" type="submit">Guardar presupuesto</button>
+			<p class="muted">{{ message }}</p>
+		</form>
+	</article>
+
+	<article class="card">
+		<h2 class="section-title">Presupuestos actuales</h2>
+
+		@if (!budgets.length) {
+			<p class="muted">No hay presupuestos configurados.</p>
+		} @else {
+			<div class="budget-list">
+				@for (item of budgets; track item.movementType) {
+					<div class="budget-item">
+						<div>
+							<strong>{{ item.movementType }}</strong>
+							<span class="muted">Actualizado: {{ item.updatedAt | date:'short' }}</span>
+						</div>
+						<div class="budget-actions">
+							<strong>${{ item.amount | number:'1.0-0' }}</strong>
+							<button class="btn btn-danger" type="button" (click)="remove(item)">Eliminar</button>
+						</div>
+					</div>
+				}
+			</div>
+		}
+	</article>
+</section>

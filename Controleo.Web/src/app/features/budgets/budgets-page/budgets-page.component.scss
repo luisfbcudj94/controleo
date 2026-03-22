@@ -1,0 +1,44 @@
+.budgets-grid {
+	display: grid;
+	gap: 1rem;
+}
+
+.month-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+}
+
+.budget-list {
+	display: grid;
+	gap: 0.65rem;
+}
+
+.budget-item {
+	border: 1px solid #2a2a2a;
+	border-radius: 0.8rem;
+	background: #1a1a1a;
+	padding: 0.75rem;
+	display: flex;
+	justify-content: space-between;
+	gap: 0.75rem;
+}
+
+.budget-item > div {
+	display: grid;
+	gap: 0.3rem;
+}
+
+.budget-actions {
+	align-items: end;
+}
+
+@media (max-width: 700px) {
+	.budget-item {
+		flex-direction: column;
+	}
+
+	.budget-actions {
+		align-items: start;
+	}
+}

@@ -1,0 +1,68 @@
+<div class="app-shell">
+	<aside class="sidebar">
+		<div class="sb-brand">
+			<div class="sb-logo">fin<span>.</span>track</div>
+			<div class="sb-tagline">Gestión financiera personal</div>
+		</div>
+
+		<nav class="sb-nav">
+			<div class="sb-section-label">Principal</div>
+			@for (item of primaryNav; track item.path) {
+				<a [routerLink]="item.path" routerLinkActive="active" class="nav-btn" [class.active]="isActive(item.path)">
+					<span class="nb-icon">{{ item.icon }}</span>
+					<span class="nb-label">{{ item.label }}</span>
+				</a>
+			}
+
+			<div class="sb-section-label spaced">Análisis</div>
+			@for (item of analysisNav; track item.path) {
+				<a [routerLink]="item.path" routerLinkActive="active" class="nav-btn" [class.active]="isActive(item.path)">
+					<span class="nb-icon">{{ item.icon }}</span>
+					<span class="nb-label">{{ item.label }}</span>
+				</a>
+			}
+		</nav>
+
+		<div class="sb-bottom">
+			<div class="sb-user">
+				<div class="sb-avatar">CT</div>
+				<div>
+					<div class="sb-uname">Controleo</div>
+					  <div class="sb-uemail">local&#64;controleo.app</div>
+				</div>
+			</div>
+		</div>
+	</aside>
+
+	<main class="main">
+		<header class="topbar">
+			<div class="tb-left">
+				<div>
+					<div class="tb-page-title">{{ pageTitle }}</div>
+					<div class="tb-breadcrumb">fin.track <span>›</span> <span>{{ pageCrumb }}</span></div>
+				</div>
+			</div>
+
+			<div class="tb-right">
+				<button class="theme-switch" type="button" (click)="toggleTheme()" [attr.aria-pressed]="isGirlMode" title="Cambiar tema">
+					<span class="switch-label">{{ isGirlMode ? 'Girl' : 'Dark' }}</span>
+					<span class="switch-track" [class.on]="isGirlMode">
+						<span class="switch-thumb"></span>
+					</span>
+				</button>
+
+				<div class="month-sel">
+					<button class="ms-btn" type="button" (click)="previousMonth()">&#8249;</button>
+					<div class="ms-label">{{ monthLabel }}</div>
+					<button class="ms-btn" type="button" (click)="nextMonth()">&#8250;</button>
+				</div>
+
+				<a class="tb-btn primary" [routerLink]="'/registrar'">＋ Nuevo gasto</a>
+			</div>
+		</header>
+
+		<section class="page-content">
+			<router-outlet />
+		</section>
+	</main>
+</div>

@@ -1,0 +1,27 @@
+<section class="settings-grid">
+	<article class="card">
+		<h2 class="section-title">Catálogos</h2>
+		<p class="muted">Edita valores, uno por línea (también acepta coma o punto y coma).</p>
+
+		<form class="form-grid" [formGroup]="form" (ngSubmit)="save()">
+			<div class="field">
+				<label for="movementTypesText">Tipos de movimiento</label>
+				<textarea id="movementTypesText" rows="8" formControlName="movementTypesText"></textarea>
+			</div>
+
+			<div class="field">
+				<label for="paymentMethodsText">Métodos de pago</label>
+				<textarea id="paymentMethodsText" rows="8" formControlName="paymentMethodsText"></textarea>
+			</div>
+
+			<div class="row-actions">
+				<button class="btn btn-primary" type="submit" [disabled]="isSaving || isLoading">
+					{{ isSaving ? 'Guardando...' : 'Guardar catálogos' }}
+				</button>
+			</div>
+		</form>
+
+		<p class="muted" *ngIf="isLoading">Cargando catálogos...</p>
+		<p *ngIf="statusMessage">{{ statusMessage }}</p>
+	</article>
+</section>

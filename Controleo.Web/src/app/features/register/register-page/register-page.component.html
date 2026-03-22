@@ -1,0 +1,122 @@
+<section class="register-grid">
+	<form class="form-layout" [formGroup]="form" (ngSubmit)="save()">
+		<div class="form-col">
+			<article class="f-card">
+				<div class="f-card-header">
+					<div class="fch-icon" style="background: var(--inf2)">📅</div>
+					<div class="fch-title">Periodo y fecha</div>
+				</div>
+
+				<div class="f-body">
+					<div class="f-row">
+						<div class="f-field">
+							<label class="f-label">Mes del gasto</label>
+							<div class="month-row">
+								<button class="btn btn-ghost" type="button" (click)="previousMonth()">◀</button>
+								<select class="f-input" [value]="selectedMonth" (change)="onMonthSelected($any($event.target).value)">
+									@for (month of months; track month) {
+										<option [value]="month">{{ month }}</option>
+									}
+								</select>
+								<button class="btn btn-ghost" type="button" (click)="nextMonth()">▶</button>
+							</div>
+						</div>
+
+						<div class="f-field">
+							<label class="f-label">Fecha exacta</label>
+							<input class="f-input" type="date" formControlName="date" />
+						</div>
+					</div>
+				</div>
+			</article>
+
+			<article class="f-card">
+				<div class="f-card-header">
+					<div class="fch-icon" style="background: var(--ac2)">💵</div>
+					<div class="fch-title">Valor del gasto</div>
+				</div>
+
+				<div class="amount-hero">
+					<div class="ah-sym">$</div>
+					<div class="ah-wrap">
+						<input class="ah-input" type="number" formControlName="amount" min="0" placeholder="0" />
+						<div class="ah-under"></div>
+					</div>
+				</div>
+			</article>
+
+			<article class="f-card">
+				<div class="f-card-header">
+					<div class="fch-icon" style="background: var(--pur2)">✏️</div>
+					<div class="fch-title">Detalle del gasto</div>
+				</div>
+
+				<div class="f-body">
+					<div class="f-row single">
+						<div class="f-field">
+							<label class="f-label">Descripción</label>
+							<input class="f-input" type="text" formControlName="description" placeholder="¿En qué gastaste?" />
+						</div>
+					</div>
+
+					<div class="f-row">
+						<div class="f-field">
+							<label class="f-label">Tipo de movimiento</label>
+							<select class="f-input" formControlName="movementType">
+								@for (item of movementTypes; track item) {
+									<option [value]="item">{{ item }}</option>
+								}
+							</select>
+						</div>
+
+						<div class="f-field">
+							<label class="f-label">Medio de pago</label>
+							<select class="f-input" formControlName="paymentMethod">
+								@for (item of paymentMethods; track item) {
+									<option [value]="item">{{ item }}</option>
+								}
+							</select>
+						</div>
+					</div>
+				</div>
+			</article>
+		</div>
+
+		<div>
+			<aside class="preview-card">
+				<div class="pc-title">Vista previa</div>
+				<div class="pc-amount" [style.color]="movementTypeColor">${{ amountPreview | number:'1.0-0' }}</div>
+				<div class="pc-rows">
+					<div class="pc-row">
+						<span class="pc-key">Descripción</span>
+						<span class="pc-val">{{ descriptionPreview }}</span>
+					</div>
+					<div class="pc-row">
+						<span class="pc-key">Mes</span>
+						<span class="pc-val">{{ monthLabelText }}</span>
+					</div>
+					<div class="pc-row">
+						<span class="pc-key">Fecha</span>
+						<span class="pc-val">{{ form.controls.date.value || '—' }}</span>
+					</div>
+					<div class="pc-row">
+						<span class="pc-key">Tipo</span>
+						<span class="pc-val" [style.color]="movementTypeColor">{{ movementTypePreview }}</span>
+					</div>
+					<div class="pc-row">
+						<span class="pc-key">Medio de pago</span>
+						<span class="pc-val">{{ paymentMethodPreview }}</span>
+					</div>
+				</div>
+
+				<button class="save-btn" type="submit" [disabled]="isSaving">
+					{{ isSaving ? 'Guardando...' : '✦  Guardar gasto' }}
+				</button>
+
+				@if (statusMessage) {
+					<p class="status-text">{{ statusMessage }}</p>
+				}
+			</aside>
+		</div>
+	</form>
+</section>

@@ -1,0 +1,130 @@
+<section class="expenses-grid">
+	<article class="card month-row">
+		<button class="btn btn-ghost" type="button" (click)="previousMonth()">◀</button>
+		<strong>{{ monthLabelText }}</strong>
+		<button class="btn btn-ghost" type="button" (click)="nextMonth()">▶</button>
+	</article>
+
+	<div class="gastos-header">
+		<div class="gh-search">
+			<span>🔍</span>
+			<input type="text" placeholder="Buscar gasto..." (input)="updateSearch($any($event.target).value)" />
+		</div>
+
+		<div class="filter-chips">
+			<button class="chip" [class.active]="activeMovementType === 'all'" type="button" (click)="setFilter('all')">Todos</button>
+			@for (movementType of movementTypeFilters; track movementType) {
+				<button class="chip" [class.active]="activeMovementType === movementType" type="button" (click)="setFilter(movementType)">
+					{{ movementType }}
+				</button>
+			}
+		</div>
+	</div>
+
+	<div class="summary-bar">
+		<div class="sb-item">
+			<div class="sb-lbl">Total gastos</div>
+			<div class="sb-val" style="color: var(--danger)">${{ totalFilteredAmount | number:'1.0-0' }}</div>
+		</div>
+		<div class="sb-div"></div>
+		<div class="sb-item">
+			<div class="sb-lbl">Movimientos</div>
+			<div class="sb-val">{{ filteredItems.length }}</div>
+		</div>
+		<div class="sb-div"></div>
+		<div class="sb-item">
+			<div class="sb-lbl">Promedio</div>
+			<div class="sb-val" style="color: var(--amber)">${{ averageFilteredAmount | number:'1.0-0' }}</div>
+		</div>
+		<div class="sb-div"></div>
+		<div class="sb-item">
+			<div class="sb-lbl">Mayor gasto</div>
+			<div class="sb-val" style="color: var(--purple)">${{ maxFilteredAmount | number:'1.0-0' }}</div>
+		</div>
+	</div>
+
+	@if (editingExpense) {
+		<article class="card edit-card">
+			<h3 class="section-title">Editar gasto</h3>
+			<form class="form-grid" [formGroup]="editForm" (ngSubmit)="saveEdit()">
+				<div class="field"><label>Fecha</label><input type="date" formControlName="date" /></div>
+				<div class="field"><label>Descripción</label><input type="text" formControlName="description" /></div>
+				<div class="field"><label>Valor</label><input type="number" formControlName="amount" /></div>
+				<div class="field">
+					<label>Tipo</label>
+					<select formControlName="movementType">
+						@for (item of movementTypes; track item) {
+							<option [value]="item">{{ item }}</option>
+						}
+					</select>
+				</div>
+				<div class="field">
+					<label>Medio</label>
+					<select formControlName="paymentMethod">
+						@for (item of paymentMethods; track item) {
+							<option [value]="item">{{ item }}</option>
+						}
+					</select>
+				</div>
+				<div class="row-actions">
+					<button class="btn btn-primary" type="submit">Guardar</button>
+					<button class="btn btn-ghost" type="button" (click)="cancelEdit()">Cancelar</button>
+				</div>
+			</form>
+		</article>
+	}
+
+	<div class="expense-table">
+		<div class="et-head">
+			<div class="et-hcell">Descripción</div>
+			<div class="et-hcell">Fecha</div>
+			<div class="et-hcell">Categoría</div>
+			<div class="et-hcell">Medio</div>
+			<div class="et-hcell right">Valor</div>
+			<div class="et-hcell"></div>
+		</div>
+
+		@if (isLoading) {
+			<div class="empty-row">Cargando gastos...</div>
+		} @else if (!filteredItems.length) {
+			<div class="empty-row">No hay gastos para este período.</div>
+		} @else {
+			@for (item of filteredItems; track trackById($index, item)) {
+				<div class="et-row">
+					<div class="et-cell et-desc">
+						<div class="et-cat-dot" [style.background]="bgFor(item)">{{ iconFor(item) }}</div>
+						<div>
+							<div class="et-dname">{{ item.description }}</div>
+							<div class="et-dcat">{{ item.movementType }}</div>
+						</div>
+					</div>
+					<div class="et-cell muted">{{ item.date | date:'mediumDate' }}</div>
+					<div class="et-cell"><span class="et-badge" [style.background]="bgFor(item)" [style.color]="colorFor(item)">{{ item.movementType }}</span></div>
+					<div class="et-cell">{{ item.paymentMethod }}</div>
+					<div class="et-cell et-amount" [style.color]="colorFor(item)">${{ item.amount | number:'1.0-0' }}</div>
+					<div class="et-cell et-actions">
+						<button class="et-edit" type="button" (click)="openEdit(item)" title="Editar">✏️</button>
+						<button class="et-del" type="button" (click)="delete(item)" title="Eliminar">✕</button>
+					</div>
+				</div>
+			}
+		}
+	</div>
+
+	<div class="footer-row">
+		<p class="muted">{{ paginationText }}</p>
+		<div class="row-actions">
+			<select [value]="pageSize" (change)="setPageSize(+$any($event.target).value)">
+				@for (size of allowedPageSizes; track size) {
+					<option [value]="size">{{ size }} por página</option>
+				}
+			</select>
+			<button class="btn btn-ghost" type="button" [disabled]="pageNumber <= 1" (click)="prevPage()">Anterior</button>
+			<button class="btn btn-ghost" type="button" [disabled]="pageNumber >= totalPages" (click)="nextPage()">Siguiente</button>
+		</div>
+	</div>
+
+	@if (statusMessage) {
+		<p class="muted">{{ statusMessage }}</p>
+	}
+</section>

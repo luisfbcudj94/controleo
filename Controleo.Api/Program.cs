@@ -5,6 +5,16 @@ using Controleo.Api.Services;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddOpenApi();
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("LocalWeb", policy =>
+    {
+        policy
+            .WithOrigins("http://localhost:4200", "http://127.0.0.1:4200")
+            .AllowAnyHeader()
+            .AllowAnyMethod();
+    });
+});
 builder.Services.Configure<FirebaseStorageOptions>(builder.Configuration.GetSection(FirebaseStorageOptions.SectionName));
 builder.Services.PostConfigure<FirebaseStorageOptions>(options =>
 {
@@ -14,6 +24,11 @@ builder.Services.PostConfigure<FirebaseStorageOptions>(options =>
 builder.Services.AddSingleton<IExpenseStorageService, FirestoreExpenseStorageService>();
 
 var app = builder.Build();
+
+if (app.Environment.IsDevelopment())
+{
+    app.UseCors("LocalWeb");
+}
 
 if (app.Environment.IsDevelopment())
 {
