@@ -10,10 +10,13 @@ public partial class SettingsPage : ContentPage
     private readonly AuthService _authService;
     private readonly ObservableCollection<string> _movementTypes = [];
     private readonly ObservableCollection<string> _paymentMethods = [];
-    private string? _selectedMovement;
-    private string? _selectedPayment;
+    private readonly List<MovementTypeConfig> _configs = [];
     private bool _isEditingMovement;
+    private bool _editingMovementWillPickIconColor;
     private string? _editingOriginalValue;
+    private string _editSelectedIcon = "📋";
+    private string? _editSelectedColor;
+    private bool _isAddingMovement; // true = movement, false = payment
     private bool _isRefreshing;
 
     public SettingsPage(ExpenseApiClient apiClient, AuthService authService)
@@ -33,33 +36,24 @@ public partial class SettingsPage : ContentPage
 
     private async Task LoadDataAsync()
     {
-        if (_isRefreshing)
-        {
-            return;
-        }
-
+        if (_isRefreshing) return;
         _isRefreshing = true;
         SetLoading(true);
         try
         {
             var catalog = await _apiClient.GetCatalogsAsync(CancellationToken.None);
+            _configs.Clear();
+            if (catalog.MovementTypeConfigs is not null)
+                _configs.AddRange(catalog.MovementTypeConfigs);
+            PastelColorHelper.SetConfigs(_configs);
 
             _movementTypes.Clear();
             foreach (var item in catalog.MovementTypes)
-            {
                 _movementTypes.Add(item);
-            }
 
             _paymentMethods.Clear();
             foreach (var item in catalog.PaymentMethods)
-            {
                 _paymentMethods.Add(item);
-            }
-
-            _selectedMovement = null;
-            _selectedPayment = null;
-            SelectedMovementLabel.Text = "Sin sección seleccionada";
-            SelectedPaymentLabel.Text = "Sin medio seleccionado";
         }
         finally
         {
@@ -69,199 +63,182 @@ public partial class SettingsPage : ContentPage
         }
     }
 
-    private async void OnAddMovementClicked(object? sender, EventArgs e)
+    // ── Add flows via modal ──
+
+    private string _addSelectedIcon = "📋";
+    private string? _addSelectedColor;
+
+    private void OnAddMovementTapped(object? sender, EventArgs e)
     {
-        if (AddItem(_movementTypes, NewMovementEntry, "sección"))
-        {
-            await SaveCatalogsAsync();
-        }
+        _isAddingMovement = true;
+        _addSelectedIcon = "📋";
+        _addSelectedColor = null;
+        AddModalTitleLabel.Text = "Nueva sección";
+        AddModalEntry.Text = string.Empty;
+        AddModalEntry.Placeholder = "Nombre de la sección";
+        AddIconSection.IsVisible = true;
+        PopulateAddIconGrid("📋");
+        PopulateColorRow(AddColorRow, PastelColorHelper.GetAvailableColors(_configs), null,
+            hex => { _addSelectedColor = hex; RebuildAddColorRow(); });
+        AddOverlay.IsVisible = true;
+        AddModalEntry.Focus();
     }
 
-    private async void OnAddPaymentClicked(object? sender, EventArgs e)
+    private void OnAddPaymentTapped(object? sender, EventArgs e)
     {
-        if (AddItem(_paymentMethods, NewPaymentEntry, "medio de pago"))
-        {
-            await SaveCatalogsAsync();
-        }
+        _isAddingMovement = false;
+        AddModalTitleLabel.Text = "Nuevo medio de pago";
+        AddModalEntry.Text = string.Empty;
+        AddModalEntry.Placeholder = "Nombre del medio";
+        AddIconSection.IsVisible = false;
+        AddOverlay.IsVisible = true;
+        AddModalEntry.Focus();
     }
 
-    private void OnEditMovementClicked(object? sender, EventArgs e)
+    private void OnCancelAddModal(object? sender, EventArgs e)
     {
-        if (string.IsNullOrWhiteSpace(_selectedMovement))
+        AddOverlay.IsVisible = false;
+    }
+
+    private async void OnConfirmAddModal(object? sender, EventArgs e)
+    {
+        var name = AddModalEntry.Text?.Trim();
+        if (string.IsNullOrWhiteSpace(name))
         {
-            ResetSettingsInputs();
-            _ = StyledResultModalPage.ShowAsync(this, false, "No se pudo editar", "Selecciona una sección para editar.");
+            await StyledResultModalPage.ShowAsync(this, false, "Dato inválido", "Ingresa un nombre.");
             return;
         }
 
+        AddOverlay.IsVisible = false;
+
+        if (_isAddingMovement)
+        {
+            if (_movementTypes.Any(item => string.Equals(item, name, StringComparison.OrdinalIgnoreCase)))
+            {
+                await StyledResultModalPage.ShowAsync(this, false, "Duplicado", "Esa sección ya existe.");
+                return;
+            }
+
+            var availableColors = PastelColorHelper.GetAvailableColors(_configs);
+            if (availableColors.Count == 0)
+            {
+                await StyledResultModalPage.ShowAsync(this, false, "Sin colores", "No hay colores disponibles.");
+                return;
+            }
+
+            var selectedIcon = _addSelectedIcon;
+            var selectedColor = _addSelectedColor ?? availableColors[0].Hex;
+            AddOverlay.IsVisible = false;
+
+            _movementTypes.Add(name);
+            _configs.Add(new MovementTypeConfig(name, selectedIcon, selectedColor));
+            await SaveCatalogsAsync();
+        }
+        else
+        {
+            if (_paymentMethods.Any(item => string.Equals(item, name, StringComparison.OrdinalIgnoreCase)))
+            {
+                await StyledResultModalPage.ShowAsync(this, false, "Duplicado", "Ese medio ya existe.");
+                return;
+            }
+
+            _paymentMethods.Add(name);
+            await SaveCatalogsAsync();
+        }
+    }
+
+    // ── Edit inline per item ──
+
+    private void OnEditMovementItemTapped(object? sender, TappedEventArgs e)
+    {
+        if (e.Parameter is not string value) return;
         _isEditingMovement = true;
-        _editingOriginalValue = _selectedMovement;
+        _editingMovementWillPickIconColor = true;
+        _editingOriginalValue = value;
         EditModalTitleLabel.Text = "Editar sección";
-        EditModalEntry.Text = _selectedMovement;
+        EditModalEntry.Text = value;
+
+        // Find current icon or default
+        var cfg = _configs.FirstOrDefault(c => string.Equals(c.Name, value, StringComparison.OrdinalIgnoreCase));
+        _editSelectedIcon = cfg?.Icon ?? PastelColorHelper.IconForMovementType(value);
+        _editSelectedColor = cfg?.Color;
+        EditIconSection.IsVisible = true;
+        PopulateEditIconGrid(_editSelectedIcon);
+        PopulateColorRow(EditColorRow, PastelColorHelper.GetAvailableColors(_configs, value), _editSelectedColor,
+            hex => { _editSelectedColor = hex; RebuildEditColorRow(); });
+
         EditOverlay.IsVisible = true;
     }
 
-    private void OnEditPaymentClicked(object? sender, EventArgs e)
+    private void OnEditPaymentItemTapped(object? sender, TappedEventArgs e)
     {
-        if (string.IsNullOrWhiteSpace(_selectedPayment))
-        {
-            ResetSettingsInputs();
-            _ = StyledResultModalPage.ShowAsync(this, false, "No se pudo editar", "Selecciona un medio de pago para editar.");
-            return;
-        }
-
+        if (e.Parameter is not string value) return;
         _isEditingMovement = false;
-        _editingOriginalValue = _selectedPayment;
+        _editingMovementWillPickIconColor = false;
+        _editingOriginalValue = value;
         EditModalTitleLabel.Text = "Editar medio de pago";
-        EditModalEntry.Text = _selectedPayment;
+        EditModalEntry.Text = value;
+        EditIconSection.IsVisible = false;
         EditOverlay.IsVisible = true;
     }
 
-    private async void OnDeleteMovementClicked(object? sender, EventArgs e)
+    private async void OnDeleteMovementItemTapped(object? sender, TappedEventArgs e)
     {
-        if (string.IsNullOrWhiteSpace(_selectedMovement))
+        if (e.Parameter is not string value) return;
+
+        // Check how many expenses exist for this movement type
+        SetLoading(true);
+        var count = await _apiClient.CountExpensesByMovementTypeAsync(value, CancellationToken.None);
+        SetLoading(false);
+
+        string confirmMessage;
+        if (count > 0)
         {
-            ResetSettingsInputs();
-            await StyledResultModalPage.ShowAsync(this, false, "No se pudo eliminar", "Selecciona una sección para eliminar.");
-            return;
+            confirmMessage = $"'{value}' tiene {count} gasto(s) registrado(s).\n\n" +
+                             "Si eliminas esta sección, se borrarán TODOS los gastos, presupuestos y recurrentes asociados.\n\n" +
+                             "¿Deseas continuar?";
+        }
+        else
+        {
+            confirmMessage = $"¿Eliminar la sección '{value}'?";
         }
 
-        var confirmed = await StyledConfirmModalPage.ConfirmAsync(
-            this,
-            "Eliminar sección",
-            $"¿Deseas eliminar '{_selectedMovement}'?");
-        if (!confirmed)
-        {
-            return;
-        }
-
-        _movementTypes.Remove(_selectedMovement);
-        _selectedMovement = null;
-        MovementCollection.SelectedItem = null;
-        SelectedMovementLabel.Text = "Sin sección seleccionada";
-        await SaveCatalogsAsync();
-    }
-
-    private async void OnDeletePaymentClicked(object? sender, EventArgs e)
-    {
-        if (string.IsNullOrWhiteSpace(_selectedPayment))
-        {
-            ResetSettingsInputs();
-            await StyledResultModalPage.ShowAsync(this, false, "No se pudo eliminar", "Selecciona un medio de pago para eliminar.");
-            return;
-        }
-
-        var confirmed = await StyledConfirmModalPage.ConfirmAsync(
-            this,
-            "Eliminar medio de pago",
-            $"¿Deseas eliminar '{_selectedPayment}'?");
-        if (!confirmed)
-        {
-            return;
-        }
-
-        _paymentMethods.Remove(_selectedPayment);
-        _selectedPayment = null;
-        PaymentCollection.SelectedItem = null;
-        SelectedPaymentLabel.Text = "Sin medio seleccionado";
-        await SaveCatalogsAsync();
-    }
-
-    private async Task SaveCatalogsAsync()
-    {
-        if (_movementTypes.Count == 0 || _paymentMethods.Count == 0)
-        {
-            ResetSettingsInputs();
-            await StyledResultModalPage.ShowAsync(this, false, "No se pudo guardar", "Debe existir al menos una sección y un medio de pago.");
-            return;
-        }
+        var confirmed = await StyledConfirmModalPage.ConfirmAsync(this, "Eliminar sección", confirmMessage);
+        if (!confirmed) return;
 
         SetLoading(true);
 
-        var request = new UpdateCatalogsRequest(_movementTypes.ToList(), _paymentMethods.ToList());
-        var result = await _apiClient.UpdateCatalogsAsync(request, CancellationToken.None);
-        await StyledResultModalPage.ShowAsync(
-            this,
-            result.IsSuccess,
-            result.IsSuccess ? "Cambios guardados" : "No se pudo guardar",
-            result.IsSuccess ? "Los catálogos se actualizaron correctamente." : result.Message);
-
-        if (!result.IsSuccess)
+        // Cascade delete all data for this movement type on the server
+        if (count > 0)
         {
-            ResetSettingsInputs();
+            var deleteResult = await _apiClient.DeleteAllByMovementTypeAsync(value, CancellationToken.None);
+            if (!deleteResult.IsSuccess)
+            {
+                SetLoading(false);
+                await StyledResultModalPage.ShowAsync(this, false, "Error", deleteResult.Message);
+                return;
+            }
         }
+
+        // Remove from local lists and save catalogs
+        _movementTypes.Remove(value);
+        _configs.RemoveAll(c => string.Equals(c.Name, value, StringComparison.OrdinalIgnoreCase));
+        await SaveCatalogsAsync();
         SetLoading(false);
+        await StyledResultModalPage.ShowAsync(this, true, "Eliminado",
+            count > 0 ? $"Se eliminó '{value}' y {count} gasto(s) asociados." : $"Sección '{value}' eliminada.");
     }
 
-    private void OnMovementSelectionChanged(object? sender, SelectionChangedEventArgs e)
+    private async void OnDeletePaymentItemTapped(object? sender, TappedEventArgs e)
     {
-        _selectedMovement = e.CurrentSelection.FirstOrDefault()?.ToString();
-        SelectedMovementLabel.Text = string.IsNullOrWhiteSpace(_selectedMovement)
-            ? "Sin sección seleccionada"
-            : $"Seleccionada: {_selectedMovement}";
+        if (e.Parameter is not string value) return;
+        var confirmed = await StyledConfirmModalPage.ConfirmAsync(this, "Eliminar medio", $"¿Eliminar '{value}'?");
+        if (!confirmed) return;
+        _paymentMethods.Remove(value);
+        await SaveCatalogsAsync();
     }
 
-    private void OnPaymentSelectionChanged(object? sender, SelectionChangedEventArgs e)
-    {
-        _selectedPayment = e.CurrentSelection.FirstOrDefault()?.ToString();
-        SelectedPaymentLabel.Text = string.IsNullOrWhiteSpace(_selectedPayment)
-            ? "Sin medio seleccionado"
-            : $"Seleccionado: {_selectedPayment}";
-    }
-
-    private bool AddItem(ObservableCollection<string> source, Entry entry, string label)
-    {
-        var value = entry.Text?.Trim();
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            entry.Text = "0";
-            _ = StyledResultModalPage.ShowAsync(this, false, "Dato inválido", $"Ingresa un nombre de {label}.");
-            return false;
-        }
-
-        if (source.Any(item => string.Equals(item, value, StringComparison.OrdinalIgnoreCase)))
-        {
-            entry.Text = "0";
-            _ = StyledResultModalPage.ShowAsync(this, false, "Dato duplicado", $"Ese {label} ya existe.");
-            return false;
-        }
-
-        source.Add(value);
-        entry.Text = string.Empty;
-        return true;
-    }
-
-    private static void ReplaceItem(ObservableCollection<string> source, string oldValue, string newValue)
-    {
-        var index = source.IndexOf(oldValue);
-        if (index >= 0)
-        {
-            source[index] = newValue;
-        }
-    }
-
-    private async void OnRefreshing(object? sender, EventArgs e)
-    {
-        await LoadDataAsync();
-    }
-
-
-    private async void OnLogoutClicked(object? sender, EventArgs e)
-    {
-        await _authService.SignOutAsync();
-
-        if (Application.Current?.Windows.FirstOrDefault() is { } window)
-        {
-            var loginPage = new LoginPage(_authService);
-            NavigationPage.SetHasNavigationBar(loginPage, false);
-            window.Page = new NavigationPage(loginPage);
-        }
-    }
-
-    private void SetLoading(bool isLoading)
-    {
-        LoadingOverlay.IsVisible = isLoading;
-    }
+    // ── Edit modal confirm ──
 
     private void OnCancelEditModalClicked(object? sender, EventArgs e)
     {
@@ -274,34 +251,56 @@ public partial class SettingsPage : ContentPage
         var edited = EditModalEntry.Text?.Trim();
         if (string.IsNullOrWhiteSpace(edited) || string.IsNullOrWhiteSpace(_editingOriginalValue))
         {
-            EditModalEntry.Text = "0";
-            await StyledResultModalPage.ShowAsync(this, false, "No se pudo guardar", "Debes ingresar un valor válido.");
+            await StyledResultModalPage.ShowAsync(this, false, "Dato inválido", "Ingresa un valor válido.");
             return;
         }
 
         if (_isEditingMovement)
         {
-            if (_movementTypes.Any(item => !string.Equals(item, _editingOriginalValue, StringComparison.OrdinalIgnoreCase) && string.Equals(item, edited, StringComparison.OrdinalIgnoreCase)))
+            if (_movementTypes.Any(item =>
+                    !string.Equals(item, _editingOriginalValue, StringComparison.OrdinalIgnoreCase) &&
+                    string.Equals(item, edited, StringComparison.OrdinalIgnoreCase)))
             {
-                EditModalEntry.Text = "0";
-                await StyledResultModalPage.ShowAsync(this, false, "Dato duplicado", "Esa sección ya existe.");
+                await StyledResultModalPage.ShowAsync(this, false, "Duplicado", "Esa sección ya existe.");
                 return;
             }
 
             ReplaceItem(_movementTypes, _editingOriginalValue, edited);
-            _selectedMovement = edited;
+            var cfgIdx = _configs.FindIndex(c =>
+                string.Equals(c.Name, _editingOriginalValue, StringComparison.OrdinalIgnoreCase));
+
+            if (_editingMovementWillPickIconColor)
+            {
+                var oldCfg = cfgIdx >= 0 ? _configs[cfgIdx] : null;
+                var selectedIcon = _editSelectedIcon;
+                var selectedColor = _editSelectedColor ?? oldCfg?.Color ?? "#B6E6BD";
+
+                EditOverlay.IsVisible = false;
+
+                if (cfgIdx >= 0)
+                    _configs[cfgIdx] = new MovementTypeConfig(edited, selectedIcon, selectedColor);
+                else
+                    _configs.Add(new MovementTypeConfig(edited, selectedIcon, selectedColor));
+            }
+            else if (cfgIdx >= 0)
+            {
+                var old = _configs[cfgIdx];
+                _configs[cfgIdx] = new MovementTypeConfig(edited, old.Icon, old.Color);
+            }
+
+            _editingMovementWillPickIconColor = false;
         }
         else
         {
-            if (_paymentMethods.Any(item => !string.Equals(item, _editingOriginalValue, StringComparison.OrdinalIgnoreCase) && string.Equals(item, edited, StringComparison.OrdinalIgnoreCase)))
+            if (_paymentMethods.Any(item =>
+                    !string.Equals(item, _editingOriginalValue, StringComparison.OrdinalIgnoreCase) &&
+                    string.Equals(item, edited, StringComparison.OrdinalIgnoreCase)))
             {
-                EditModalEntry.Text = "0";
-                await StyledResultModalPage.ShowAsync(this, false, "Dato duplicado", "Ese medio de pago ya existe.");
+                await StyledResultModalPage.ShowAsync(this, false, "Duplicado", "Ese medio ya existe.");
                 return;
             }
 
             ReplaceItem(_paymentMethods, _editingOriginalValue, edited);
-            _selectedPayment = edited;
         }
 
         EditOverlay.IsVisible = false;
@@ -309,13 +308,164 @@ public partial class SettingsPage : ContentPage
         await SaveCatalogsAsync();
     }
 
-    private void ResetSettingsInputs()
+    // ── Save & helpers ──
+
+    private void PopulateEditIconGrid(string? selectedIcon)
     {
-        NewMovementEntry.Text = "0";
-        NewPaymentEntry.Text = "0";
-        if (EditOverlay.IsVisible)
+        PopulateIconGrid(EditIconGrid, selectedIcon, emoji => { _editSelectedIcon = emoji; PopulateEditIconGrid(emoji); });
+    }
+
+    private void PopulateAddIconGrid(string? selectedIcon)
+    {
+        PopulateIconGrid(AddIconGrid, selectedIcon, emoji => { _addSelectedIcon = emoji; PopulateAddIconGrid(emoji); });
+    }
+
+    private void RebuildEditColorRow()
+    {
+        PopulateColorRow(EditColorRow, PastelColorHelper.GetAvailableColors(_configs, _editingOriginalValue), _editSelectedColor,
+            hex => { _editSelectedColor = hex; RebuildEditColorRow(); });
+    }
+
+    private void RebuildAddColorRow()
+    {
+        PopulateColorRow(AddColorRow, PastelColorHelper.GetAvailableColors(_configs), _addSelectedColor,
+            hex => { _addSelectedColor = hex; RebuildAddColorRow(); });
+    }
+
+    private static void PopulateIconGrid(Grid grid, string? selectedIcon, Action<string> onSelected)
+    {
+        grid.Children.Clear();
+        grid.RowDefinitions.Clear();
+        grid.ColumnDefinitions.Clear();
+
+        var icons = PastelColorHelper.AvailableIcons;
+        var cols = 6;
+        var rows = (int)Math.Ceiling(icons.Length / (double)cols);
+
+        for (var c = 0; c < cols; c++)
+            grid.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Star));
+        for (var r = 0; r < rows; r++)
+            grid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
+
+        for (var i = 0; i < icons.Length; i++)
         {
-            EditModalEntry.Text = "0";
+            var (emoji, _) = icons[i];
+            var isSelected = string.Equals(emoji, selectedIcon);
+
+            var border = new Border
+            {
+                StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = new CornerRadius(12) },
+                BackgroundColor = isSelected ? Color.FromArgb("#D8F3DC") : Color.FromArgb("#F2F5F3"),
+                Stroke = isSelected ? Color.FromArgb("#40916C") : Colors.Transparent,
+                StrokeThickness = isSelected ? 2 : 0,
+                HeightRequest = 44,
+                Margin = new Thickness(2),
+                Padding = 0,
+            };
+
+            border.Content = new Label
+            {
+                Text = emoji,
+                FontSize = 22,
+                HorizontalOptions = LayoutOptions.Center,
+                VerticalOptions = LayoutOptions.Center,
+                HorizontalTextAlignment = TextAlignment.Center,
+                VerticalTextAlignment = TextAlignment.Center,
+            };
+
+            var capturedEmoji = emoji;
+            var tap = new TapGestureRecognizer();
+            tap.Tapped += (_, _) => onSelected(capturedEmoji);
+            border.GestureRecognizers.Add(tap);
+
+            Grid.SetColumn(border, i % cols);
+            Grid.SetRow(border, i / cols);
+            grid.Children.Add(border);
         }
     }
+
+    private static void PopulateColorRow(
+        HorizontalStackLayout row,
+        IReadOnlyList<(string Hex, string Label)> colors,
+        string? selectedHex,
+        Action<string>? onSelected)
+    {
+        row.Children.Clear();
+        foreach (var (hex, _) in colors)
+        {
+            var isSelected = string.Equals(hex, selectedHex, StringComparison.OrdinalIgnoreCase);
+            var circle = new Border
+            {
+                StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = new CornerRadius(20) },
+                BackgroundColor = Color.FromArgb(hex),
+                WidthRequest = 40,
+                HeightRequest = 40,
+                Stroke = isSelected ? Color.FromArgb("#1B4332") : Colors.Transparent,
+                StrokeThickness = isSelected ? 3 : 0,
+            };
+
+            if (isSelected)
+            {
+                circle.Content = new Label
+                {
+                    Text = "✓",
+                    FontSize = 16,
+                    FontAttributes = FontAttributes.Bold,
+                    TextColor = Color.FromArgb("#1B4332"),
+                    HorizontalOptions = LayoutOptions.Center,
+                    VerticalOptions = LayoutOptions.Center,
+                    HorizontalTextAlignment = TextAlignment.Center,
+                    VerticalTextAlignment = TextAlignment.Center,
+                };
+            }
+
+            if (onSelected is not null)
+            {
+                var capturedHex = hex;
+                var tap = new TapGestureRecognizer();
+                tap.Tapped += (_, _) => onSelected(capturedHex);
+                circle.GestureRecognizers.Add(tap);
+            }
+
+            row.Children.Add(circle);
+        }
+    }
+
+    private async Task SaveCatalogsAsync()
+    {
+        if (_movementTypes.Count == 0 || _paymentMethods.Count == 0)
+        {
+            await StyledResultModalPage.ShowAsync(this, false, "No se pudo guardar",
+                "Debe existir al menos una sección y un medio de pago.");
+            return;
+        }
+
+        SetLoading(true);
+        var request = new UpdateCatalogsRequest(_movementTypes.ToList(), _paymentMethods.ToList(), _configs.ToList());
+        var result = await _apiClient.UpdateCatalogsAsync(request, CancellationToken.None);
+        await StyledResultModalPage.ShowAsync(this, result.IsSuccess,
+            result.IsSuccess ? "Guardado" : "Error", result.IsSuccess ? "Catálogos actualizados." : result.Message);
+        SetLoading(false);
+    }
+
+    private static void ReplaceItem(ObservableCollection<string> source, string oldValue, string newValue)
+    {
+        var index = source.IndexOf(oldValue);
+        if (index >= 0) source[index] = newValue;
+    }
+
+    private async void OnRefreshing(object? sender, EventArgs e) => await LoadDataAsync();
+
+    private async void OnLogoutClicked(object? sender, EventArgs e)
+    {
+        await _authService.SignOutAsync();
+        if (Application.Current?.Windows.FirstOrDefault() is { } window)
+        {
+            var loginPage = new LoginPage(_authService);
+            NavigationPage.SetHasNavigationBar(loginPage, false);
+            window.Page = new NavigationPage(loginPage);
+        }
+    }
+
+    private void SetLoading(bool isLoading) => LoadingOverlay.IsVisible = isLoading;
 }

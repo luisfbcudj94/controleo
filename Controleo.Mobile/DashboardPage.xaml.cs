@@ -63,6 +63,10 @@ public partial class DashboardPage : ContentPage
         SetLoading(true);
         try
         {
+            // Ensure we have latest configs for colors/icons
+            var catalog = await _apiClient.GetCatalogsAsync(CancellationToken.None);
+            Services.PastelColorHelper.SetConfigs(catalog.MovementTypeConfigs);
+
             var data = await _apiClient.GetDashboardByCategoryAsync(_monthContext.SelectedMonthKey, CancellationToken.None);
 
             var orderedData = data
@@ -85,11 +89,13 @@ public partial class DashboardPage : ContentPage
                     row.BudgetTotal,
                     row.Balance,
                     progress,
-                    row.Balance < 0 ? Colors.IndianRed : Colors.ForestGreen,
-                    hasBudget ? Colors.Goldenrod : Colors.IndianRed,
+                    row.Balance < 0 ? Color.FromArgb("#E5534B") : Color.FromArgb("#40916C"),
+                    hasBudget ? Color.FromArgb("#40916C") : Color.FromArgb("#E5534B"),
                     hasBudget
                         ? $"Presupuesto: ${row.BudgetTotal:N0}"
-                        : "Sin presupuesto asignado"));
+                        : "Sin presupuesto asignado",
+                    Services.PastelColorHelper.ForMovementType(row.MovementType),
+                    Services.PastelColorHelper.IconForMovementType(row.MovementType)));
             }
 
             var totalBudget = data.Sum(item => item.BudgetTotal);
@@ -99,15 +105,15 @@ public partial class DashboardPage : ContentPage
             var budgetProgress = totalBudget <= 0 ? 0d : (double)Math.Min(1m, spentFromBudget / totalBudget);
             RingPercentLabel.Text = $"{budgetProgress * 100:0}%";
             _budgetRingDrawable.Progress = budgetProgress;
-            _budgetRingDrawable.TrackColor = Color.FromArgb("#2A2A2A");
-            _budgetRingDrawable.ProgressColor = Color.FromArgb("#C8F55A");
+            _budgetRingDrawable.TrackColor = Color.FromArgb("#D8F3DC");
+            _budgetRingDrawable.ProgressColor = Color.FromArgb("#2D6A4F");
             BudgetRingView.Invalidate();
 
             _summaryCards.Clear();
-            _summaryCards.Add(new DashboardSummaryCard("Disponible", $"${availableBudget:N0}", Color.FromArgb("#4ECBA0")));
-            _summaryCards.Add(new DashboardSummaryCard("Presupuesto", $"${totalBudget:N0}", Color.FromArgb("#C8F55A")));
-            _summaryCards.Add(new DashboardSummaryCard("Gastado", $"${spentFromBudget:N0}", Color.FromArgb("#FF6B6B")));
-            _summaryCards.Add(new DashboardSummaryCard("Total gastado", $"${totalExpenses:N0}", Color.FromArgb("#B39DFA")));
+            _summaryCards.Add(new DashboardSummaryCard("Disponible", $"${availableBudget:N0}", Color.FromArgb("#40916C")));
+            _summaryCards.Add(new DashboardSummaryCard("Presupuesto", $"${totalBudget:N0}", Color.FromArgb("#2D6A4F")));
+            _summaryCards.Add(new DashboardSummaryCard("Gastado", $"${spentFromBudget:N0}", Color.FromArgb("#E5534B")));
+            _summaryCards.Add(new DashboardSummaryCard("Total gastado", $"${totalExpenses:N0}", Color.FromArgb("#7B61C4")));
         }
         finally
         {
@@ -248,7 +254,9 @@ public partial class DashboardPage : ContentPage
         double ExpenseRatio,
         Color BalanceColor,
         Color ProgressColor,
-        string BudgetLabel);
+        string BudgetLabel,
+        Color CardColor,
+        string Icon);
 
     private sealed record DashboardSummaryCard(string Title, string Value, Color AccentColor);
 

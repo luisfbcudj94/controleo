@@ -364,6 +364,42 @@ public sealed class ExpenseApiClient(HttpClient httpClient, AuthService authServ
         }
     }
 
+    public async Task<int> CountExpensesByMovementTypeAsync(string movementType, CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (!await EnsureAuthenticatedAsync(cancellationToken)) return 0;
+            var encoded = Uri.EscapeDataString(movementType);
+            var data = await httpClient.GetFromJsonAsync<CountResult>($"api/expenses/count-by-type/{encoded}", cancellationToken);
+            return data?.Count ?? 0;
+        }
+        catch { return 0; }
+    }
+
+    public async Task<OperationResult> DeleteAllByMovementTypeAsync(string movementType, CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (!await EnsureAuthenticatedAsync(cancellationToken))
+                return new OperationResult(false, "Debes iniciar sesión.");
+            var encoded = Uri.EscapeDataString(movementType);
+            var response = await httpClient.DeleteAsync($"api/movement-types/{encoded}", cancellationToken);
+            if (response.IsSuccessStatusCode)
+            {
+                var result = await response.Content.ReadFromJsonAsync<OperationResult>(cancellationToken: cancellationToken);
+                return result ?? new OperationResult(true, "Tipo eliminado correctamente.");
+            }
+            var message = await ReadFriendlyApiErrorAsync(response, "No fue posible eliminar.", cancellationToken);
+            return new OperationResult(false, message);
+        }
+        catch (Exception ex)
+        {
+            return new OperationResult(false, $"No fue posible conectar con API: {ex.Message}");
+        }
+    }
+
+    private sealed record CountResult(int Count);
+
     public async Task<IReadOnlyList<RecurringExpenseItem>> GetRecurringExpensesAsync(CancellationToken cancellationToken)
     {
         try
@@ -624,7 +660,15 @@ public sealed class ExpenseApiClient(HttpClient httpClient, AuthService authServ
         var payload = new Dictionary<string, object?>
         {
             ["movementTypes"] = request.MovementTypes?.ToArray() ?? [],
-            ["paymentMethods"] = request.PaymentMethods?.ToArray() ?? []
+            ["paymentMethods"] = request.PaymentMethods?.ToArray() ?? [],
+            ["movementTypeConfigs"] = (request.MovementTypeConfigs ?? [])
+                .Select(c => new Dictionary<string, string>
+                {
+                    ["name"] = c.Name,
+                    ["icon"] = c.Icon,
+                    ["color"] = c.Color
+                })
+                .ToArray()
         };
 
         var json = JsonSerializer.Serialize(payload);

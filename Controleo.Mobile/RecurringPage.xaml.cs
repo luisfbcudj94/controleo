@@ -15,6 +15,7 @@ public partial class RecurringPage : ContentPage
         InitializeComponent();
         _apiClient = apiClient;
         UpdateStartDateSelectorLabel();
+        MoneyFormatHelper.Attach(AmountEntry);
     }
 
     protected override async void OnAppearing()
@@ -27,6 +28,7 @@ public partial class RecurringPage : ContentPage
     private async Task LoadCatalogsAsync()
     {
         var catalogs = await _apiClient.GetCatalogsAsync(CancellationToken.None);
+        Services.PastelColorHelper.SetConfigs(catalogs.MovementTypeConfigs);
         MovementTypePicker.ItemsSource = catalogs.MovementTypes.ToList();
         PaymentMethodPicker.ItemsSource = catalogs.PaymentMethods.ToList();
 
@@ -153,7 +155,7 @@ public partial class RecurringPage : ContentPage
             return false;
         }
 
-        if (!decimal.TryParse(AmountEntry.Text, out var amount) || amount <= 0)
+        if (!MoneyFormatHelper.TryParse(AmountEntry.Text, out var amount) || amount <= 0)
         {
             errorMessage = "El monto debe ser mayor a cero.";
             return false;

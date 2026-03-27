@@ -236,6 +236,40 @@ public sealed class ExpenseApiFunctions
         return await JsonAsync(request, result.IsSuccess ? HttpStatusCode.OK : HttpStatusCode.BadRequest, result, cancellationToken);
     }
 
+    [Function("CountExpensesByMovementType")]
+    public async Task<HttpResponseData> CountExpensesByMovementTypeAsync(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "expenses/count-by-type/{movementType}")] HttpRequestData request,
+        string movementType,
+        CancellationToken cancellationToken)
+    {
+        var auth = await AuthorizeAsync(request, cancellationToken);
+        if (auth.Response is not null)
+        {
+            return auth.Response;
+        }
+
+        var decoded = Uri.UnescapeDataString(movementType);
+        var count = await _expenseStorageService.CountExpensesByMovementTypeAsync(auth.User!.UserId, decoded, cancellationToken);
+        return await JsonAsync(request, HttpStatusCode.OK, new { count }, cancellationToken);
+    }
+
+    [Function("DeleteAllByMovementType")]
+    public async Task<HttpResponseData> DeleteAllByMovementTypeAsync(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "movement-types/{movementType}")] HttpRequestData request,
+        string movementType,
+        CancellationToken cancellationToken)
+    {
+        var auth = await AuthorizeAsync(request, cancellationToken);
+        if (auth.Response is not null)
+        {
+            return auth.Response;
+        }
+
+        var decoded = Uri.UnescapeDataString(movementType);
+        var result = await _expenseStorageService.DeleteAllByMovementTypeAsync(auth.User!.UserId, decoded, cancellationToken);
+        return await JsonAsync(request, result.IsSuccess ? HttpStatusCode.OK : HttpStatusCode.BadRequest, result, cancellationToken);
+    }
+
     [Function("GetBudgets")]
     public async Task<HttpResponseData> GetBudgetsAsync(
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "budgets")] HttpRequestData request,

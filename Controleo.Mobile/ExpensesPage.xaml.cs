@@ -12,7 +12,7 @@ public partial class ExpensesPage : ContentPage
 
     private readonly ExpenseApiClient _apiClient;
     private readonly MonthContextService _monthContext;
-    private readonly ObservableCollection<ExpenseItem> _expenses = [];
+    private readonly ObservableCollection<ExpenseViewItem> _expenses = [];
     private ExpenseCatalog _catalog = new([], []);
     private ExpenseItem? _selectedExpense;
     private bool _isRefreshing;
@@ -39,6 +39,7 @@ public partial class ExpensesPage : ContentPage
         PageSizePicker.SelectedItem = _pageSize.ToString();
         _isPageSizeSyncing = false;
         PageSizeSelectorLabel.Text = _pageSize.ToString();
+        MoneyFormatHelper.Attach(EditAmountEntry);
     }
 
     protected override async void OnAppearing()
@@ -76,6 +77,7 @@ public partial class ExpensesPage : ContentPage
         try
         {
             _catalog = await _apiClient.GetCatalogsAsync(CancellationToken.None);
+            PastelColorHelper.SetConfigs(_catalog.MovementTypeConfigs);
             EditMovementPicker.ItemsSource = _catalog.MovementTypes.ToList();
             EditPaymentPicker.ItemsSource = _catalog.PaymentMethods.ToList();
 
@@ -91,7 +93,7 @@ public partial class ExpensesPage : ContentPage
             _expenses.Clear();
             foreach (var item in page.Items)
             {
-                _expenses.Add(item);
+                _expenses.Add(new ExpenseViewItem(item, Services.PastelColorHelper.ForMovementType(item.MovementType), Services.PastelColorHelper.IconForMovementType(item.MovementType)));
             }
 
             PaginationStatusLabel.Text = $"Página {page.PageNumber}/{page.TotalPages} · {page.TotalCount} registros";
@@ -108,12 +110,14 @@ public partial class ExpensesPage : ContentPage
         }
     }
 
-    private async void OnDeleteExpenseClicked(object? sender, EventArgs e)
+    private async void OnDeleteExpenseTapped(object? sender, TappedEventArgs e)
     {
-        if ((sender as ImageButton)?.CommandParameter is not ExpenseItem expense)
+        if (e.Parameter is not ExpenseViewItem view)
         {
             return;
         }
+
+        var expense = view.Item;
 
         var confirm = await StyledConfirmModalPage.ConfirmAsync(
             this,
@@ -138,18 +142,20 @@ public partial class ExpensesPage : ContentPage
         }
     }
 
-    private void OnEditExpenseClicked(object? sender, EventArgs e)
+    private void OnEditExpenseTapped(object? sender, TappedEventArgs e)
     {
-        if ((sender as ImageButton)?.CommandParameter is not ExpenseItem expense)
+        if (e.Parameter is not ExpenseViewItem view)
         {
             return;
         }
+
+        var expense = view.Item;
 
         _selectedExpense = expense;
         _editSelectedDate = expense.Date;
         UpdateEditDateSelectorLabel();
         EditDescriptionEntry.Text = expense.Description;
-        EditAmountEntry.Text = expense.Amount.ToString(CultureInfo.InvariantCulture);
+        EditAmountEntry.Text = MoneyFormatHelper.FormatWithDots(((long)expense.Amount).ToString());
         EditMovementPicker.SelectedItem = expense.MovementType;
         EditPaymentPicker.SelectedItem = expense.PaymentMethod;
         EditPanel.IsVisible = true;
@@ -165,8 +171,7 @@ public partial class ExpensesPage : ContentPage
             return;
         }
 
-        if (!decimal.TryParse(EditAmountEntry.Text, NumberStyles.Number, CultureInfo.InvariantCulture, out var amount) &&
-            !decimal.TryParse(EditAmountEntry.Text, NumberStyles.Number, CultureInfo.GetCultureInfo("es-CO"), out amount))
+        if (!MoneyFormatHelper.TryParse(EditAmountEntry.Text, out var amount))
         {
             ResetEditInputs();
             await StyledResultModalPage.ShowAsync(this, false, "No se pudo editar", "El valor debe ser numérico.");
@@ -180,8 +185,6 @@ public partial class ExpensesPage : ContentPage
             await StyledResultModalPage.ShowAsync(this, false, "No se pudo editar", "Completa todos los campos y usa un valor diferente de cero.");
             return;
         }
-
-        SaveEditButton.IsEnabled = false;
 
         var request = new ExpenseEntryRequest(
             _editSelectedDate,
@@ -207,8 +210,6 @@ public partial class ExpensesPage : ContentPage
         {
             ResetEditInputs();
         }
-
-        SaveEditButton.IsEnabled = true;
     }
 
     private void OnCancelEditClicked(object? sender, EventArgs e)
@@ -417,5 +418,15 @@ public partial class ExpensesPage : ContentPage
     private void UpdateEditDateSelectorLabel()
     {
         EditDateSelectorLabel.Text = _editSelectedDate.ToString("dd/MM/yyyy", CultureInfo.GetCultureInfo("es-CO"));
+    }
+
+    internal sealed record ExpenseViewItem(ExpenseItem Item, Color CardColor, string Icon)
+    {
+        public string Id => Item.Id;
+        public DateOnly Date => Item.Date;
+        public string Description => Item.Description;
+        public decimal Amount => Item.Amount;
+        public string MovementType => Item.MovementType;
+        public string PaymentMethod => Item.PaymentMethod;
     }
 }

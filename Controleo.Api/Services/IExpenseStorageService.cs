@@ -18,6 +18,9 @@ public interface IExpenseStorageService
     Task<OperationResult> UpsertBudgetAsync(string userId, string movementType, BudgetUpsertRequest request, CancellationToken cancellationToken);
     Task<OperationResult> DeleteBudgetAsync(string userId, string movementType, CancellationToken cancellationToken);
 
+    Task<int> CountExpensesByMovementTypeAsync(string userId, string movementType, CancellationToken cancellationToken);
+    Task<OperationResult> DeleteAllByMovementTypeAsync(string userId, string movementType, CancellationToken cancellationToken);
+
     Task<IReadOnlyList<DashboardCategoryItem>> GetDashboardByCategoryAsync(string userId, string monthKey, CancellationToken cancellationToken);
 
     Task<IReadOnlyList<RecurringExpenseItem>> GetRecurringExpensesAsync(string userId, CancellationToken cancellationToken);

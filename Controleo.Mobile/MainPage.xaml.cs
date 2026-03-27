@@ -61,6 +61,7 @@ public partial class MainPage : ContentPage
 			var selectedPayment = PaymentMethodPicker.SelectedItem?.ToString();
 
 			var catalog = await _apiClient.GetCatalogsAsync(CancellationToken.None);
+			PastelColorHelper.SetConfigs(catalog.MovementTypeConfigs);
 
 			var movements = catalog.MovementTypes.ToList();
 			var payments = catalog.PaymentMethods.ToList();

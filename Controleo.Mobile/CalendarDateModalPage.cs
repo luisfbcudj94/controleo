@@ -31,7 +31,7 @@ public sealed class CalendarDateModalPage : ContentPage
         _selectedDate = Clamp(current);
         _displayMonth = new DateOnly(_selectedDate.Year, _selectedDate.Month, 1);
 
-        BackgroundColor = Color.FromArgb("#AA000000");
+        BackgroundColor = Color.FromArgb("#44000000");
         Shell.SetNavBarIsVisible(this, false);
 
         _monthLabel = new Label
@@ -40,7 +40,7 @@ public sealed class CalendarDateModalPage : ContentPage
             FontAttributes = FontAttributes.Bold,
             HorizontalOptions = LayoutOptions.Center,
             VerticalOptions = LayoutOptions.Center,
-            TextColor = GetColor("AppText", "#F2EFE9")
+            TextColor = GetColor("AppText", "#1A2E23")
         };
 
         _prevMonthButton = new Button
@@ -49,8 +49,8 @@ public sealed class CalendarDateModalPage : ContentPage
             WidthRequest = 42,
             HeightRequest = 42,
             CornerRadius = 21,
-            BackgroundColor = GetColor("AppSurface2", "#1D1D1D"),
-            TextColor = GetColor("AppText", "#F2EFE9")
+            BackgroundColor = GetColor("AppSurface2", "#EFF3F1"),
+            TextColor = GetColor("AppText", "#1A2E23")
         };
         _prevMonthButton.Clicked += (_, _) =>
         {
@@ -64,8 +64,8 @@ public sealed class CalendarDateModalPage : ContentPage
             WidthRequest = 42,
             HeightRequest = 42,
             CornerRadius = 21,
-            BackgroundColor = GetColor("AppSurface2", "#1D1D1D"),
-            TextColor = GetColor("AppText", "#F2EFE9")
+            BackgroundColor = GetColor("AppSurface2", "#F5F5F5"),
+            TextColor = GetColor("AppText", "#1A1A1A")
         };
         _nextMonthButton.Clicked += (_, _) =>
         {
@@ -79,8 +79,8 @@ public sealed class CalendarDateModalPage : ContentPage
             WidthRequest = 40,
             HeightRequest = 40,
             CornerRadius = 20,
-            BackgroundColor = GetColor("ActionDelete", "#DC3545"),
-            TextColor = Colors.White
+            BackgroundColor = GetColor("Gray200", "#E4EAE6"),
+            TextColor = GetColor("AppText", "#1A2E23")
         };
         closeButton.Clicked += async (_, _) => await CloseAsync(null);
 
@@ -100,7 +100,7 @@ public sealed class CalendarDateModalPage : ContentPage
                     Text = title,
                     FontSize = 18,
                     FontAttributes = FontAttributes.Bold,
-                    TextColor = GetColor("AppText", "#F2EFE9"),
+                    TextColor = GetColor("AppText", "#1A2E23"),
                     VerticalOptions = LayoutOptions.Center
                 },
                 closeButton
@@ -149,8 +149,8 @@ public sealed class CalendarDateModalPage : ContentPage
         var card = new Border
         {
             StrokeShape = new RoundRectangle { CornerRadius = new CornerRadius(18) },
-            BackgroundColor = GetColor("AppSurface", "#141414"),
-            Stroke = GetColor("AppBorder", "#2A2A2A"),
+            BackgroundColor = GetColor("AppSurface", "#FFFFFF"),
+            Stroke = GetColor("AppBorder", "#DCE5DF"),
             Padding = 14,
             Content = contentGrid
         };
@@ -212,7 +212,7 @@ public sealed class CalendarDateModalPage : ContentPage
                 FontSize = 12,
                 FontAttributes = FontAttributes.Bold,
                 HorizontalTextAlignment = TextAlignment.Center,
-                TextColor = GetColor("AppHint", "#8A8A8A")
+                TextColor = GetColor("AppHint", "#7A9183")
             };
             Grid.SetColumn(header, col);
             Grid.SetRow(header, 0);
@@ -238,13 +238,13 @@ public sealed class CalendarDateModalPage : ContentPage
                 HeightRequest = 38,
                 CornerRadius = 10,
                 BackgroundColor = isSelected
-                    ? GetColor("PrimaryDark", "#D8FF78")
+                    ? GetColor("PrimaryDark", "#1B4332")
                     : Colors.Transparent,
                 TextColor = isSelected
-                    ? GetColor("PrimaryDarkText", "#242424")
+                    ? GetColor("PrimaryDarkText", "#FFFFFF")
                     : isCurrentMonth
-                        ? GetColor("AppText", "#F2EFE9")
-                        : GetColor("AppHint", "#8A8A8A"),
+                        ? GetColor("AppText", "#1A2E23")
+                        : GetColor("AppHint", "#7A9183"),
                 Opacity = isEnabled ? 1 : 0.38,
                 IsEnabled = isEnabled
             };

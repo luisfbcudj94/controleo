@@ -278,15 +278,17 @@ public sealed class CosmosExpenseStorageService : IExpenseStorageService
 
             var movementTypes = NormalizeCatalog(response.Resource.MovementTypes);
             var paymentMethods = NormalizeCatalog(response.Resource.PaymentMethods);
+            var configs = MapConfigs(response.Resource.MovementTypeConfigs);
 
             if (movementTypes.Length == 0 || paymentMethods.Length == 0)
             {
                 return new ExpenseCatalog(
                     movementTypes.Length == 0 ? NormalizeCatalog(_options.MovementTypes) : movementTypes,
-                    paymentMethods.Length == 0 ? NormalizeCatalog(_options.PaymentMethods) : paymentMethods);
+                    paymentMethods.Length == 0 ? NormalizeCatalog(_options.PaymentMethods) : paymentMethods,
+                    configs);
             }
 
-            return new ExpenseCatalog(movementTypes, paymentMethods);
+            return new ExpenseCatalog(movementTypes, paymentMethods, configs);
         }
         catch (CosmosException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
         {
@@ -322,6 +324,15 @@ public sealed class CosmosExpenseStorageService : IExpenseStorageService
                 UserId = userId,
                 MovementTypes = movementTypes,
                 PaymentMethods = paymentMethods,
+                MovementTypeConfigs = (request.MovementTypeConfigs ?? [])
+                    .Where(c => !string.IsNullOrWhiteSpace(c.Name))
+                    .Select(c => new MovementTypeConfigDoc
+                    {
+                        Name = c.Name.Trim(),
+                        Icon = string.IsNullOrWhiteSpace(c.Icon) ? "\ud83d\udccb" : c.Icon.Trim(),
+                        Color = string.IsNullOrWhiteSpace(c.Color) ? "#D8F3DC" : c.Color.Trim()
+                    })
+                    .ToArray(),
                 UpdatedAt = DateTimeOffset.UtcNow.ToString("O", CultureInfo.InvariantCulture)
             };
 
@@ -438,6 +449,74 @@ public sealed class CosmosExpenseStorageService : IExpenseStorageService
         catch (Exception ex)
         {
             return new OperationResult(false, $"No se pudo eliminar el presupuesto: {ex.Message}");
+        }
+    }
+
+    public async Task<int> CountExpensesByMovementTypeAsync(string userId, string movementType, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var query = new QueryDefinition("SELECT VALUE COUNT(1) FROM c WHERE c.userId = @userId AND c.movementType = @mt")
+                .WithParameter("@userId", userId)
+                .WithParameter("@mt", movementType);
+
+            var results = await QueryAsync<int>(_expensesContainer, query, cancellationToken);
+            return results.FirstOrDefault();
+        }
+        catch
+        {
+            return 0;
+        }
+    }
+
+    public async Task<OperationResult> DeleteAllByMovementTypeAsync(string userId, string movementType, CancellationToken cancellationToken)
+    {
+        try
+        {
+            // Delete all expenses with this movement type
+            var expenses = await QueryAsync<ExpenseDocument>(
+                _expensesContainer,
+                new QueryDefinition("SELECT c.id, c.monthKey FROM c WHERE c.userId = @userId AND c.movementType = @mt")
+                    .WithParameter("@userId", userId)
+                    .WithParameter("@mt", movementType),
+                cancellationToken);
+
+            foreach (var expense in expenses)
+            {
+                try
+                {
+                    await _expensesContainer.DeleteItemAsync<ExpenseDocument>(
+                        expense.Id, new PartitionKey(expense.MonthKey), cancellationToken: cancellationToken);
+                }
+                catch { /* continue deleting others */ }
+            }
+
+            // Delete budget for this movement type
+            await DeleteBudgetAsync(userId, movementType, cancellationToken);
+
+            // Delete recurring expenses with this movement type
+            var recurring = await QueryAsync<RecurringExpenseDocument>(
+                _recurringContainer,
+                new QueryDefinition("SELECT c.id FROM c WHERE c.userId = @userId AND c.movementType = @mt")
+                    .WithParameter("@userId", userId)
+                    .WithParameter("@mt", movementType),
+                cancellationToken);
+
+            foreach (var rec in recurring)
+            {
+                try
+                {
+                    await _recurringContainer.DeleteItemAsync<RecurringExpenseDocument>(
+                        rec.Id, new PartitionKey(rec.Id), cancellationToken: cancellationToken);
+                }
+                catch { /* continue */ }
+            }
+
+            return new OperationResult(true, $"Se eliminaron {expenses.Count} gastos, presupuesto y recurrentes del tipo '{movementType}'.");
+        }
+        catch (Exception ex)
+        {
+            return new OperationResult(false, $"Error eliminando datos del tipo '{movementType}': {ex.Message}");
         }
     }
 
@@ -928,6 +1007,19 @@ public sealed class CosmosExpenseStorageService : IExpenseStorageService
         return new BudgetItem(doc.MovementType, doc.Amount, updatedAt);
     }
 
+    private static IReadOnlyList<MovementTypeConfig> MapConfigs(MovementTypeConfigDoc[]? docs)
+    {
+        if (docs is null || docs.Length == 0)
+        {
+            return [];
+        }
+
+        return docs
+            .Where(d => !string.IsNullOrWhiteSpace(d.Name))
+            .Select(d => new MovementTypeConfig(d.Name.Trim(), d.Icon ?? "📋", d.Color ?? "#D8F3DC"))
+            .ToList();
+    }
+
     private static DateTimeOffset ParseDateTimeOffset(string? raw, DateTimeOffset fallback)
     {
         if (string.IsNullOrWhiteSpace(raw))
@@ -974,7 +1066,15 @@ public sealed class CosmosExpenseStorageService : IExpenseStorageService
         public string UserId { get; set; } = string.Empty;
         public string[] MovementTypes { get; set; } = [];
         public string[] PaymentMethods { get; set; } = [];
+        public MovementTypeConfigDoc[] MovementTypeConfigs { get; set; } = [];
         public string UpdatedAt { get; set; } = string.Empty;
+    }
+
+    private sealed class MovementTypeConfigDoc
+    {
+        public string Name { get; set; } = string.Empty;
+        public string Icon { get; set; } = string.Empty;
+        public string Color { get; set; } = string.Empty;
     }
 
     private sealed class RecurringExpenseDocument

@@ -35,9 +35,9 @@ public partial class App : Application
 			{
 				CreateTabPage(registerPage, "tab_home.svg"),
 				CreateTabPage(expensesPage, "tab_expenses.svg"),
-				CreateTabPage(recurringPage, "tab_recurring.svg"),
 				CreateTabPage(dashboardPage, "tab_dashboard.svg"),
 				CreateTabPage(budgetsPage, "tab_budgets.svg"),
+				CreateTabPage(recurringPage, "tab_recurring.svg"),
 				CreateTabPage(settingsPage, "tab_settings.svg")
 			}
 		};
@@ -53,9 +53,9 @@ public partial class App : Application
 
 	private static void ApplyTabColors(TabbedPage tabs)
 	{
-		tabs.BarBackgroundColor = GetColor("AppBg", "#0A0A0A");
-		tabs.SelectedTabColor = GetColor("Primary", "#C8F55A");
-		tabs.UnselectedTabColor = GetColor("AppHint", "#7B7B7B");
+		tabs.BarBackgroundColor = GetColor("White", "#FFFFFF");
+		tabs.SelectedTabColor = GetColor("Primary", "#2D6A4F");
+		tabs.UnselectedTabColor = GetColor("AppHint", "#7A9183");
 		tabs.BarTextColor = tabs.UnselectedTabColor;
 	}
 
@@ -76,7 +76,7 @@ public partial class App : Application
 			return;
 		}
 
-		Current.UserAppTheme = AppTheme.Dark;
+		Current.UserAppTheme = AppTheme.Light;
 	}
 
 	public static void RefreshThemePalette()
@@ -91,17 +91,17 @@ public partial class App : Application
 			return;
 		}
 
-		Current.UserAppTheme = AppTheme.Dark;
+		Current.UserAppTheme = AppTheme.Light;
 
-		Current.Resources["AppBg"] = Color.FromArgb("#0A0A0A");
-		Current.Resources["AppSurface"] = Color.FromArgb("#141414");
-		Current.Resources["AppSurface2"] = Color.FromArgb("#1D1D1D");
-		Current.Resources["AppBorder"] = Color.FromArgb("#2A2A2A");
-		Current.Resources["AppText"] = Color.FromArgb("#F2EFE9");
-		Current.Resources["AppHint"] = Color.FromArgb("#B4B4B4");
-		Current.Resources["Primary"] = Color.FromArgb("#C8F55A");
-		Current.Resources["PrimaryDark"] = Color.FromArgb("#D8FF78");
-		Current.Resources["PrimaryDarkText"] = Color.FromArgb("#242424");
+		Current.Resources["AppBg"] = Color.FromArgb("#F4F7F5");
+		Current.Resources["AppSurface"] = Color.FromArgb("#FFFFFF");
+		Current.Resources["AppSurface2"] = Color.FromArgb("#EFF3F1");
+		Current.Resources["AppBorder"] = Color.FromArgb("#DCE5DF");
+		Current.Resources["AppText"] = Color.FromArgb("#1A2E23");
+		Current.Resources["AppHint"] = Color.FromArgb("#7A9183");
+		Current.Resources["Primary"] = Color.FromArgb("#2D6A4F");
+		Current.Resources["PrimaryDark"] = Color.FromArgb("#1B4332");
+		Current.Resources["PrimaryDarkText"] = Color.FromArgb("#FFFFFF");
 
 		if (Current.Windows.FirstOrDefault()?.Page is TabbedPage tabs)
 		{

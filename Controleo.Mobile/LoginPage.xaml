@@ -4,71 +4,97 @@
              x:Class="Controleo.Mobile.LoginPage"
              Title="Iniciar sesión"
              BackgroundColor="{DynamicResource AppBg}">
-    <Grid Padding="24" RowDefinitions="*,Auto,Auto,*" RowSpacing="16">
-        <VerticalStackLayout Grid.Row="1" Spacing="10">
-            <Label Text="Controleo"
-                   FontSize="28"
-                   FontAttributes="Bold"
-                   TextColor="{DynamicResource AppText}" />
-            <Label Text="Regístrate o inicia sesión para acceder a tu espacio personal."
-                   FontSize="14"
-                   TextColor="{DynamicResource AppHint}" />
 
+    <Grid Padding="28" RowDefinitions="2*,Auto,Auto,3*" RowSpacing="0">
+
+        <!-- Brand -->
+        <VerticalStackLayout Grid.Row="1" Spacing="6" Margin="0,0,0,28">
+            <Border StrokeShape="RoundRectangle 18" StrokeThickness="0" Padding="16,20"
+                    BackgroundColor="{DynamicResource AccentLight}" Margin="0,0,0,16">
+                <VerticalStackLayout Spacing="4">
+                    <Label Text="🌿" FontSize="32" />
+                    <Label Text="Controleo"
+                           FontSize="34"
+                           FontAttributes="Bold"
+                           FontFamily="OpenSansSemibold"
+                           TextColor="{DynamicResource Primary}" />
+                    <Label Text="Tu espacio personal de finanzas"
+                           FontSize="14"
+                           TextColor="{DynamicResource Tertiary}" />
+                </VerticalStackLayout>
+            </Border>
+            <Label Text="Regístrate o inicia sesión para acceder."
+                   FontSize="14"
+                   TextColor="{DynamicResource AppHint}"
+                   LineBreakMode="WordWrap" />
+        </VerticalStackLayout>
+
+        <!-- Form -->
+        <VerticalStackLayout Grid.Row="2" Spacing="12">
             <Entry x:Name="NameEntry"
                    Placeholder="Nombre"
                    IsVisible="False"
                    TextColor="{DynamicResource AppText}"
-                   PlaceholderColor="{DynamicResource AppHint}" />
+                   PlaceholderColor="{DynamicResource AppHint}"
+                   BackgroundColor="{DynamicResource AppSurface2}" />
 
             <Entry x:Name="EmailEntry"
-                   Placeholder="Correo"
+                   Placeholder="Correo electrónico"
                    Keyboard="Email"
                    TextColor="{DynamicResource AppText}"
-                   PlaceholderColor="{DynamicResource AppHint}" />
+                   PlaceholderColor="{DynamicResource AppHint}"
+                   BackgroundColor="{DynamicResource AppSurface2}" />
 
             <Entry x:Name="PasswordEntry"
                    Placeholder="Contraseña"
                    IsPassword="True"
                    TextColor="{DynamicResource AppText}"
-                   PlaceholderColor="{DynamicResource AppHint}" />
+                   PlaceholderColor="{DynamicResource AppHint}"
+                   BackgroundColor="{DynamicResource AppSurface2}" />
 
             <Entry x:Name="ConfirmPasswordEntry"
                    Placeholder="Confirmar contraseña"
                    IsVisible="False"
                    IsPassword="True"
                    TextColor="{DynamicResource AppText}"
-                   PlaceholderColor="{DynamicResource AppHint}" />
+                   PlaceholderColor="{DynamicResource AppHint}"
+                   BackgroundColor="{DynamicResource AppSurface2}" />
 
             <Button x:Name="SignInButton"
                     Text="Iniciar sesión"
                     Clicked="OnSignInClicked"
-                    HeightRequest="48"
-                    CornerRadius="12"
+                    HeightRequest="52"
+                    CornerRadius="14"
+                    FontAttributes="Bold"
+                    FontSize="16"
                     BackgroundColor="{DynamicResource Primary}"
                     TextColor="{DynamicResource PrimaryDarkText}" />
 
-           <Button x:Name="ModeButton"
-                  Text="Si no tienes cuenta, regístrate"
-                  Clicked="OnToggleModeClicked"
-                  HeightRequest="36"
-                  CornerRadius="10"
-                  FontSize="13"
-                  BackgroundColor="{DynamicResource AppSurface2}"
-                  TextColor="{DynamicResource AppText}" />
+            <Button x:Name="ModeButton"
+                    Text="¿No tienes cuenta? Regístrate"
+                    Clicked="OnToggleModeClicked"
+                    HeightRequest="44"
+                    CornerRadius="14"
+                    FontSize="13"
+                    BackgroundColor="Transparent"
+                    TextColor="{DynamicResource Tertiary}" />
 
             <Button x:Name="RegisterButton"
                     Text="Crear cuenta"
                     IsVisible="False"
                     Clicked="OnRegisterClicked"
-                    HeightRequest="48"
-                    CornerRadius="12"
-                    BackgroundColor="{DynamicResource AppSurface2}"
-                    TextColor="{DynamicResource AppText}" />
+                    HeightRequest="52"
+                    CornerRadius="14"
+                    FontAttributes="Bold"
+                    FontSize="16"
+                    BackgroundColor="{DynamicResource Primary}"
+                    TextColor="{DynamicResource PrimaryDarkText}" />
 
             <Label x:Name="StatusLabel"
                    IsVisible="False"
                    FontSize="13"
-                   TextColor="{DynamicResource AppHint}" />
+                   HorizontalTextAlignment="Center"
+                   TextColor="{DynamicResource ActionDelete}" />
         </VerticalStackLayout>
     </Grid>
 </ContentPage>

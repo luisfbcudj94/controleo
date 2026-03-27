@@ -3,59 +3,85 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              x:Class="Controleo.Mobile.RecurringPage"
              Title="Recurrentes"
-             BackgroundColor="{DynamicResource AppBg}">
+             BackgroundColor="{StaticResource AppBg}">
     <ScrollView>
         <VerticalStackLayout Padding="16" Spacing="12">
-            <Label Text="Gastos recurrentes"
-                   FontSize="22"
-                   FontAttributes="Bold"
-                   TextColor="{DynamicResource AppText}" />
 
-            <Entry x:Name="DescriptionEntry" Placeholder="Descripción" MaxLength="100" />
-            <Entry x:Name="AmountEntry" Placeholder="Monto" Keyboard="Numeric" />
+            <Label Text="Gastos recurrentes" FontSize="28" FontAttributes="Bold"
+                   TextColor="{StaticResource AppText}" />
 
-            <Picker x:Name="MovementTypePicker" Title="Tipo" />
-            <Picker x:Name="PaymentMethodPicker" Title="Medio de pago" />
+            <!-- Form Card -->
+            <Border StrokeShape="RoundRectangle 18" StrokeThickness="0" Padding="16"
+                    BackgroundColor="{StaticResource AppSurface2}">
+                <Border.Shadow>
+                    <Shadow Brush="Black" Offset="0,1" Radius="6" Opacity="0.06" />
+                </Border.Shadow>
+                <VerticalStackLayout Spacing="10">
+                    <Entry x:Name="DescriptionEntry" Placeholder="Descripción" MaxLength="100" />
+                    <Entry x:Name="AmountEntry" Placeholder="Monto" Keyboard="Numeric" />
+                    <Picker x:Name="MovementTypePicker" Title="Tipo" />
+                    <Picker x:Name="PaymentMethodPicker" Title="Medio de pago" />
 
-            <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
-                <Entry x:Name="DayEntry" Placeholder="Día (1-31)" Keyboard="Numeric" Grid.Column="0" />
-                <Border Grid.Column="1" StrokeShape="RoundRectangle 12" BackgroundColor="{DynamicResource AppSurface2}" Stroke="{DynamicResource AppBorder}" Padding="12,10">
-                    <Grid ColumnDefinitions="*,Auto">
-                        <Label x:Name="StartDateSelectorLabel" VerticalOptions="Center" TextColor="{DynamicResource AppText}" />
-                        <Label Grid.Column="1" Text="▼" FontSize="11" TextColor="{DynamicResource AppHint}" VerticalOptions="Center" />
+                    <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                        <Entry x:Name="DayEntry" Placeholder="Día (1-31)" Keyboard="Numeric" Grid.Column="0" />
+                        <Border Grid.Column="1" StrokeShape="RoundRectangle 12"
+                                BackgroundColor="{StaticResource AppSurface2}" Stroke="{StaticResource AppBorder}" Padding="12,10">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <Label x:Name="StartDateSelectorLabel" VerticalOptions="Center"
+                                       TextColor="{StaticResource AppText}" />
+                                <Label Grid.Column="1" Text="▼" FontSize="11" TextColor="{StaticResource AppHint}" VerticalOptions="Center" />
+                            </Grid>
+                            <Border.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="OnStartDateSelectorTapped" />
+                            </Border.GestureRecognizers>
+                        </Border>
                     </Grid>
-                    <Border.GestureRecognizers>
-                        <TapGestureRecognizer Tapped="OnStartDateSelectorTapped" />
-                    </Border.GestureRecognizers>
-                </Border>
-            </Grid>
-            <HorizontalStackLayout Spacing="8">
-                <CheckBox x:Name="IsActiveCheck" IsChecked="True" />
-                <Label Text="Activo" VerticalOptions="Center" TextColor="{DynamicResource AppText}" />
-            </HorizontalStackLayout>
 
-            <HorizontalStackLayout Spacing="8">
-                <Button x:Name="SaveButton" Text="Guardar" Clicked="OnSaveClicked" />
-                <Button Text="Limpiar" Clicked="OnClearClicked" />
-            </HorizontalStackLayout>
+                    <HorizontalStackLayout Spacing="8">
+                        <CheckBox x:Name="IsActiveCheck" IsChecked="True" />
+                        <Label Text="Activo" VerticalOptions="Center" />
+                    </HorizontalStackLayout>
 
-            <Label x:Name="StatusLabel" TextColor="{DynamicResource AppHint}" />
+                    <HorizontalStackLayout Spacing="8">
+                        <Button x:Name="SaveButton" Text="✅ Guardar" Clicked="OnSaveClicked"
+                                BackgroundColor="{StaticResource Primary}" TextColor="{StaticResource PrimaryDarkText}" />
+                        <Button Text="Limpiar" Clicked="OnClearClicked"
+                                BackgroundColor="{StaticResource BtnSecondaryBg}" TextColor="{StaticResource BtnSecondaryText}" />
+                    </HorizontalStackLayout>
+                    <Label x:Name="StatusLabel" TextColor="{StaticResource AppHint}" />
+                </VerticalStackLayout>
+            </Border>
 
+            <!-- List -->
             <CollectionView x:Name="RecurringCollection">
                 <CollectionView.ItemTemplate>
                     <DataTemplate>
-                        <Border Stroke="{DynamicResource AppBorder}" StrokeThickness="1" Padding="10" Margin="0,0,0,8">
+                        <Border Stroke="{StaticResource AppBorder}" StrokeThickness="0" Padding="14"
+                                Margin="0,0,0,8" StrokeShape="RoundRectangle 16"
+                                BackgroundColor="{StaticResource White}">
+                            <Border.Shadow>
+                                <Shadow Brush="Black" Offset="0,1" Radius="4" Opacity="0.05" />
+                            </Border.Shadow>
                             <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto" RowSpacing="2">
-                                <Label Grid.Row="0" Text="{Binding Description}" FontAttributes="Bold" TextColor="{DynamicResource AppText}" />
-                                <Label Grid.Row="1" Text="{Binding MovementType}" TextColor="{DynamicResource AppHint}" />
-                                <Label Grid.Row="2" Text="{Binding PaymentMethod}" TextColor="{DynamicResource AppHint}" />
+                                <Label Grid.Row="0" Text="{Binding Description}" FontAttributes="Bold"
+                                       TextColor="{StaticResource AppText}" />
+                                <Label Grid.Row="1" Text="{Binding MovementType}"
+                                       TextColor="{StaticResource AppHint}" FontSize="12" />
+                                <Label Grid.Row="2" Text="{Binding PaymentMethod}"
+                                       TextColor="{StaticResource AppHint}" FontSize="12" />
 
                                 <VerticalStackLayout Grid.Column="1" Grid.RowSpan="3" Spacing="6" HorizontalOptions="End">
-                                    <Label Text="{Binding Amount, StringFormat='${0:N0}'}" HorizontalTextAlignment="End" TextColor="{DynamicResource Primary}" />
-                                    <Label Text="{Binding DayOfMonth, StringFormat='Día {0}'}" HorizontalTextAlignment="End" TextColor="{DynamicResource AppHint}" />
+                                    <Label Text="{Binding Amount, StringFormat='${0:N0}'}" HorizontalTextAlignment="End"
+                                           TextColor="{StaticResource Tertiary}" FontAttributes="Bold" />
+                                    <Label Text="{Binding DayOfMonth, StringFormat='Día {0}'}" HorizontalTextAlignment="End"
+                                           TextColor="{StaticResource AppHint}" FontSize="12" />
                                     <HorizontalStackLayout Spacing="6" HorizontalOptions="End">
-                                        <Button Text="Editar" FontSize="12" Padding="10,4" Clicked="OnEditClicked" CommandParameter="{Binding .}" />
-                                        <Button Text="Eliminar" FontSize="12" Padding="10,4" Clicked="OnDeleteClicked" CommandParameter="{Binding .}" />
+                                        <Button Text="Editar" FontSize="12" Padding="10,4"
+                                                BackgroundColor="{StaticResource ActionEdit}" TextColor="White"
+                                                Clicked="OnEditClicked" CommandParameter="{Binding .}" />
+                                        <Button Text="Eliminar" FontSize="12" Padding="10,4"
+                                                BackgroundColor="{StaticResource ActionDelete}" TextColor="White"
+                                                Clicked="OnDeleteClicked" CommandParameter="{Binding .}" />
                                     </HorizontalStackLayout>
                                 </VerticalStackLayout>
                             </Grid>
