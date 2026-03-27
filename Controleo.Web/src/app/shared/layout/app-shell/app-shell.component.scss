@@ -101,8 +101,10 @@
 }
 
 .sb-avatar {
-	width: 2rem;
-	height: 2rem;
+	width: 2.2rem;
+	height: 2.2rem;
+	aspect-ratio: 1 / 1;
+	flex-shrink: 0;
 	border-radius: 50%;
 	background: var(--ac2);
 	border: 1px solid rgba(200, 245, 90, 0.3);
@@ -112,6 +114,7 @@
 	font-size: 0.68rem;
 	font-weight: 700;
 	font-family: 'Syne', sans-serif;
+	line-height: 1;
 }
 
 .sb-uname {
@@ -224,6 +227,10 @@
 	padding: 0.32rem 0.55rem;
 }
 
+.month-sel.info-only {
+	padding: 0.4rem 0.7rem;
+}
+
 .ms-btn {
 	border: none;
 	background: none;
@@ -244,10 +251,12 @@
 	text-decoration: none;
 	border-radius: var(--rs);
 	border: 1px solid var(--b2);
-	color: var(--muted);
+	color: var(--text);
+	background: var(--s2);
 	padding: 0.5rem 0.8rem;
 	font-size: 0.82rem;
 	transition: all 0.15s;
+	cursor: pointer;
 }
 
 .tb-btn.primary {
@@ -256,6 +265,29 @@
 	background: var(--accent);
 	font-family: 'Syne', sans-serif;
 	font-weight: 700;
+}
+
+.tb-btn.logout {
+	border-color: rgba(255, 87, 87, 0.22);
+	background: var(--dan2);
+	color: var(--danger);
+	font-weight: 700;
+}
+
+.tb-btn.logout.icon-only {
+	width: 2.2rem;
+	height: 2.2rem;
+	padding: 0;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 1rem;
+	line-height: 1;
+}
+
+.tb-btn.logout:hover {
+	border-color: color-mix(in srgb, var(--danger) 55%, transparent);
+	background: color-mix(in srgb, var(--dan2) 72%, var(--s2));
 }
 
 .page-content {

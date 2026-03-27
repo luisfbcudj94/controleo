@@ -1,0 +1,104 @@
+.login-wrap {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  background: var(--bg);
+  color: var(--text);
+  padding: 1rem;
+}
+
+.login-card {
+  width: min(420px, 100%);
+  background: var(--s1);
+  border: 1px solid var(--b1);
+  border-radius: var(--rm);
+  padding: 1.5rem;
+  display: grid;
+  gap: 0.9rem;
+}
+
+h1 {
+  margin: 0;
+  font-family: 'Syne', sans-serif;
+  font-size: 1.3rem;
+}
+
+p {
+  margin: 0;
+  color: var(--muted);
+}
+
+label {
+  display: grid;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+input {
+  border-radius: var(--rs);
+  border: 1px solid var(--b1);
+  background: var(--bg);
+  color: var(--text);
+  padding: 0.62rem 0.75rem;
+}
+
+input.is-valid {
+  border-color: color-mix(in srgb, var(--teal) 65%, var(--b2));
+}
+
+input.is-invalid {
+  border-color: color-mix(in srgb, var(--danger) 75%, var(--b2));
+}
+
+.field-hint {
+  font-size: 0.72rem;
+}
+
+.field-valid {
+  color: var(--teal);
+}
+
+.field-error {
+  color: var(--danger);
+}
+
+.mode-toggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.55rem;
+}
+
+.btn {
+  border-radius: var(--rs);
+  border: 1px solid transparent;
+  padding: 0.62rem 0.9rem;
+  cursor: pointer;
+}
+
+.btn-primary {
+  color: #080808;
+  background: var(--accent);
+  font-weight: 700;
+}
+
+.btn-secondary {
+  background: var(--bg);
+  border-color: var(--b1);
+  color: var(--text);
+}
+
+.btn-secondary.active {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.error {
+  color: var(--danger);
+  font-size: 0.85rem;
+}
+
+.success {
+  color: var(--ok);
+  font-size: 0.85rem;
+}

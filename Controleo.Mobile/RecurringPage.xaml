@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Controleo.Mobile.RecurringPage"
+             Title="Recurrentes"
+             BackgroundColor="{DynamicResource AppBg}">
+    <ScrollView>
+        <VerticalStackLayout Padding="16" Spacing="12">
+            <Label Text="Gastos recurrentes"
+                   FontSize="22"
+                   FontAttributes="Bold"
+                   TextColor="{DynamicResource AppText}" />
+
+            <Entry x:Name="DescriptionEntry" Placeholder="Descripción" MaxLength="100" />
+            <Entry x:Name="AmountEntry" Placeholder="Monto" Keyboard="Numeric" />
+
+            <Picker x:Name="MovementTypePicker" Title="Tipo" />
+            <Picker x:Name="PaymentMethodPicker" Title="Medio de pago" />
+
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                <Entry x:Name="DayEntry" Placeholder="Día (1-31)" Keyboard="Numeric" Grid.Column="0" />
+                <Border Grid.Column="1" StrokeShape="RoundRectangle 12" BackgroundColor="{DynamicResource AppSurface2}" Stroke="{DynamicResource AppBorder}" Padding="12,10">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <Label x:Name="StartDateSelectorLabel" VerticalOptions="Center" TextColor="{DynamicResource AppText}" />
+                        <Label Grid.Column="1" Text="▼" FontSize="11" TextColor="{DynamicResource AppHint}" VerticalOptions="Center" />
+                    </Grid>
+                    <Border.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnStartDateSelectorTapped" />
+                    </Border.GestureRecognizers>
+                </Border>
+            </Grid>
+            <HorizontalStackLayout Spacing="8">
+                <CheckBox x:Name="IsActiveCheck" IsChecked="True" />
+                <Label Text="Activo" VerticalOptions="Center" TextColor="{DynamicResource AppText}" />
+            </HorizontalStackLayout>
+
+            <HorizontalStackLayout Spacing="8">
+                <Button x:Name="SaveButton" Text="Guardar" Clicked="OnSaveClicked" />
+                <Button Text="Limpiar" Clicked="OnClearClicked" />
+            </HorizontalStackLayout>
+
+            <Label x:Name="StatusLabel" TextColor="{DynamicResource AppHint}" />
+
+            <CollectionView x:Name="RecurringCollection">
+                <CollectionView.ItemTemplate>
+                    <DataTemplate>
+                        <Border Stroke="{DynamicResource AppBorder}" StrokeThickness="1" Padding="10" Margin="0,0,0,8">
+                            <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto" RowSpacing="2">
+                                <Label Grid.Row="0" Text="{Binding Description}" FontAttributes="Bold" TextColor="{DynamicResource AppText}" />
+                                <Label Grid.Row="1" Text="{Binding MovementType}" TextColor="{DynamicResource AppHint}" />
+                                <Label Grid.Row="2" Text="{Binding PaymentMethod}" TextColor="{DynamicResource AppHint}" />
+
+                                <VerticalStackLayout Grid.Column="1" Grid.RowSpan="3" Spacing="6" HorizontalOptions="End">
+                                    <Label Text="{Binding Amount, StringFormat='${0:N0}'}" HorizontalTextAlignment="End" TextColor="{DynamicResource Primary}" />
+                                    <Label Text="{Binding DayOfMonth, StringFormat='Día {0}'}" HorizontalTextAlignment="End" TextColor="{DynamicResource AppHint}" />
+                                    <HorizontalStackLayout Spacing="6" HorizontalOptions="End">
+                                        <Button Text="Editar" FontSize="12" Padding="10,4" Clicked="OnEditClicked" CommandParameter="{Binding .}" />
+                                        <Button Text="Eliminar" FontSize="12" Padding="10,4" Clicked="OnDeleteClicked" CommandParameter="{Binding .}" />
+                                    </HorizontalStackLayout>
+                                </VerticalStackLayout>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

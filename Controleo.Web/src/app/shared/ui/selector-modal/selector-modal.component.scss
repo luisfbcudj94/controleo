@@ -1,0 +1,66 @@
+.selector-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(8, 8, 8, 0.72);
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  z-index: 1200;
+}
+
+.selector-card {
+  width: min(480px, 100%);
+  max-height: min(80vh, 620px);
+  overflow: hidden;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  background: var(--s1);
+  border: 1px solid var(--b2);
+  border-radius: var(--rx);
+}
+
+.selector-header {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--b1);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+h3 {
+  margin: 0;
+  font-family: 'Syne', sans-serif;
+  font-size: 0.96rem;
+}
+
+.selector-empty {
+  margin: 0;
+  padding: 1rem;
+  color: var(--muted);
+}
+
+.selector-list {
+  padding: 0.5rem;
+  overflow: auto;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.selector-option {
+  border: 1px solid var(--b2);
+  background: var(--s2);
+  color: var(--text);
+  border-radius: var(--rs);
+  padding: 0.72rem 0.8rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  text-align: left;
+  cursor: pointer;
+}
+
+.selector-option.active {
+  border-color: rgba(200, 245, 90, 0.3);
+  background: var(--ac2);
+}

@@ -4,10 +4,12 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ApiService } from '../../../core/services/api.service';
 import { BudgetItem } from '../../../core/models/api.models';
 import { firstMonthOfAvailable, monthKeyFromDate, monthLabel } from '../../../core/utils/month.utils';
+import { ConfirmModalComponent } from '../../../shared/ui/confirm-modal/confirm-modal.component';
+import { SelectorModalComponent } from '../../../shared/ui/selector-modal/selector-modal.component';
 
 @Component({
   selector: 'app-budgets-page',
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [CommonModule, ReactiveFormsModule, ConfirmModalComponent, SelectorModalComponent],
   templateUrl: './budgets-page.component.html',
   styleUrl: './budgets-page.component.scss'
 })
@@ -17,6 +19,9 @@ export class BudgetsPageComponent {
   movementTypes: string[] = [];
   budgets: BudgetItem[] = [];
   message = '';
+  confirmDeleteOpen = false;
+  pendingDelete: BudgetItem | null = null;
+  selectorOpen = false;
 
   readonly form;
 
@@ -66,10 +71,33 @@ export class BudgetsPageComponent {
     });
   }
 
+  openMovementTypeSelector(): void {
+    this.selectorOpen = true;
+  }
+
+  closeSelector(): void {
+    this.selectorOpen = false;
+  }
+
+  selectMovementType(value: string): void {
+    this.form.patchValue({ movementType: value });
+    this.closeSelector();
+  }
+
   remove(item: BudgetItem): void {
-    if (!confirm(`¿Eliminar presupuesto de '${item.movementType}'?`)) {
+    this.pendingDelete = item;
+    this.confirmDeleteOpen = true;
+  }
+
+  confirmDelete(): void {
+    if (!this.pendingDelete) {
+      this.confirmDeleteOpen = false;
       return;
     }
+
+    const item = this.pendingDelete;
+    this.confirmDeleteOpen = false;
+    this.pendingDelete = null;
 
     this.api.deleteBudget(item.movementType).subscribe({
       next: (result) => {
@@ -78,6 +106,11 @@ export class BudgetsPageComponent {
       },
       error: () => (this.message = 'No fue posible eliminar el presupuesto.')
     });
+  }
+
+  cancelDelete(): void {
+    this.confirmDeleteOpen = false;
+    this.pendingDelete = null;
   }
 
   private loadData(): void {

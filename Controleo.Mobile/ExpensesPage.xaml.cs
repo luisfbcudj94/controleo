@@ -21,6 +21,8 @@ public partial class ExpensesPage : ContentPage
     private bool _isActive;
     private int _pageNumber = 1;
     private int _pageSize = 5;
+    private string _searchTerm = string.Empty;
+    private DateOnly _editSelectedDate = DateOnly.FromDateTime(DateTime.Today);
 
     public ExpensesPage(ExpenseApiClient apiClient, MonthContextService monthContext)
     {
@@ -82,6 +84,7 @@ public partial class ExpensesPage : ContentPage
                 _pageNumber,
                 _pageSize,
                 movementType: null,
+                searchTerm: _searchTerm,
                 CancellationToken.None);
 
             _pageNumber = page.PageNumber;
@@ -112,14 +115,21 @@ public partial class ExpensesPage : ContentPage
             return;
         }
 
-        var confirm = await DisplayAlert("Eliminar gasto", $"¿Deseas eliminar '{expense.Description}'?", "Sí", "No");
+        var confirm = await StyledConfirmModalPage.ConfirmAsync(
+            this,
+            "Eliminar gasto",
+            $"¿Deseas eliminar '{expense.Description}'?");
         if (!confirm)
         {
             return;
         }
 
         var result = await _apiClient.DeleteExpenseAsync(expense.Id, CancellationToken.None);
-        StatusLabel.Text = result.Message;
+        await StyledResultModalPage.ShowAsync(
+            this,
+            result.IsSuccess,
+            result.IsSuccess ? "Gasto eliminado" : "No se pudo eliminar",
+            result.IsSuccess ? "El gasto se eliminó correctamente." : result.Message);
         if (result.IsSuccess)
         {
             EditPanel.IsVisible = false;
@@ -136,7 +146,8 @@ public partial class ExpensesPage : ContentPage
         }
 
         _selectedExpense = expense;
-        EditDatePicker.Date = expense.Date.ToDateTime(TimeOnly.MinValue);
+        _editSelectedDate = expense.Date;
+        UpdateEditDateSelectorLabel();
         EditDescriptionEntry.Text = expense.Description;
         EditAmountEntry.Text = expense.Amount.ToString(CultureInfo.InvariantCulture);
         EditMovementPicker.SelectedItem = expense.MovementType;
@@ -149,41 +160,52 @@ public partial class ExpensesPage : ContentPage
     {
         if (_selectedExpense is null)
         {
-            StatusLabel.Text = "Selecciona un gasto para editar.";
+            ResetEditInputs();
+            await StyledResultModalPage.ShowAsync(this, false, "No se pudo editar", "Selecciona un gasto para editar.");
             return;
         }
 
         if (!decimal.TryParse(EditAmountEntry.Text, NumberStyles.Number, CultureInfo.InvariantCulture, out var amount) &&
             !decimal.TryParse(EditAmountEntry.Text, NumberStyles.Number, CultureInfo.GetCultureInfo("es-CO"), out amount))
         {
-            StatusLabel.Text = "El valor debe ser numérico.";
+            ResetEditInputs();
+            await StyledResultModalPage.ShowAsync(this, false, "No se pudo editar", "El valor debe ser numérico.");
             return;
         }
 
         if (string.IsNullOrWhiteSpace(EditDescriptionEntry.Text) || amount == 0 ||
             EditMovementPicker.SelectedItem is null || EditPaymentPicker.SelectedItem is null)
         {
-            StatusLabel.Text = "Completa todos los campos y usa un valor diferente de cero.";
+            ResetEditInputs();
+            await StyledResultModalPage.ShowAsync(this, false, "No se pudo editar", "Completa todos los campos y usa un valor diferente de cero.");
             return;
         }
 
         SaveEditButton.IsEnabled = false;
 
         var request = new ExpenseEntryRequest(
-            DateOnly.FromDateTime(EditDatePicker.Date),
+            _editSelectedDate,
             EditDescriptionEntry.Text.Trim(),
             amount,
             EditMovementPicker.SelectedItem.ToString()!,
             EditPaymentPicker.SelectedItem.ToString()!);
 
         var result = await _apiClient.UpdateExpenseAsync(_selectedExpense.Id, request, CancellationToken.None);
-        StatusLabel.Text = result.Message;
+        await StyledResultModalPage.ShowAsync(
+            this,
+            result.IsSuccess,
+            result.IsSuccess ? "Gasto actualizado" : "No se pudo actualizar",
+            result.IsSuccess ? "Los cambios se guardaron correctamente." : result.Message);
 
         if (result.IsSuccess)
         {
             await LoadDataAsync();
             EditPanel.IsVisible = false;
             _selectedExpense = null;
+        }
+        else
+        {
+            ResetEditInputs();
         }
 
         SaveEditButton.IsEnabled = true;
@@ -194,6 +216,12 @@ public partial class ExpensesPage : ContentPage
         EditPanel.IsVisible = false;
         _selectedExpense = null;
         StatusLabel.Text = string.Empty;
+    }
+
+    private void ResetEditInputs()
+    {
+        EditDescriptionEntry.Text = "0";
+        EditAmountEntry.Text = "0";
     }
 
     private void OnGoToRegisterClicked(object? sender, EventArgs e)
@@ -360,5 +388,34 @@ public partial class ExpensesPage : ContentPage
     {
         _pageNumber++;
         await LoadDataAsync();
+    }
+
+    private async void OnSearchTextChanged(object? sender, TextChangedEventArgs e)
+    {
+        _searchTerm = e.NewTextValue?.Trim() ?? string.Empty;
+        _pageNumber = 1;
+        await LoadDataAsync();
+    }
+
+    private async void OnEditDateSelectorTapped(object? sender, TappedEventArgs e)
+    {
+        var selected = await CalendarDateModalPage.PickAsync(
+            this,
+            "Fecha del gasto",
+            _editSelectedDate,
+            DateOnly.FromDateTime(DateTime.Today.AddYears(-10)),
+            DateOnly.FromDateTime(DateTime.Today.AddYears(10)));
+
+        if (selected is null)
+        {
+            return;
+        }
+
+        _editSelectedDate = selected.Value;
+        UpdateEditDateSelectorLabel();
+    }
+    private void UpdateEditDateSelectorLabel()
+    {
+        EditDateSelectorLabel.Text = _editSelectedDate.ToString("dd/MM/yyyy", CultureInfo.GetCultureInfo("es-CO"));
     }
 }

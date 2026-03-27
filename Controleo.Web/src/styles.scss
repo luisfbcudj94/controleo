@@ -129,6 +129,26 @@ textarea {
 	}
 }
 
+input[type='date'] {
+	color-scheme: dark;
+	appearance: none;
+	-webkit-appearance: none;
+	background: var(--s2);
+	border: 1px solid var(--b2);
+	border-radius: var(--rs);
+	padding: 0.62rem 0.74rem;
+	color: var(--text);
+}
+
+body[data-theme='girl'] input[type='date'] {
+	color-scheme: light;
+}
+
+input[type='date']::-webkit-calendar-picker-indicator {
+	opacity: 0.85;
+	cursor: pointer;
+}
+
 .btn {
 	border: none;
 	border-radius: var(--rs);
@@ -137,10 +157,37 @@ textarea {
 }
 
 .btn-primary {
-	background: var(--accent);
+	background: var(--teal);
 	color: #080808;
 	font-family: 'Syne', sans-serif;
 	font-weight: 700;
+}
+
+.btn-save {
+	background: var(--teal);
+	border: 1px solid color-mix(in srgb, var(--teal) 40%, transparent);
+	color: #080808;
+	font-family: 'Syne', sans-serif;
+	font-weight: 700;
+}
+
+.btn-edit {
+	background: var(--inf2);
+	border: 1px solid color-mix(in srgb, var(--info) 35%, transparent);
+	color: var(--info);
+}
+
+.btn-delete,
+.btn-danger {
+	background: var(--dan2);
+	border: 1px solid rgba(255, 87, 87, 0.22);
+	color: var(--danger);
+}
+
+.btn-close {
+	background: var(--dan2);
+	border: 1px solid rgba(255, 87, 87, 0.22);
+	color: var(--danger);
 }
 
 .btn-danger {
@@ -158,6 +205,17 @@ textarea {
 .btn-ghost:hover {
 	border-color: var(--b3);
 	color: var(--text);
+}
+
+button:disabled,
+.btn:disabled,
+.save-btn:disabled {
+	opacity: 0.5;
+	cursor: default;
+	filter: saturate(0.35);
+	background: var(--s3);
+	color: var(--hint);
+	border-color: var(--b1);
 }
 
 .row-actions {

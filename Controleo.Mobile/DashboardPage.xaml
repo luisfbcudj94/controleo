@@ -4,11 +4,11 @@
              x:Class="Controleo.Mobile.DashboardPage"
              Title="Dashboard">
 
-    <Grid Padding="16" RowSpacing="10" RowDefinitions="Auto,Auto,Auto,Auto,Auto,*">
-        <Border Grid.Row="0" StrokeShape="RoundRectangle 16" Padding="10" BackgroundColor="#111111" Stroke="#262626">
+    <Grid Padding="16" RowSpacing="10" RowDefinitions="Auto,Auto,Auto,*">
+        <Border Grid.Row="0" StrokeShape="RoundRectangle 16" Padding="10" BackgroundColor="{StaticResource AppSurface}" Stroke="{StaticResource AppBorder}">
             <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
                 <Button Grid.Column="0" Text="◀" WidthRequest="42" HeightRequest="42" CornerRadius="21" Clicked="OnPrevMonthClicked" />
-                <Border Grid.Column="1" StrokeShape="RoundRectangle 12" BackgroundColor="#1D1D1D" Stroke="#2A2A2A" Padding="12,10">
+                <Border Grid.Column="1" StrokeShape="RoundRectangle 12" BackgroundColor="{StaticResource AppSurface2}" Stroke="{StaticResource AppBorder}" Padding="12,10">
                     <Grid ColumnDefinitions="*,Auto">
                         <Label x:Name="MonthSelectorLabel" VerticalOptions="Center" />
                         <Label Grid.Column="1" Text="▼" FontSize="11" TextColor="{StaticResource AppHint}" VerticalOptions="Center" />
@@ -21,7 +21,7 @@
             </Grid>
         </Border>
 
-        <Border Grid.Row="1" Padding="14" StrokeShape="RoundRectangle 20" BackgroundColor="#111111" Stroke="#2A2A2A">
+        <Border Grid.Row="1" Padding="14" StrokeShape="RoundRectangle 20" BackgroundColor="{StaticResource AppSurface}" Stroke="{StaticResource AppBorder}">
             <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
                 <Grid WidthRequest="130" HeightRequest="130" VerticalOptions="Center">
                     <GraphicsView x:Name="BudgetRingView"
@@ -35,75 +35,45 @@
                     </VerticalStackLayout>
                 </Grid>
 
-                <VerticalStackLayout Grid.Column="1" Spacing="4" VerticalOptions="Center">
-                    <Grid ColumnDefinitions="*,Auto">
-                        <Label Text="Presupuesto total" FontSize="14" TextColor="{StaticResource AppHint}" />
-                        <Label Grid.Column="1" x:Name="BudgetTotalLabel" FontAttributes="Bold" FontSize="17" />
-                    </Grid>
-                    <Grid ColumnDefinitions="*,Auto">
-                        <Label Text="Disponible" FontSize="14" TextColor="{StaticResource AppHint}" />
-                        <Label Grid.Column="1" x:Name="BudgetAvailableLabel" FontSize="17" FontAttributes="Bold" TextColor="{StaticResource PrimaryDark}" />
-                    </Grid>
+                <VerticalStackLayout Grid.Column="1" Spacing="8" VerticalOptions="Center">
+                    <CarouselView x:Name="SummaryCarousel"
+                                  HeightRequest="130"
+                                  Loop="True"
+                                  IndicatorView="SummaryIndicator">
+                        <CarouselView.ItemTemplate>
+                            <DataTemplate>
+                                <Border StrokeShape="RoundRectangle 16"
+                                        Padding="12"
+                                        Stroke="{StaticResource AppBorder}"
+                                        BackgroundColor="{StaticResource AppSurface2}">
+                                    <VerticalStackLayout Spacing="8" VerticalOptions="Center">
+                                        <Label Text="{Binding Title}" FontSize="12" TextColor="{StaticResource AppHint}" />
+                                        <Label Text="{Binding Value}"
+                                               FontSize="26"
+                                               FontAttributes="Bold"
+                                               TextColor="{Binding AccentColor}" />
+                                        <Label Text="Desliza para ver más"
+                                               FontSize="11"
+                                               TextColor="{StaticResource AppHint}" />
+                                    </VerticalStackLayout>
+                                </Border>
+                            </DataTemplate>
+                        </CarouselView.ItemTemplate>
+                    </CarouselView>
 
-                    <Grid ColumnDefinitions="*,Auto">
-                        <Label Text="Presupuesto gastado" FontSize="14" TextColor="{StaticResource AppHint}" />
-                        <Label Grid.Column="1" x:Name="SpentFromBudgetValueLabel" FontAttributes="Bold" FontSize="17" TextColor="#F5C842" />
-                    </Grid>
-
-                    <Grid ColumnDefinitions="*,Auto">
-                        <Label Text="Total gastado" FontSize="14" TextColor="{StaticResource AppHint}" />
-                        <Label Grid.Column="1" x:Name="TotalSpentLabel" FontAttributes="Bold" FontSize="17" TextColor="#FF6B6B" />
-                    </Grid>
-
-                    <Label x:Name="OthersLabel" FontSize="12" TextColor="{StaticResource AppHint}" LineBreakMode="WordWrap" MaxLines="2" />
-                    <Label x:Name="OthersTotalLabel" FontAttributes="Bold" FontSize="13" TextColor="{StaticResource AppHint}" />
+                    <IndicatorView x:Name="SummaryIndicator"
+                                   IndicatorColor="{StaticResource AppBorder}"
+                                   SelectedIndicatorColor="{StaticResource PrimaryDark}"
+                                   HorizontalOptions="Center" />
                 </VerticalStackLayout>
             </Grid>
         </Border>
 
-        <Grid Grid.Row="2" ColumnDefinitions="*,*" ColumnSpacing="8">
-            <Border Grid.Column="0" Padding="8,10" StrokeShape="RoundRectangle 999" BackgroundColor="#151224" Stroke="#2E2750">
-                <Grid ColumnDefinitions="10,*,Auto" ColumnSpacing="8">
-                    <BoxView WidthRequest="8" HeightRequest="8" CornerRadius="4" BackgroundColor="#B39DFA" VerticalOptions="Center" />
-                    <Label Grid.Column="1" x:Name="OthersPillLeftNameLabel" FontSize="14" TextColor="#B39DFA" VerticalOptions="Center" />
-                    <Label Grid.Column="2" x:Name="OthersPillLeftValueLabel" FontSize="14" FontAttributes="Bold" TextColor="#B39DFA" VerticalOptions="Center" />
-                </Grid>
-            </Border>
-            <Border Grid.Column="1" Padding="8,10" StrokeShape="RoundRectangle 999" BackgroundColor="#231614" Stroke="#4F2B27">
-                <Grid ColumnDefinitions="10,*,Auto" ColumnSpacing="8">
-                    <BoxView WidthRequest="8" HeightRequest="8" CornerRadius="4" BackgroundColor="#F08C78" VerticalOptions="Center" />
-                    <Label Grid.Column="1" x:Name="OthersPillRightNameLabel" FontSize="14" TextColor="#F08C78" VerticalOptions="Center" />
-                    <Label Grid.Column="2" x:Name="OthersPillRightValueLabel" FontSize="14" FontAttributes="Bold" TextColor="#F08C78" VerticalOptions="Center" />
-                </Grid>
-            </Border>
-        </Grid>
-
-        <Grid Grid.Row="3" ColumnDefinitions="*,*,*" ColumnSpacing="8">
-            <Border Grid.Column="0" Padding="10" StrokeShape="RoundRectangle 14" BackgroundColor="#111111" Stroke="#262626">
-                <VerticalStackLayout Spacing="2">
-                    <Label Text="Presupuesto" FontSize="11" TextColor="Gray" />
-                    <Label x:Name="MiniBudgetLabel" FontAttributes="Bold" FontSize="16" TextColor="{StaticResource PrimaryDark}" />
-                </VerticalStackLayout>
-            </Border>
-            <Border Grid.Column="1" Padding="10" StrokeShape="RoundRectangle 14" BackgroundColor="#111111" Stroke="#262626">
-                <VerticalStackLayout Spacing="2">
-                    <Label Text="Gastado" FontSize="11" TextColor="Gray" />
-                    <Label x:Name="MiniSpentLabel" FontAttributes="Bold" FontSize="16" TextColor="#FF6B6B" />
-                </VerticalStackLayout>
-            </Border>
-            <Border Grid.Column="2" Padding="10" StrokeShape="RoundRectangle 14" BackgroundColor="#111111" Stroke="#262626">
-                <VerticalStackLayout Spacing="2">
-                    <Label Text="Disponible" FontSize="11" TextColor="Gray" />
-                    <Label x:Name="MiniAvailableLabel" FontAttributes="Bold" FontSize="16" TextColor="#4ECBA0" />
-                </VerticalStackLayout>
-            </Border>
-        </Grid>
-
-        <Grid Grid.Row="4" ColumnDefinitions="*,Auto" Margin="0,4,0,0">
+        <Grid Grid.Row="2" ColumnDefinitions="*,Auto" Margin="0,4,0,0">
             <Label Text="CATEGORÍAS" FontSize="14" FontAttributes="Bold" TextColor="{StaticResource AppHint}" />
         </Grid>
 
-         <RefreshView Grid.Row="5"
+         <RefreshView Grid.Row="3"
                      x:Name="DashboardRefreshView"
                      Refreshing="OnRefreshing">
             <CollectionView x:Name="ChartCollection" SelectionMode="None">
@@ -114,7 +84,7 @@
                 </CollectionView.EmptyView>
                 <CollectionView.ItemTemplate>
                     <DataTemplate>
-                        <Border Padding="14" Margin="0,0,0,10" StrokeShape="RoundRectangle 16" BackgroundColor="#111111" Stroke="#262626">
+                        <Border Padding="14" Margin="0,0,0,10" StrokeShape="RoundRectangle 16" BackgroundColor="{StaticResource AppSurface}" Stroke="{StaticResource AppBorder}">
                             <Border.GestureRecognizers>
                                 <TapGestureRecognizer Tapped="OnSectionTapped"
                                                       CommandParameter="{Binding MovementType}" />
@@ -124,9 +94,9 @@
                                     <Label Text="{Binding MovementType}" FontAttributes="Bold" FontSize="17" />
                                     <Label Grid.Column="1" Text="{Binding ExpenseTotal, StringFormat='${0:N0}'}" TextColor="#B39DFA" FontAttributes="Bold" FontSize="18" />
                                 </Grid>
-                                <ProgressBar Progress="{Binding ExpenseRatio}" HeightRequest="8" ProgressColor="#F5C842" />
+                                <ProgressBar Progress="{Binding ExpenseRatio}" HeightRequest="8" ProgressColor="{Binding ProgressColor}" />
                                 <Grid ColumnDefinitions="*,*">
-                                    <Label Text="{Binding BudgetTotal, StringFormat='Presupuesto: ${0:N0}'}" FontSize="13" TextColor="{StaticResource AppHint}" />
+                                    <Label Text="{Binding BudgetLabel}" FontSize="13" TextColor="{StaticResource AppHint}" />
                                     <Label Grid.Column="1" HorizontalTextAlignment="End" Text="{Binding Balance, StringFormat='Balance: ${0:N0}'}" FontSize="13" TextColor="{Binding BalanceColor}" />
                                 </Grid>
                             </VerticalStackLayout>
@@ -137,7 +107,7 @@
         </RefreshView>
 
         <Grid x:Name="LoadingOverlay"
-              Grid.RowSpan="6"
+              Grid.RowSpan="4"
               IsVisible="False"
               BackgroundColor="#66000000"
               InputTransparent="False"

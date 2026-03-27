@@ -1,27 +1,93 @@
 <section class="settings-grid">
-	<article class="card">
-		<h2 class="section-title">Catálogos</h2>
-		<p class="muted">Edita valores, uno por línea (también acepta coma o punto y coma).</p>
+	<article class="card catalog-card">
+		<h2 class="section-title">Secciones de gasto</h2>
 
-		<form class="form-grid" [formGroup]="form" (ngSubmit)="save()">
-			<div class="field">
-				<label for="movementTypesText">Tipos de movimiento</label>
-				<textarea id="movementTypesText" rows="8" formControlName="movementTypesText"></textarea>
+		<div class="add-row">
+			<input type="text" placeholder="Nueva sección" [(ngModel)]="newMovementType" [disabled]="isLoading || isSaving" />
+			<button class="btn btn-save" type="button" (click)="addMovementType()" [disabled]="isLoading || isSaving">Agregar</button>
+		</div>
+
+		@if (!movementTypes.length) {
+			<p class="muted">No hay secciones cargadas.</p>
+		} @else {
+			<div class="item-list">
+				@for (item of movementTypes; track item) {
+					<button
+						type="button"
+						class="item-row"
+						[class.active]="selectedMovementType === item"
+						(click)="selectMovementType(item)">
+						{{ item }}
+					</button>
+				}
 			</div>
+		}
 
-			<div class="field">
-				<label for="paymentMethodsText">Métodos de pago</label>
-				<textarea id="paymentMethodsText" rows="8" formControlName="paymentMethodsText"></textarea>
-			</div>
-
-			<div class="row-actions">
-				<button class="btn btn-primary" type="submit" [disabled]="isSaving || isLoading">
-					{{ isSaving ? 'Guardando...' : 'Guardar catálogos' }}
-				</button>
-			</div>
-		</form>
-
-		<p class="muted" *ngIf="isLoading">Cargando catálogos...</p>
-		<p *ngIf="statusMessage">{{ statusMessage }}</p>
+		<p class="muted">{{ selectedMovementType ? 'Seleccionada: ' + selectedMovementType : 'Sin sección seleccionada' }}</p>
+		<div class="row-actions">
+			<button class="btn btn-edit" type="button" (click)="openEditMovementType()" [disabled]="!selectedMovementType || isSaving">Editar</button>
+			<button class="btn btn-delete" type="button" (click)="openDeleteMovementType()" [disabled]="!selectedMovementType || isSaving">Eliminar</button>
+		</div>
 	</article>
+
+	<article class="card catalog-card">
+		<h2 class="section-title">Medios de pago</h2>
+
+		<div class="add-row">
+			<input type="text" placeholder="Nuevo medio de pago" [(ngModel)]="newPaymentMethod" [disabled]="isLoading || isSaving" />
+			<button class="btn btn-save" type="button" (click)="addPaymentMethod()" [disabled]="isLoading || isSaving">Agregar</button>
+		</div>
+
+		@if (!paymentMethods.length) {
+			<p class="muted">No hay medios de pago cargados.</p>
+		} @else {
+			<div class="item-list">
+				@for (item of paymentMethods; track item) {
+					<button
+						type="button"
+						class="item-row"
+						[class.active]="selectedPaymentMethod === item"
+						(click)="selectPaymentMethod(item)">
+						{{ item }}
+					</button>
+				}
+			</div>
+		}
+
+		<p class="muted">{{ selectedPaymentMethod ? 'Seleccionado: ' + selectedPaymentMethod : 'Sin medio seleccionado' }}</p>
+		<div class="row-actions">
+			<button class="btn btn-edit" type="button" (click)="openEditPaymentMethod()" [disabled]="!selectedPaymentMethod || isSaving">Editar</button>
+			<button class="btn btn-delete" type="button" (click)="openDeletePaymentMethod()" [disabled]="!selectedPaymentMethod || isSaving">Eliminar</button>
+		</div>
+	</article>
+
+	@if (statusMessage) {
+		<p class="muted">{{ statusMessage }}</p>
+	}
+
+	@if (editOpen) {
+		<div class="edit-overlay">
+			<article class="edit-modal card">
+				<h3>{{ editTitle }}</h3>
+				<div class="field">
+					<label>Nuevo nombre</label>
+					<input type="text" [(ngModel)]="editValue" />
+				</div>
+				<div class="row-actions">
+					<button class="btn btn-close" type="button" (click)="closeEdit()">Cerrar</button>
+					<button class="btn btn-save" type="button" (click)="confirmEdit()" [disabled]="isSaving || !editValue.trim()">Guardar</button>
+				</div>
+			</article>
+		</div>
+	}
+
+	<app-confirm-modal
+		[isOpen]="confirmDeleteOpen"
+		title="Eliminar elemento"
+		[message]="deleteMessage"
+		confirmLabel="Eliminar"
+		cancelLabel="Cancelar"
+		[danger]="true"
+		(confirm)="confirmDelete()"
+		(cancel)="cancelDelete()" />
 </section>

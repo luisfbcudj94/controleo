@@ -27,7 +27,7 @@
         <Border Grid.Row="2" Padding="10" StrokeShape="RoundRectangle 12">
             <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto" ColumnSpacing="8" VerticalOptions="Center">
                 <Label Text="Mostrar" VerticalOptions="Center" FontSize="12" TextColor="Gray" />
-                <Border Grid.Column="1" StrokeShape="RoundRectangle 12" BackgroundColor="#1D1D1D" Stroke="#2A2A2A" Padding="10,8">
+                <Border Grid.Column="1" StrokeShape="RoundRectangle 12" BackgroundColor="{StaticResource AppSurface2}" Stroke="{StaticResource AppBorder}" Padding="10,8">
                     <Grid ColumnDefinitions="*,Auto">
                         <Label x:Name="PageSizeSelectorLabel" VerticalOptions="Center" HorizontalTextAlignment="Center" />
                         <Label Grid.Column="1" Text="▼" FontSize="11" TextColor="{StaticResource AppHint}" VerticalOptions="Center" />

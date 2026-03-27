@@ -9,7 +9,7 @@
         <Border StrokeShape="RoundRectangle 12" Padding="10">
             <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
                 <Button Grid.Column="0" Text="◀" WidthRequest="44" Clicked="OnPrevMonthClicked" />
-                <Border Grid.Column="1" StrokeShape="RoundRectangle 12" BackgroundColor="#1D1D1D" Stroke="#2A2A2A" Padding="12,10">
+                <Border Grid.Column="1" StrokeShape="RoundRectangle 12" BackgroundColor="{StaticResource AppSurface2}" Stroke="{StaticResource AppBorder}" Padding="12,10">
                     <Grid ColumnDefinitions="*,Auto">
                         <Label x:Name="MonthSelectorLabel" VerticalOptions="Center" />
                         <Label Grid.Column="1" Text="▼" FontSize="11" TextColor="{StaticResource AppHint}" VerticalOptions="Center" />
@@ -25,7 +25,7 @@
         <Border Grid.Row="1" Padding="12" StrokeShape="RoundRectangle 12">
             <VerticalStackLayout Spacing="8">
                 <Label Text="Configurar presupuesto global por sección" FontAttributes="Bold" FontSize="18" />
-                <Border StrokeShape="RoundRectangle 12" BackgroundColor="#1D1D1D" Stroke="#2A2A2A" Padding="12,10">
+                <Border StrokeShape="RoundRectangle 12" BackgroundColor="{StaticResource AppSurface2}" Stroke="{StaticResource AppBorder}" Padding="12,10">
                     <Grid ColumnDefinitions="*,Auto">
                         <Label x:Name="MovementTypeSelectorLabel" VerticalOptions="Center" Text="Seleccionar sección" />
                         <Label Grid.Column="1" Text="▼" FontSize="11" TextColor="{StaticResource AppHint}" VerticalOptions="Center" />
@@ -45,7 +45,6 @@
                              BackgroundColor="{StaticResource ActionSave}"
                          SemanticProperties.Description="Guardar presupuesto"
                          Clicked="OnSaveBudgetClicked" />
-                <Label x:Name="StatusLabel" FontSize="12" TextColor="Gray" />
             </VerticalStackLayout>
         </Border>
 
@@ -62,7 +61,7 @@
                             <Grid ColumnDefinitions="*,Auto,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="8">
                                 <Label Text="{Binding MovementType}" FontAttributes="Bold" />
                                 <Label Grid.Column="1" Text="{Binding Amount, StringFormat='${0:N0}'}" FontAttributes="Bold" TextColor="{StaticResource Primary}" />
-                                <Label Grid.Row="1" FontSize="12" TextColor="Gray" Text="{Binding UpdatedAt, StringFormat='Actualizado: {0:yyyy-MM-dd HH:mm}'}" />
+                                <Label Grid.Row="1" FontSize="12" TextColor="{StaticResource AppHint}" Text="{Binding UpdatedAt, StringFormat='Actualizado: {0:yyyy-MM-dd HH:mm}'}" />
                                 <ImageButton Grid.RowSpan="2" Grid.Column="2"
                                              Source="bi_trash.svg"
                                              WidthRequest="36"

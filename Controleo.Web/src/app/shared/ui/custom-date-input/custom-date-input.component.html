@@ -1,0 +1,55 @@
+<button
+  class="date-input"
+  [class.has-value]="hasValue"
+  [class.disabled]="disabled"
+  type="button"
+  (click)="openDateSelector()"
+  [disabled]="disabled">
+  <span class="date-text">{{ displayValue }}</span>
+  <span class="date-actions">
+    @if (hasValue && !disabled) {
+      <span class="date-clear" (click)="clearValue($event)">✕</span>
+    }
+    <span class="date-icon">📅</span>
+  </span>
+</button>
+
+@if (calendarOpen) {
+  <div class="calendar-overlay" (click)="onBackdropClick($event)">
+    <article class="calendar-card">
+      <div class="calendar-header">
+        <button class="nav-btn" type="button" (click)="previousMonth()" [disabled]="!canGoPreviousMonth">◀</button>
+        <strong>{{ monthTitle }}</strong>
+        <button class="nav-btn" type="button" (click)="nextMonth()" [disabled]="!canGoNextMonth">▶</button>
+      </div>
+
+      <div class="weekdays">
+        @for (weekday of weekdays; track weekday) {
+          <span>{{ weekday }}</span>
+        }
+      </div>
+
+      <div class="calendar-grid">
+        @for (cell of calendarCells; track $index) {
+          @if (cell === null) {
+            <span class="empty-cell"></span>
+          } @else {
+            <button
+              class="day-btn"
+              [class.selected]="isDaySelected(cell)"
+              [class.disabled]="isDayDisabled(cell)"
+              type="button"
+              [disabled]="isDayDisabled(cell)"
+              (click)="selectDay(cell)">
+              {{ cell }}
+            </button>
+          }
+        }
+      </div>
+
+      <div class="calendar-actions">
+        <button class="btn btn-close" type="button" (click)="closeCalendar()">Cerrar</button>
+      </div>
+    </article>
+  </div>
+}

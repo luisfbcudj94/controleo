@@ -1,10 +1,14 @@
 using System.Net.Http.Json;
 using System.Collections.Concurrent;
+using System.Net.Http.Headers;
+using System.Globalization;
+using System.Text;
+using System.Text.Json;
 using Controleo.Mobile.Models;
 
 namespace Controleo.Mobile.Services;
 
-public sealed class ExpenseApiClient(HttpClient httpClient)
+public sealed class ExpenseApiClient(HttpClient httpClient, AuthService authService)
 {
     private static readonly TimeSpan CacheTtl = TimeSpan.FromSeconds(20);
 
@@ -42,6 +46,11 @@ public sealed class ExpenseApiClient(HttpClient httpClient)
     {
         try
         {
+            if (!await EnsureAuthenticatedAsync(cancellationToken))
+            {
+                return FallbackCatalog;
+            }
+
             var catalog = await httpClient.GetFromJsonAsync<ExpenseCatalog>("api/catalogs", cancellationToken);
             return catalog ?? FallbackCatalog;
         }
@@ -60,6 +69,11 @@ public sealed class ExpenseApiClient(HttpClient httpClient)
 
         try
         {
+            if (!await EnsureAuthenticatedAsync(cancellationToken))
+            {
+                return [];
+            }
+
             var data = await httpClient.GetFromJsonAsync<List<ExpenseItem>>($"api/expenses?month={Uri.EscapeDataString(monthKey)}", cancellationToken);
             var result = (IReadOnlyList<ExpenseItem>)(data ?? []);
             _expensesCache[monthKey] = new CacheEntry<IReadOnlyList<ExpenseItem>>(DateTimeOffset.UtcNow, result);
@@ -76,6 +90,7 @@ public sealed class ExpenseApiClient(HttpClient httpClient)
         int pageNumber,
         int pageSize,
         string? movementType,
+        string? searchTerm,
         CancellationToken cancellationToken)
     {
         var resolvedPageNumber = Math.Max(1, pageNumber);
@@ -83,11 +98,19 @@ public sealed class ExpenseApiClient(HttpClient httpClient)
         var movementSegment = string.IsNullOrWhiteSpace(movementType)
             ? string.Empty
             : $"&movementType={Uri.EscapeDataString(movementType)}";
+        var searchSegment = string.IsNullOrWhiteSpace(searchTerm)
+            ? string.Empty
+            : $"&searchTerm={Uri.EscapeDataString(searchTerm)}";
 
         try
         {
+            if (!await EnsureAuthenticatedAsync(cancellationToken))
+            {
+                return new PagedExpenseResult([], 1, resolvedPageSize, 0, 0m, 1, false, false);
+            }
+
             var data = await httpClient.GetFromJsonAsync<PagedExpenseResult>(
-                $"api/expenses/paged?month={Uri.EscapeDataString(monthKey)}&pageNumber={resolvedPageNumber}&pageSize={resolvedPageSize}{movementSegment}",
+                $"api/expenses/paged?month={Uri.EscapeDataString(monthKey)}&pageNumber={resolvedPageNumber}&pageSize={resolvedPageSize}{movementSegment}{searchSegment}",
                 cancellationToken);
 
             return data ?? new PagedExpenseResult([], 1, resolvedPageSize, 0, 0m, 1, false, false);
@@ -107,6 +130,11 @@ public sealed class ExpenseApiClient(HttpClient httpClient)
 
         try
         {
+            if (!await EnsureAuthenticatedAsync(cancellationToken))
+            {
+                return [];
+            }
+
             var data = await httpClient.GetFromJsonAsync<List<string>>("api/expenses/months", cancellationToken);
             var result = (IReadOnlyList<string>)(data ?? []);
             _monthsCache = new CacheEntry<IReadOnlyList<string>>(DateTimeOffset.UtcNow, result);
@@ -122,7 +150,13 @@ public sealed class ExpenseApiClient(HttpClient httpClient)
     {
         try
         {
-            var response = await httpClient.PostAsJsonAsync("api/expenses", request, cancellationToken);
+            if (!await EnsureAuthenticatedAsync(cancellationToken))
+            {
+                return new SaveExpenseResult(false, "Debes iniciar sesión antes de guardar gastos.", 0);
+            }
+
+            using var saveRequest = CreateExpenseJsonRequest(HttpMethod.Post, "api/expenses", request);
+            var response = await httpClient.SendAsync(saveRequest, cancellationToken);
             if (response.IsSuccessStatusCode)
             {
                 var result = await response.Content.ReadFromJsonAsync<SaveExpenseResult>(cancellationToken: cancellationToken);
@@ -132,8 +166,8 @@ public sealed class ExpenseApiClient(HttpClient httpClient)
                 return result ?? new SaveExpenseResult(false, "Respuesta inválida del servidor.", 0);
             }
 
-            var body = await response.Content.ReadAsStringAsync(cancellationToken);
-            return new SaveExpenseResult(false, $"Error API {response.StatusCode}: {body}", 0);
+            var message = await ReadFriendlyApiErrorAsync(response, "No fue posible guardar el gasto.", cancellationToken);
+            return new SaveExpenseResult(false, message, 0);
         }
         catch (Exception ex)
         {
@@ -145,7 +179,13 @@ public sealed class ExpenseApiClient(HttpClient httpClient)
     {
         try
         {
-            var response = await httpClient.PutAsJsonAsync($"api/expenses/{id}", request, cancellationToken);
+            if (!await EnsureAuthenticatedAsync(cancellationToken))
+            {
+                return new OperationResult(false, "Debes iniciar sesión antes de actualizar gastos.");
+            }
+
+            using var updateRequest = CreateExpenseJsonRequest(HttpMethod.Put, $"api/expenses/{id}", request);
+            var response = await httpClient.SendAsync(updateRequest, cancellationToken);
             if (response.IsSuccessStatusCode)
             {
                 var result = await response.Content.ReadFromJsonAsync<OperationResult>(cancellationToken: cancellationToken);
@@ -155,8 +195,8 @@ public sealed class ExpenseApiClient(HttpClient httpClient)
                 return result ?? new OperationResult(false, "Respuesta inválida del servidor.");
             }
 
-            var body = await response.Content.ReadAsStringAsync(cancellationToken);
-            return new OperationResult(false, $"Error API {response.StatusCode}: {body}");
+            var message = await ReadFriendlyApiErrorAsync(response, "No fue posible actualizar el gasto.", cancellationToken);
+            return new OperationResult(false, message);
         }
         catch (Exception ex)
         {
@@ -168,6 +208,11 @@ public sealed class ExpenseApiClient(HttpClient httpClient)
     {
         try
         {
+            if (!await EnsureAuthenticatedAsync(cancellationToken))
+            {
+                return new OperationResult(false, "Debes iniciar sesión antes de eliminar gastos.");
+            }
+
             var response = await httpClient.DeleteAsync($"api/expenses/{id}", cancellationToken);
             if (response.IsSuccessStatusCode)
             {
@@ -178,8 +223,8 @@ public sealed class ExpenseApiClient(HttpClient httpClient)
                 return result ?? new OperationResult(true, "Gasto eliminado correctamente.");
             }
 
-            var body = await response.Content.ReadAsStringAsync(cancellationToken);
-            return new OperationResult(false, $"Error API {response.StatusCode}: {body}");
+            var message = await ReadFriendlyApiErrorAsync(response, "No fue posible eliminar el gasto.", cancellationToken);
+            return new OperationResult(false, message);
         }
         catch (Exception ex)
         {
@@ -196,6 +241,11 @@ public sealed class ExpenseApiClient(HttpClient httpClient)
 
         try
         {
+            if (!await EnsureAuthenticatedAsync(cancellationToken))
+            {
+                return [];
+            }
+
             var data = await httpClient.GetFromJsonAsync<List<DashboardCategoryItem>>($"api/dashboard/by-category?month={Uri.EscapeDataString(monthKey)}", cancellationToken);
             var result = (IReadOnlyList<DashboardCategoryItem>)(data ?? []);
             _dashboardCache[monthKey] = new CacheEntry<IReadOnlyList<DashboardCategoryItem>>(DateTimeOffset.UtcNow, result);
@@ -217,6 +267,11 @@ public sealed class ExpenseApiClient(HttpClient httpClient)
 
         try
         {
+            if (!await EnsureAuthenticatedAsync(cancellationToken))
+            {
+                return [];
+            }
+
             var data = await httpClient.GetFromJsonAsync<List<BudgetItem>>("api/budgets", cancellationToken);
             var result = (IReadOnlyList<BudgetItem>)(data ?? []);
             _budgetsCache[cacheKey] = new CacheEntry<IReadOnlyList<BudgetItem>>(DateTimeOffset.UtcNow, result);
@@ -232,7 +287,13 @@ public sealed class ExpenseApiClient(HttpClient httpClient)
     {
         try
         {
-            var response = await httpClient.PutAsJsonAsync($"api/budgets/{Uri.EscapeDataString(movementType)}", new BudgetUpsertRequest(amount), cancellationToken);
+            if (!await EnsureAuthenticatedAsync(cancellationToken))
+            {
+                return new OperationResult(false, "Debes iniciar sesión antes de guardar presupuestos.");
+            }
+
+            using var upsertRequest = CreateBudgetJsonRequest($"api/budgets/{Uri.EscapeDataString(movementType)}", amount);
+            var response = await httpClient.SendAsync(upsertRequest, cancellationToken);
             if (response.IsSuccessStatusCode)
             {
                 var result = await response.Content.ReadFromJsonAsync<OperationResult>(cancellationToken: cancellationToken);
@@ -241,8 +302,8 @@ public sealed class ExpenseApiClient(HttpClient httpClient)
                 return result ?? new OperationResult(true, "Presupuesto guardado correctamente.");
             }
 
-            var body = await response.Content.ReadAsStringAsync(cancellationToken);
-            return new OperationResult(false, $"Error API {response.StatusCode}: {body}");
+            var message = await ReadFriendlyApiErrorAsync(response, "No fue posible guardar el presupuesto.", cancellationToken);
+            return new OperationResult(false, message);
         }
         catch (Exception ex)
         {
@@ -254,6 +315,11 @@ public sealed class ExpenseApiClient(HttpClient httpClient)
     {
         try
         {
+            if (!await EnsureAuthenticatedAsync(cancellationToken))
+            {
+                return new OperationResult(false, "Debes iniciar sesión antes de eliminar presupuestos.");
+            }
+
             var response = await httpClient.DeleteAsync($"api/budgets/{Uri.EscapeDataString(movementType)}", cancellationToken);
             if (response.IsSuccessStatusCode)
             {
@@ -263,8 +329,8 @@ public sealed class ExpenseApiClient(HttpClient httpClient)
                 return result ?? new OperationResult(true, "Presupuesto eliminado correctamente.");
             }
 
-            var body = await response.Content.ReadAsStringAsync(cancellationToken);
-            return new OperationResult(false, $"Error API {response.StatusCode}: {body}");
+            var message = await ReadFriendlyApiErrorAsync(response, "No fue posible eliminar el presupuesto.", cancellationToken);
+            return new OperationResult(false, message);
         }
         catch (Exception ex)
         {
@@ -276,15 +342,92 @@ public sealed class ExpenseApiClient(HttpClient httpClient)
     {
         try
         {
-            var response = await httpClient.PutAsJsonAsync("api/catalogs", request, cancellationToken);
+            if (!await EnsureAuthenticatedAsync(cancellationToken))
+            {
+                return new OperationResult(false, "Debes iniciar sesión antes de actualizar catálogos.");
+            }
+
+            using var updateRequest = CreateCatalogsJsonRequest("api/catalogs", request);
+            var response = await httpClient.SendAsync(updateRequest, cancellationToken);
             if (response.IsSuccessStatusCode)
             {
                 var result = await response.Content.ReadFromJsonAsync<OperationResult>(cancellationToken: cancellationToken);
                 return result ?? new OperationResult(true, "Catálogos actualizados correctamente.");
             }
 
-            var body = await response.Content.ReadAsStringAsync(cancellationToken);
-            return new OperationResult(false, $"Error API {response.StatusCode}: {body}");
+            var message = await ReadFriendlyApiErrorAsync(response, "No fue posible actualizar catálogos.", cancellationToken);
+            return new OperationResult(false, message);
+        }
+        catch (Exception ex)
+        {
+            return new OperationResult(false, $"No fue posible conectar con API: {ex.Message}");
+        }
+    }
+
+    public async Task<IReadOnlyList<RecurringExpenseItem>> GetRecurringExpensesAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (!await EnsureAuthenticatedAsync(cancellationToken))
+            {
+                return [];
+            }
+
+            var data = await httpClient.GetFromJsonAsync<List<RecurringExpenseItem>>("api/recurring-expenses", cancellationToken);
+            return data ?? [];
+        }
+        catch
+        {
+            return [];
+        }
+    }
+
+    public async Task<OperationResult> SaveRecurringExpenseAsync(string? id, RecurringExpenseUpsertRequest request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (!await EnsureAuthenticatedAsync(cancellationToken))
+            {
+                return new OperationResult(false, "Debes iniciar sesión antes de guardar recurrentes.");
+            }
+
+            var response = string.IsNullOrWhiteSpace(id)
+                ? await httpClient.PostAsJsonAsync("api/recurring-expenses", request, cancellationToken)
+                : await httpClient.PutAsJsonAsync($"api/recurring-expenses/{id}", request, cancellationToken);
+
+            if (response.IsSuccessStatusCode)
+            {
+                var result = await response.Content.ReadFromJsonAsync<OperationResult>(cancellationToken: cancellationToken);
+                return result ?? new OperationResult(true, "Gasto recurrente guardado correctamente.");
+            }
+
+            var message = await ReadFriendlyApiErrorAsync(response, "No fue posible guardar el gasto recurrente.", cancellationToken);
+            return new OperationResult(false, message);
+        }
+        catch (Exception ex)
+        {
+            return new OperationResult(false, $"No fue posible conectar con API: {ex.Message}");
+        }
+    }
+
+    public async Task<OperationResult> DeleteRecurringExpenseAsync(string id, CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (!await EnsureAuthenticatedAsync(cancellationToken))
+            {
+                return new OperationResult(false, "Debes iniciar sesión antes de eliminar recurrentes.");
+            }
+
+            var response = await httpClient.DeleteAsync($"api/recurring-expenses/{id}", cancellationToken);
+            if (response.IsSuccessStatusCode)
+            {
+                var result = await response.Content.ReadFromJsonAsync<OperationResult>(cancellationToken: cancellationToken);
+                return result ?? new OperationResult(true, "Gasto recurrente eliminado correctamente.");
+            }
+
+            var message = await ReadFriendlyApiErrorAsync(response, "No fue posible eliminar el gasto recurrente.", cancellationToken);
+            return new OperationResult(false, message);
         }
         catch (Exception ex)
         {
@@ -304,5 +447,190 @@ public sealed class ExpenseApiClient(HttpClient httpClient)
         return false;
     }
 
+    private async Task<bool> EnsureAuthenticatedAsync(CancellationToken cancellationToken)
+    {
+        var accessToken = await authService.GetAccessTokenAsync(cancellationToken);
+        if (string.IsNullOrWhiteSpace(accessToken))
+        {
+            return false;
+        }
+
+        if (httpClient.DefaultRequestHeaders.Authorization?.Parameter != accessToken)
+        {
+            httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+        }
+
+        return true;
+    }
+
     private sealed record CacheEntry<T>(DateTimeOffset CreatedAt, T Data);
+
+    private static async Task<string> ReadFriendlyApiErrorAsync(HttpResponseMessage response, string fallbackMessage, CancellationToken cancellationToken)
+    {
+        var statusCode = (int)response.StatusCode;
+
+        if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+        {
+            return "Tu sesión expiró. Inicia sesión nuevamente.";
+        }
+
+        try
+        {
+            var operationResult = await response.Content.ReadFromJsonAsync<ApiOperationResult>(cancellationToken: cancellationToken);
+            if (operationResult is not null && !string.IsNullOrWhiteSpace(operationResult.Message))
+            {
+                return NormalizeApiMessage(operationResult.Message, statusCode);
+            }
+        }
+        catch
+        {
+        }
+
+        try
+        {
+            var validation = await response.Content.ReadFromJsonAsync<ApiValidationProblem>(cancellationToken: cancellationToken);
+            var firstError = validation?.Errors?
+                .SelectMany(pair => pair.Value ?? [])
+                .FirstOrDefault(message => !string.IsNullOrWhiteSpace(message));
+
+            if (!string.IsNullOrWhiteSpace(firstError))
+            {
+                return firstError.Trim();
+            }
+        }
+        catch
+        {
+        }
+
+        try
+        {
+            var raw = await response.Content.ReadAsStringAsync(cancellationToken);
+            if (!string.IsNullOrWhiteSpace(raw))
+            {
+                var parsedFromRaw = TryParseMessageFromRaw(raw);
+                if (!string.IsNullOrWhiteSpace(parsedFromRaw))
+                {
+                    return NormalizeApiMessage(parsedFromRaw, statusCode);
+                }
+            }
+        }
+        catch
+        {
+        }
+
+        return $"{fallbackMessage} (código {statusCode}).";
+    }
+
+    private static string NormalizeApiMessage(string message, int statusCode)
+    {
+        var normalized = message.Trim();
+
+        if (normalized.Contains("Request inválido", StringComparison.OrdinalIgnoreCase))
+        {
+            return "No pudimos procesar la información enviada. Revisa los datos e inténtalo de nuevo.";
+        }
+
+        if (normalized.Contains("Debes enviar secciones y medios de pago", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Debes tener al menos una sección y un medio de pago antes de guardar.";
+        }
+
+        if (normalized.Contains("Tipo de movimiento no permitido", StringComparison.OrdinalIgnoreCase))
+        {
+            return "El tipo de movimiento no está permitido para tu cuenta. Actualiza catálogos e intenta otra vez.";
+        }
+
+        if (normalized.Contains("Medio de pago no permitido", StringComparison.OrdinalIgnoreCase))
+        {
+            return "El medio de pago no está permitido para tu cuenta. Actualiza catálogos e intenta otra vez.";
+        }
+
+        return statusCode >= 500
+            ? "El servidor tuvo un problema al procesar la solicitud. Inténtalo de nuevo en unos segundos."
+            : normalized;
+    }
+
+    private static string? TryParseMessageFromRaw(string raw)
+    {
+        var trimmed = raw.Trim();
+        if (string.IsNullOrWhiteSpace(trimmed))
+        {
+            return null;
+        }
+
+        try
+        {
+            using var doc = JsonDocument.Parse(trimmed);
+            if (doc.RootElement.ValueKind == JsonValueKind.Object)
+            {
+                foreach (var property in doc.RootElement.EnumerateObject())
+                {
+                    if (string.Equals(property.Name, "message", StringComparison.OrdinalIgnoreCase)
+                        && property.Value.ValueKind == JsonValueKind.String)
+                    {
+                        return property.Value.GetString();
+                    }
+                }
+            }
+        }
+        catch
+        {
+        }
+
+        return trimmed;
+    }
+
+    private sealed record ApiOperationResult(bool IsSuccess, string Message);
+
+    private sealed class ApiValidationProblem
+    {
+        public Dictionary<string, string[]>? Errors { get; set; }
+    }
+
+    private static HttpRequestMessage CreateExpenseJsonRequest(HttpMethod method, string relativeUrl, ExpenseEntryRequest request)
+    {
+        var payload = new Dictionary<string, object?>
+        {
+            ["date"] = request.Date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+            ["description"] = request.Description,
+            ["amount"] = request.Amount,
+            ["movementType"] = request.MovementType,
+            ["paymentMethod"] = request.PaymentMethod
+        };
+
+        var json = JsonSerializer.Serialize(payload);
+        return new HttpRequestMessage(method, relativeUrl)
+        {
+            Content = new StringContent(json, Encoding.UTF8, "application/json")
+        };
+    }
+
+    private static HttpRequestMessage CreateBudgetJsonRequest(string relativeUrl, decimal amount)
+    {
+        var payload = new Dictionary<string, object?>
+        {
+            ["amount"] = amount
+        };
+
+        var json = JsonSerializer.Serialize(payload);
+        return new HttpRequestMessage(HttpMethod.Put, relativeUrl)
+        {
+            Content = new StringContent(json, Encoding.UTF8, "application/json")
+        };
+    }
+
+    private static HttpRequestMessage CreateCatalogsJsonRequest(string relativeUrl, UpdateCatalogsRequest request)
+    {
+        var payload = new Dictionary<string, object?>
+        {
+            ["movementTypes"] = request.MovementTypes?.ToArray() ?? [],
+            ["paymentMethods"] = request.PaymentMethods?.ToArray() ?? []
+        };
+
+        var json = JsonSerializer.Serialize(payload);
+        return new HttpRequestMessage(HttpMethod.Put, relativeUrl)
+        {
+            Content = new StringContent(json, Encoding.UTF8, "application/json")
+        };
+    }
 }

@@ -29,22 +29,6 @@
                                           <Label Grid.Row="1" Text="Ingresa los detalles del movimiento" FontSize="13" TextColor="{StaticResource AppHint}" />
                                    </Grid>
 
-                                   <Border StrokeShape="RoundRectangle 16" Padding="12">
-                                          <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
-                                                 <Button Grid.Column="0" Text="◀" WidthRequest="42" HeightRequest="42" CornerRadius="21" Clicked="OnPrevMonthClicked" />
-                                                 <Border Grid.Column="1" StrokeShape="RoundRectangle 12" BackgroundColor="#1D1D1D" Stroke="#2A2A2A" Padding="12,10">
-                                                        <Grid ColumnDefinitions="*,Auto">
-                                                               <Label x:Name="MonthSelectorLabel" VerticalOptions="Center" />
-                                                               <Label Grid.Column="1" Text="▼" FontSize="11" TextColor="{StaticResource AppHint}" VerticalOptions="Center" />
-                                                        </Grid>
-                                                        <Border.GestureRecognizers>
-                                                               <TapGestureRecognizer Tapped="OnMonthSelectorTapped" />
-                                                        </Border.GestureRecognizers>
-                                                 </Border>
-                                                 <Button Grid.Column="2" Text="▶" WidthRequest="42" HeightRequest="42" CornerRadius="21" Clicked="OnNextMonthClicked" />
-                                          </Grid>
-                                   </Border>
-
                                    <Border StrokeShape="RoundRectangle 16" Padding="14">
                                           <VerticalStackLayout Spacing="8">
                                                  <Label Text="VALOR DEL GASTO" FontSize="11" TextColor="{StaticResource AppHint}" />
@@ -53,10 +37,12 @@
                                                         <Entry Grid.Column="1"
                                                                   x:Name="AmountField"
                                                                   Placeholder="0"
+                                                                  MaxLength="14"
                                                                   FontSize="42"
                                                                   FontFamily="OpenSansSemibold"
                                                                   Keyboard="Numeric"
-                                                                  BackgroundColor="Transparent" />
+                                                                  BackgroundColor="Transparent"
+                                                                  TextChanged="OnAmountFieldTextChanged" />
                                                  </Grid>
                                                  <BoxView HeightRequest="2" HorizontalOptions="Fill" BackgroundColor="#4A5B28" WidthRequest="180" />
                                           </VerticalStackLayout>
@@ -69,7 +55,15 @@
                                                         <Border WidthRequest="30" HeightRequest="30" StrokeShape="RoundRectangle 8" BackgroundColor="#1E2C44" Stroke="#263A5D" />
                                                         <VerticalStackLayout Grid.Column="1" Spacing="4">
                                                                <Label Text="FECHA DEL GASTO" FontSize="11" TextColor="{StaticResource AppHint}" />
-                                                               <DatePicker x:Name="DatePickerField" BackgroundColor="Transparent" />
+                                                                             <Border StrokeShape="RoundRectangle 12" BackgroundColor="{StaticResource AppSurface2}" Stroke="{StaticResource AppBorder}" Padding="12,10">
+                                                                                    <Grid ColumnDefinitions="*,Auto">
+                                                                                           <Label x:Name="DateSelectorLabel" VerticalOptions="Center" />
+                                                                                           <Label Grid.Column="1" Text="▼" FontSize="11" TextColor="{StaticResource AppHint}" VerticalOptions="Center" />
+                                                                                    </Grid>
+                                                                                    <Border.GestureRecognizers>
+                                                                                           <TapGestureRecognizer Tapped="OnDateSelectorTapped" />
+                                                                                    </Border.GestureRecognizers>
+                                                                             </Border>
                                                         </VerticalStackLayout>
                                                  </Grid>
                                                  <BoxView HeightRequest="1" Color="{StaticResource AppBorder}" />
@@ -79,6 +73,7 @@
                                                                <Label Text="DESCRIPCIÓN" FontSize="11" TextColor="{StaticResource AppHint}" />
                                                                <Entry x:Name="DescriptionField"
                                                                          Placeholder="¿En qué gastaste?"
+                                                                         MaxLength="100"
                                                                          ClearButtonVisibility="WhileEditing"
                                                                          BackgroundColor="Transparent" />
                                                         </VerticalStackLayout>
@@ -89,7 +84,7 @@
                                    <Border StrokeShape="RoundRectangle 16" Padding="14">
                                           <VerticalStackLayout Spacing="8">
                                                  <Label Text="TIPO DE MOVIMIENTO" FontSize="11" TextColor="{StaticResource AppHint}" />
-                                                 <Border StrokeShape="RoundRectangle 12" BackgroundColor="#1D1D1D" Stroke="#2A2A2A" Padding="12,10">
+                                                 <Border StrokeShape="RoundRectangle 12" BackgroundColor="{StaticResource AppSurface2}" Stroke="{StaticResource AppBorder}" Padding="12,10">
                                                         <Grid ColumnDefinitions="*,Auto">
                                                                <Label x:Name="MovementTypeSelectorLabel" Text="Selecciona tipo" VerticalOptions="Center" />
                                                                <Label Grid.Column="1" Text="▼" FontSize="11" TextColor="{StaticResource AppHint}" VerticalOptions="Center" />
@@ -104,7 +99,7 @@
                                    <Border StrokeShape="RoundRectangle 16" Padding="14">
                                           <VerticalStackLayout Spacing="8">
                                                  <Label Text="MEDIO DE PAGO" FontSize="11" TextColor="{StaticResource AppHint}" />
-                                                 <Border StrokeShape="RoundRectangle 12" BackgroundColor="#1D1D1D" Stroke="#2A2A2A" Padding="12,10">
+                                                 <Border StrokeShape="RoundRectangle 12" BackgroundColor="{StaticResource AppSurface2}" Stroke="{StaticResource AppBorder}" Padding="12,10">
                                                         <Grid ColumnDefinitions="*,Auto">
                                                                <Label x:Name="PaymentMethodSelectorLabel" Text="Selecciona medio" VerticalOptions="Center" />
                                                                <Label Grid.Column="1" Text="▼" FontSize="11" TextColor="{StaticResource AppHint}" VerticalOptions="Center" />
@@ -116,11 +111,6 @@
                                           </VerticalStackLayout>
                                    </Border>
 
-                                   <Picker x:Name="MonthPicker"
-                                           IsVisible="False"
-                                           ItemDisplayBinding="{Binding Label}"
-                                           SelectedIndexChanged="OnMonthPickerChanged" />
-
                                    <Picker x:Name="MovementTypePicker"
                                            IsVisible="False" />
 
@@ -128,11 +118,11 @@
                                            IsVisible="False" />
 
                                    <Button x:Name="SaveButton"
-                                                 Text="✦  Guardar gasto"
+                                                 Text="Guardar gasto"
                                                  FontAttributes="Bold"
                                                  FontSize="20"
                                                  BackgroundColor="{StaticResource PrimaryDark}"
-                                                 TextColor="#0A0A0A"
+                                                 TextColor="{StaticResource PrimaryDarkText}"
                                                  CornerRadius="16"
                                                  HeightRequest="56"
                                                  Clicked="OnSaveClicked" />
@@ -140,7 +130,9 @@
                                    <Button Text="Ver lista de gastos"
                                                  Clicked="OnGoToExpensesClicked"
                                                  BackgroundColor="{StaticResource AppSurface2}"
-                                                 TextColor="{StaticResource AppText}" />
+                                                 TextColor="{StaticResource AppText}"
+                                                 FontAttributes="Bold"
+                                                 HeightRequest="48" />
 
                                    <Label x:Name="StatusLabel"
                                              FontSize="13"

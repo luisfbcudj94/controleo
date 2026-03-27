@@ -1,7 +1,7 @@
 <div class="app-shell">
 	<aside class="sidebar">
 		<div class="sb-brand">
-			<div class="sb-logo">fin<span>.</span>track</div>
+			<div class="sb-logo">Controleo</div>
 			<div class="sb-tagline">Gestión financiera personal</div>
 		</div>
 
@@ -25,10 +25,10 @@
 
 		<div class="sb-bottom">
 			<div class="sb-user">
-				<div class="sb-avatar">CT</div>
+				<div class="sb-avatar">{{ userInitials }}</div>
 				<div>
-					<div class="sb-uname">Controleo</div>
-					  <div class="sb-uemail">local&#64;controleo.app</div>
+					<div class="sb-uname">{{ userName }}</div>
+					<div class="sb-uemail">{{ userEmail }}</div>
 				</div>
 			</div>
 		</div>
@@ -39,7 +39,7 @@
 			<div class="tb-left">
 				<div>
 					<div class="tb-page-title">{{ pageTitle }}</div>
-					<div class="tb-breadcrumb">fin.track <span>›</span> <span>{{ pageCrumb }}</span></div>
+					<div class="tb-breadcrumb">controlee <span>›</span> <span>{{ pageCrumb }}</span></div>
 				</div>
 			</div>
 
@@ -51,13 +51,12 @@
 					</span>
 				</button>
 
-				<div class="month-sel">
-					<button class="ms-btn" type="button" (click)="previousMonth()">&#8249;</button>
+				<div class="month-sel info-only" aria-label="Mes actual">
 					<div class="ms-label">{{ monthLabel }}</div>
-					<button class="ms-btn" type="button" (click)="nextMonth()">&#8250;</button>
 				</div>
 
 				<a class="tb-btn primary" [routerLink]="'/registrar'">＋ Nuevo gasto</a>
+				<button class="tb-btn logout icon-only" type="button" (click)="logout()" aria-label="Cerrar sesión" title="Cerrar sesión">⇥</button>
 			</div>
 		</header>
 

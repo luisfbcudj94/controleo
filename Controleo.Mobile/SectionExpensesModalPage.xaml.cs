@@ -56,6 +56,7 @@ public partial class SectionExpensesModalPage : ContentPage
                 _pageNumber,
                 _pageSize,
                 _movementType,
+                searchTerm: null,
                 CancellationToken.None);
 
             _pageNumber = page.PageNumber;

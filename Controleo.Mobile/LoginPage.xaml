@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Controleo.Mobile.LoginPage"
+             Title="Iniciar sesión"
+             BackgroundColor="{DynamicResource AppBg}">
+    <Grid Padding="24" RowDefinitions="*,Auto,Auto,*" RowSpacing="16">
+        <VerticalStackLayout Grid.Row="1" Spacing="10">
+            <Label Text="Controleo"
+                   FontSize="28"
+                   FontAttributes="Bold"
+                   TextColor="{DynamicResource AppText}" />
+            <Label Text="Regístrate o inicia sesión para acceder a tu espacio personal."
+                   FontSize="14"
+                   TextColor="{DynamicResource AppHint}" />
+
+            <Entry x:Name="NameEntry"
+                   Placeholder="Nombre"
+                   IsVisible="False"
+                   TextColor="{DynamicResource AppText}"
+                   PlaceholderColor="{DynamicResource AppHint}" />
+
+            <Entry x:Name="EmailEntry"
+                   Placeholder="Correo"
+                   Keyboard="Email"
+                   TextColor="{DynamicResource AppText}"
+                   PlaceholderColor="{DynamicResource AppHint}" />
+
+            <Entry x:Name="PasswordEntry"
+                   Placeholder="Contraseña"
+                   IsPassword="True"
+                   TextColor="{DynamicResource AppText}"
+                   PlaceholderColor="{DynamicResource AppHint}" />
+
+            <Entry x:Name="ConfirmPasswordEntry"
+                   Placeholder="Confirmar contraseña"
+                   IsVisible="False"
+                   IsPassword="True"
+                   TextColor="{DynamicResource AppText}"
+                   PlaceholderColor="{DynamicResource AppHint}" />
+
+            <Button x:Name="SignInButton"
+                    Text="Iniciar sesión"
+                    Clicked="OnSignInClicked"
+                    HeightRequest="48"
+                    CornerRadius="12"
+                    BackgroundColor="{DynamicResource Primary}"
+                    TextColor="{DynamicResource PrimaryDarkText}" />
+
+           <Button x:Name="ModeButton"
+                  Text="Si no tienes cuenta, regístrate"
+                  Clicked="OnToggleModeClicked"
+                  HeightRequest="36"
+                  CornerRadius="10"
+                  FontSize="13"
+                  BackgroundColor="{DynamicResource AppSurface2}"
+                  TextColor="{DynamicResource AppText}" />
+
+            <Button x:Name="RegisterButton"
+                    Text="Crear cuenta"
+                    IsVisible="False"
+                    Clicked="OnRegisterClicked"
+                    HeightRequest="48"
+                    CornerRadius="12"
+                    BackgroundColor="{DynamicResource AppSurface2}"
+                    TextColor="{DynamicResource AppText}" />
+
+            <Label x:Name="StatusLabel"
+                   IsVisible="False"
+                   FontSize="13"
+                   TextColor="{DynamicResource AppHint}" />
+        </VerticalStackLayout>
+    </Grid>
+</ContentPage>

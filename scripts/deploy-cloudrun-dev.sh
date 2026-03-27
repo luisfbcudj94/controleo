@@ -17,7 +17,7 @@ echo "==> Configurando proyecto: ${PROJECT_ID}"
 gcloud config set project "${PROJECT_ID}" >/dev/null
 
 echo "==> Habilitando APIs necesarias"
-gcloud services enable run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com firestore.googleapis.com >/dev/null
+gcloud services enable run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com >/dev/null
 
 echo "==> Clonando/actualizando repo (${BRANCH}) en ${WORKDIR}"
 if [[ -d "${WORKDIR}/.git" ]]; then
@@ -48,8 +48,7 @@ gcloud run deploy "${SERVICE}" \
   --memory=512Mi \
   --concurrency=80 \
   --timeout=30 \
-  --cpu-throttling \
-  --set-env-vars "FIREBASE_PROJECT_ID=${PROJECT_ID}"
+  --cpu-throttling
 
 echo "==> Verificación"
 gcloud run services describe "${SERVICE}" --region "${REGION}" \

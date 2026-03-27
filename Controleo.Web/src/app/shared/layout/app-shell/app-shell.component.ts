@@ -1,5 +1,6 @@
 import { Component } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { AuthService } from '../../../core/services/auth.service';
 
 @Component({
   selector: 'app-app-shell',
@@ -16,14 +17,30 @@ export class AppShellComponent {
 
   readonly analysisNav = [
     { path: '/presupuestos', icon: '🎯', label: 'Presupuestos' },
+    { path: '/recurrentes', icon: '🔁', label: 'Recurrentes' },
     { path: '/configuracion', icon: '⚙️', label: 'Configuración' }
   ];
 
   currentMonthDate = new Date();
   isGirlMode = false;
 
-  constructor(private readonly router: Router) {
+  constructor(
+    private readonly router: Router,
+    private readonly auth: AuthService
+  ) {
     this.initializeTheme();
+  }
+
+  get userInitials(): string {
+    return this.auth.userInitials;
+  }
+
+  get userName(): string {
+    return this.auth.currentUserName;
+  }
+
+  get userEmail(): string {
+    return this.auth.currentUserEmail;
   }
 
   get pageTitle(): string {
@@ -70,6 +87,10 @@ export class AppShellComponent {
       return { title: 'Presupuestos', crumb: 'Metas por categoría' };
     }
 
+    if (routePath.startsWith('/recurrentes')) {
+      return { title: 'Recurrentes', crumb: 'Programación mensual' };
+    }
+
     if (routePath.startsWith('/configuracion')) {
       return { title: 'Configuración', crumb: 'Catálogos y preferencias' };
     }
@@ -86,6 +107,11 @@ export class AppShellComponent {
   private applyTheme(): void {
     document.body.setAttribute('data-theme', this.isGirlMode ? 'girl' : 'dark');
     localStorage.setItem('controleo-theme', this.isGirlMode ? 'girl' : 'dark');
+  }
+
+  async logout(): Promise<void> {
+    await this.auth.logout();
+    await this.router.navigateByUrl('/login');
   }
 
 }

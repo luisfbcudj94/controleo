@@ -1,0 +1,35 @@
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(8, 8, 8, 0.72);
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  z-index: 1200;
+}
+
+.modal-card {
+  width: min(420px, 100%);
+  background: var(--s1);
+  border: 1px solid var(--b2);
+  border-radius: var(--rx);
+  padding: 1rem;
+}
+
+h3 {
+  margin: 0;
+  font-family: 'Syne', sans-serif;
+  font-size: 1rem;
+}
+
+.modal-message {
+  margin: 0.75rem 0 0;
+  color: var(--muted);
+}
+
+.modal-actions {
+  margin-top: 1rem;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}

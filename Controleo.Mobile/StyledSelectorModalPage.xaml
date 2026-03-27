@@ -9,20 +9,19 @@
         <Border VerticalOptions="Center"
                 StrokeShape="RoundRectangle 18"
                 Padding="14"
-                BackgroundColor="#121212"
-                Stroke="#2D2D2D">
+            BackgroundColor="{StaticResource AppSurface}"
+            Stroke="{StaticResource AppBorder}">
             <Grid RowDefinitions="Auto,*" RowSpacing="10">
                 <Grid ColumnDefinitions="*,Auto" VerticalOptions="Center">
                     <Label x:Name="TitleLabel"
                            FontSize="18"
-                           FontAttributes="Bold"
-                           TextColor="White" />
+                          FontAttributes="Bold" />
                     <Button Grid.Column="1"
                             Text="✕"
                             WidthRequest="40"
                             HeightRequest="40"
                             CornerRadius="20"
-                            BackgroundColor="#2B2B2B"
+                        BackgroundColor="{StaticResource ActionDelete}"
                             TextColor="White"
                             Clicked="OnCloseClicked" />
                 </Grid>
@@ -36,12 +35,20 @@
                             <Border Padding="12,10"
                                     Margin="0,0,0,8"
                                     StrokeShape="RoundRectangle 12"
-                                    BackgroundColor="#1A1A1A"
-                                    Stroke="#2B2B2B"
+                                    BackgroundColor="{StaticResource AppSurface2}"
+                                    Stroke="{StaticResource AppBorder}"
                                     MinimumHeightRequest="48">
-                                <Label Text="{Binding .}"
+                                <Border.Triggers>
+                                    <DataTrigger TargetType="Border"
+                                                 Binding="{Binding IsSelected}"
+                                                 Value="True">
+                                        <Setter Property="BackgroundColor" Value="{StaticResource AppSurface}" />
+                                        <Setter Property="Stroke" Value="{StaticResource PrimaryDark}" />
+                                    </DataTrigger>
+                                </Border.Triggers>
+                                <Label Text="{Binding Label}"
                                        FontSize="15"
-                                       TextColor="White"
+                                       TextColor="{StaticResource AppText}"
                                         HorizontalTextAlignment="Center"
                                         HorizontalOptions="Fill"
                                        VerticalTextAlignment="Center"

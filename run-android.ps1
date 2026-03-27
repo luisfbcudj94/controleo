@@ -31,6 +31,27 @@ function Wait-ApiReady([string]$Url, [int]$TimeoutSeconds = 40) {
     throw "La API no respondió en '$Url' dentro de $TimeoutSeconds segundos."
 }
 
+function Stop-ListenerOnPort([int]$Port) {
+    $connections = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue
+    if (-not $connections) {
+        return
+    }
+
+    $pids = $connections | Select-Object -ExpandProperty OwningProcess -Unique
+    foreach ($processId in $pids) {
+        try {
+            $proc = Get-Process -Id $processId -ErrorAction Stop
+            Write-Step "Deteniendo proceso en puerto ${Port}: $($proc.ProcessName) (PID $processId)"
+            Stop-Process -Id $processId -Force -ErrorAction Stop
+        }
+        catch {
+            Write-Warning "No se pudo detener el proceso PID $processId en puerto ${Port}: $($_.Exception.Message)"
+        }
+    }
+
+    Start-Sleep -Milliseconds 600
+}
+
 $RepoRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $ApiProject = Join-Path $RepoRoot "Controleo.Api\Controleo.Api.csproj"
 $MobileProject = Join-Path $RepoRoot "Controleo.Mobile\Controleo.Mobile.csproj"
@@ -65,16 +86,36 @@ $env:Path += ";$env:JAVA_HOME\bin;$env:ANDROID_SDK_ROOT\platform-tools;$env:ANDR
 
 Ensure-Command dotnet
 Ensure-Command adb
+Ensure-Command az
 
 $adbExe = Join-Path $env:ANDROID_SDK_ROOT "platform-tools\adb.exe"
 $emulatorExe = Join-Path $env:ANDROID_SDK_ROOT "emulator\emulator.exe"
 
 if (-not $UseCloudApi) {
     Write-Step "Iniciando API (.NET)"
+    Stop-ListenerOnPort -Port 5051
+
+    $cosmosEndpoint = az cosmosdb show --resource-group "projects" --name "controleocosmos262c4" --query documentEndpoint -o tsv
+    if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($cosmosEndpoint)) {
+        throw "No se pudo obtener COSMOS_DB_ENDPOINT desde Azure."
+    }
+
+    $cosmosKey = az cosmosdb keys list --resource-group "projects" --name "controleocosmos262c4" --query primaryMasterKey -o tsv
+    if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($cosmosKey)) {
+        throw "No se pudo obtener COSMOS_DB_KEY desde Azure."
+    }
+
+    $localJwtSecret = if (-not [string]::IsNullOrWhiteSpace($env:LocalAuth__JwtSecret) -and $env:LocalAuth__JwtSecret.Trim().Length -ge 32) {
+        $env:LocalAuth__JwtSecret.Trim()
+    }
+    else {
+        "local-dev-secret-2026-controleo-super-long"
+    }
+
     Start-Process powershell -ArgumentList @(
         "-NoExit",
         "-Command",
-        "cd '$RepoRoot'; dotnet run --project '$ApiProject' --launch-profile http"
+        "`$env:COSMOS_DB_ENDPOINT='$cosmosEndpoint'; `$env:COSMOS_DB_KEY='$cosmosKey'; `$env:LocalAuth__JwtSecret='$localJwtSecret'; cd '$RepoRoot\Controleo.Api'; Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force; func.cmd start --dotnet-isolated --port 5051"
     ) | Out-Null
 
     Write-Step "Esperando API en http://localhost:5051/api/catalogs"
@@ -114,6 +155,8 @@ dotnet build .\Controleo.Mobile.csproj `
     -t:Run `
     -p:AndroidSdkDirectory="$env:ANDROID_SDK_ROOT" `
     -p:JavaSdkDirectory="$env:JAVA_HOME" `
+    -p:EmbedAssembliesIntoApk=true `
+    -p:AndroidFastDeploymentType=None `
     --ignore-failed-sources
 
 Write-Step "Proceso finalizado"

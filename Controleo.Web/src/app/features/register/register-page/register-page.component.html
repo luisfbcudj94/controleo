@@ -12,19 +12,15 @@
 						<div class="f-field">
 							<label class="f-label">Mes del gasto</label>
 							<div class="month-row">
-								<button class="btn btn-ghost" type="button" (click)="previousMonth()">◀</button>
-								<select class="f-input" [value]="selectedMonth" (change)="onMonthSelected($any($event.target).value)">
-									@for (month of months; track month) {
-										<option [value]="month">{{ month }}</option>
-									}
-								</select>
-								<button class="btn btn-ghost" type="button" (click)="nextMonth()">▶</button>
+								<button class="btn btn-ghost" type="button" (click)="previousMonth()" [disabled]="months.indexOf(selectedMonth) <= 0">◀</button>
+								<button class="f-input selector-trigger" type="button" (click)="openMonthSelector()">{{ monthLabelText }}</button>
+								<button class="btn btn-ghost" type="button" (click)="nextMonth()" [disabled]="months.indexOf(selectedMonth) >= months.length - 1">▶</button>
 							</div>
 						</div>
 
 						<div class="f-field">
 							<label class="f-label">Fecha exacta</label>
-							<input class="f-input" type="date" formControlName="date" />
+							<app-custom-date-input formControlName="date" />
 						</div>
 					</div>
 				</div>
@@ -39,7 +35,7 @@
 				<div class="amount-hero">
 					<div class="ah-sym">$</div>
 					<div class="ah-wrap">
-						<input class="ah-input" type="number" formControlName="amount" min="0" placeholder="0" />
+						<input class="ah-input" type="number" formControlName="amount" min="0" placeholder="0" (focus)="onAmountFocus($event)" (blur)="onAmountBlur($event)" />
 						<div class="ah-under"></div>
 					</div>
 				</div>
@@ -62,20 +58,12 @@
 					<div class="f-row">
 						<div class="f-field">
 							<label class="f-label">Tipo de movimiento</label>
-							<select class="f-input" formControlName="movementType">
-								@for (item of movementTypes; track item) {
-									<option [value]="item">{{ item }}</option>
-								}
-							</select>
+							<button class="f-input selector-trigger" type="button" (click)="openMovementTypeSelector()">{{ form.controls.movementType.value || 'Seleccionar tipo' }}</button>
 						</div>
 
 						<div class="f-field">
 							<label class="f-label">Medio de pago</label>
-							<select class="f-input" formControlName="paymentMethod">
-								@for (item of paymentMethods; track item) {
-									<option [value]="item">{{ item }}</option>
-								}
-							</select>
+							<button class="f-input selector-trigger" type="button" (click)="openPaymentMethodSelector()">{{ form.controls.paymentMethod.value || 'Seleccionar medio' }}</button>
 						</div>
 					</div>
 				</div>
@@ -109,7 +97,7 @@
 					</div>
 				</div>
 
-				<button class="save-btn" type="submit" [disabled]="isSaving">
+				<button class="save-btn" type="submit" [disabled]="isSaving || form.invalid">
 					{{ isSaving ? 'Guardando...' : '✦  Guardar gasto' }}
 				</button>
 
@@ -119,4 +107,12 @@
 			</aside>
 		</div>
 	</form>
+
+	<app-selector-modal
+		[isOpen]="selectorOpen"
+		[title]="selectorTitle"
+		[options]="selectorOptions"
+		[selectedValue]="selectorValue"
+		(choose)="selectOption($event)"
+		(close)="closeSelector()" />
 </section>

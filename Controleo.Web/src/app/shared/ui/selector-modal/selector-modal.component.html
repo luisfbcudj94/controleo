@@ -1,0 +1,29 @@
+@if (isOpen) {
+  <div class="selector-overlay" (click)="onBackdropClick($event)">
+    <article class="selector-card">
+      <div class="selector-header">
+        <h3>{{ title }}</h3>
+        <button class="btn btn-close" type="button" (click)="close.emit()">Cerrar</button>
+      </div>
+
+      @if (!options.length) {
+        <p class="selector-empty">{{ emptyText }}</p>
+      } @else {
+        <div class="selector-list">
+          @for (option of options; track trackByValue($index, option)) {
+            <button
+              class="selector-option"
+              [class.active]="option === selectedValue"
+              type="button"
+              (click)="choose.emit(option)">
+              <span>{{ option }}</span>
+              @if (option === selectedValue) {
+                <span>✓</span>
+              }
+            </button>
+          }
+        </div>
+      }
+    </article>
+  </div>
+}

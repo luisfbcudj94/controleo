@@ -7,7 +7,7 @@ namespace Controleo.Mobile;
 public partial class SettingsPage : ContentPage
 {
     private readonly ExpenseApiClient _apiClient;
-    private readonly MonthContextService _monthContext;
+    private readonly AuthService _authService;
     private readonly ObservableCollection<string> _movementTypes = [];
     private readonly ObservableCollection<string> _paymentMethods = [];
     private string? _selectedMovement;
@@ -15,18 +15,12 @@ public partial class SettingsPage : ContentPage
     private bool _isEditingMovement;
     private string? _editingOriginalValue;
     private bool _isRefreshing;
-    private bool _isMonthPickerSyncing;
-    private bool _isActive;
 
-    public SettingsPage(ExpenseApiClient apiClient, MonthContextService monthContext)
+    public SettingsPage(ExpenseApiClient apiClient, AuthService authService)
     {
         InitializeComponent();
         _apiClient = apiClient;
-        _monthContext = monthContext;
-        RefreshMonthPickerItems();
-        _monthContext.MonthChanged += OnMonthChanged;
-        _monthContext.MonthOptionsChanged += OnMonthOptionsChanged;
-        SyncMonthSelection();
+        _authService = authService;
         MovementCollection.ItemsSource = _movementTypes;
         PaymentCollection.ItemsSource = _paymentMethods;
     }
@@ -34,23 +28,7 @@ public partial class SettingsPage : ContentPage
     protected override async void OnAppearing()
     {
         base.OnAppearing();
-        _isActive = true;
-        await RefreshMonthOptionsAsync();
         await LoadDataAsync();
-    }
-
-    private async Task RefreshMonthOptionsAsync()
-    {
-        var monthKeys = await _apiClient.GetAvailableMonthsAsync(CancellationToken.None);
-        _monthContext.SetAvailableMonths(monthKeys);
-        RefreshMonthPickerItems();
-        SyncMonthSelection();
-    }
-
-    protected override void OnDisappearing()
-    {
-        _isActive = false;
-        base.OnDisappearing();
     }
 
     private async Task LoadDataAsync()
@@ -80,7 +58,8 @@ public partial class SettingsPage : ContentPage
 
             _selectedMovement = null;
             _selectedPayment = null;
-            StatusLabel.Text = string.Empty;
+            SelectedMovementLabel.Text = "Sin sección seleccionada";
+            SelectedPaymentLabel.Text = "Sin medio seleccionado";
         }
         finally
         {
@@ -110,7 +89,8 @@ public partial class SettingsPage : ContentPage
     {
         if (string.IsNullOrWhiteSpace(_selectedMovement))
         {
-            StatusLabel.Text = "Selecciona una sección para editar.";
+            ResetSettingsInputs();
+            _ = StyledResultModalPage.ShowAsync(this, false, "No se pudo editar", "Selecciona una sección para editar.");
             return;
         }
 
@@ -125,7 +105,8 @@ public partial class SettingsPage : ContentPage
     {
         if (string.IsNullOrWhiteSpace(_selectedPayment))
         {
-            StatusLabel.Text = "Selecciona un medio de pago para editar.";
+            ResetSettingsInputs();
+            _ = StyledResultModalPage.ShowAsync(this, false, "No se pudo editar", "Selecciona un medio de pago para editar.");
             return;
         }
 
@@ -138,29 +119,60 @@ public partial class SettingsPage : ContentPage
 
     private async void OnDeleteMovementClicked(object? sender, EventArgs e)
     {
-        if (!string.IsNullOrWhiteSpace(_selectedMovement))
+        if (string.IsNullOrWhiteSpace(_selectedMovement))
         {
-            _movementTypes.Remove(_selectedMovement);
-            _selectedMovement = null;
-            await SaveCatalogsAsync();
+            ResetSettingsInputs();
+            await StyledResultModalPage.ShowAsync(this, false, "No se pudo eliminar", "Selecciona una sección para eliminar.");
+            return;
         }
+
+        var confirmed = await StyledConfirmModalPage.ConfirmAsync(
+            this,
+            "Eliminar sección",
+            $"¿Deseas eliminar '{_selectedMovement}'?");
+        if (!confirmed)
+        {
+            return;
+        }
+
+        _movementTypes.Remove(_selectedMovement);
+        _selectedMovement = null;
+        MovementCollection.SelectedItem = null;
+        SelectedMovementLabel.Text = "Sin sección seleccionada";
+        await SaveCatalogsAsync();
     }
 
     private async void OnDeletePaymentClicked(object? sender, EventArgs e)
     {
-        if (!string.IsNullOrWhiteSpace(_selectedPayment))
+        if (string.IsNullOrWhiteSpace(_selectedPayment))
         {
-            _paymentMethods.Remove(_selectedPayment);
-            _selectedPayment = null;
-            await SaveCatalogsAsync();
+            ResetSettingsInputs();
+            await StyledResultModalPage.ShowAsync(this, false, "No se pudo eliminar", "Selecciona un medio de pago para eliminar.");
+            return;
         }
+
+        var confirmed = await StyledConfirmModalPage.ConfirmAsync(
+            this,
+            "Eliminar medio de pago",
+            $"¿Deseas eliminar '{_selectedPayment}'?");
+        if (!confirmed)
+        {
+            return;
+        }
+
+        _paymentMethods.Remove(_selectedPayment);
+        _selectedPayment = null;
+        PaymentCollection.SelectedItem = null;
+        SelectedPaymentLabel.Text = "Sin medio seleccionado";
+        await SaveCatalogsAsync();
     }
 
     private async Task SaveCatalogsAsync()
     {
         if (_movementTypes.Count == 0 || _paymentMethods.Count == 0)
         {
-            StatusLabel.Text = "Debe existir al menos una sección y un medio de pago.";
+            ResetSettingsInputs();
+            await StyledResultModalPage.ShowAsync(this, false, "No se pudo guardar", "Debe existir al menos una sección y un medio de pago.");
             return;
         }
 
@@ -168,19 +180,33 @@ public partial class SettingsPage : ContentPage
 
         var request = new UpdateCatalogsRequest(_movementTypes.ToList(), _paymentMethods.ToList());
         var result = await _apiClient.UpdateCatalogsAsync(request, CancellationToken.None);
+        await StyledResultModalPage.ShowAsync(
+            this,
+            result.IsSuccess,
+            result.IsSuccess ? "Cambios guardados" : "No se pudo guardar",
+            result.IsSuccess ? "Los catálogos se actualizaron correctamente." : result.Message);
 
-        StatusLabel.Text = result.Message;
+        if (!result.IsSuccess)
+        {
+            ResetSettingsInputs();
+        }
         SetLoading(false);
     }
 
     private void OnMovementSelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
         _selectedMovement = e.CurrentSelection.FirstOrDefault()?.ToString();
+        SelectedMovementLabel.Text = string.IsNullOrWhiteSpace(_selectedMovement)
+            ? "Sin sección seleccionada"
+            : $"Seleccionada: {_selectedMovement}";
     }
 
     private void OnPaymentSelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
         _selectedPayment = e.CurrentSelection.FirstOrDefault()?.ToString();
+        SelectedPaymentLabel.Text = string.IsNullOrWhiteSpace(_selectedPayment)
+            ? "Sin medio seleccionado"
+            : $"Seleccionado: {_selectedPayment}";
     }
 
     private bool AddItem(ObservableCollection<string> source, Entry entry, string label)
@@ -188,19 +214,20 @@ public partial class SettingsPage : ContentPage
         var value = entry.Text?.Trim();
         if (string.IsNullOrWhiteSpace(value))
         {
-            StatusLabel.Text = $"Ingresa un nombre de {label}.";
+            entry.Text = "0";
+            _ = StyledResultModalPage.ShowAsync(this, false, "Dato inválido", $"Ingresa un nombre de {label}.");
             return false;
         }
 
         if (source.Any(item => string.Equals(item, value, StringComparison.OrdinalIgnoreCase)))
         {
-            StatusLabel.Text = $"Ese {label} ya existe.";
+            entry.Text = "0";
+            _ = StyledResultModalPage.ShowAsync(this, false, "Dato duplicado", $"Ese {label} ya existe.");
             return false;
         }
 
         source.Add(value);
         entry.Text = string.Empty;
-        StatusLabel.Text = string.Empty;
         return true;
     }
 
@@ -218,63 +245,17 @@ public partial class SettingsPage : ContentPage
         await LoadDataAsync();
     }
 
-    private void OnPrevMonthClicked(object? sender, EventArgs e)
-    {
-        _monthContext.MoveMonths(-1);
-    }
 
-    private void OnNextMonthClicked(object? sender, EventArgs e)
+    private async void OnLogoutClicked(object? sender, EventArgs e)
     {
-        _monthContext.MoveMonths(1);
-    }
+        await _authService.SignOutAsync();
 
-    private void OnMonthPickerChanged(object? sender, EventArgs e)
-    {
-        if (_isMonthPickerSyncing || MonthPicker.SelectedItem is not MonthContextService.MonthOption option)
+        if (Application.Current?.Windows.FirstOrDefault() is { } window)
         {
-            return;
+            var loginPage = new LoginPage(_authService);
+            NavigationPage.SetHasNavigationBar(loginPage, false);
+            window.Page = new NavigationPage(loginPage);
         }
-
-        _monthContext.SetMonth(option.Value);
-    }
-
-    private void OnMonthChanged(object? sender, DateOnly month)
-    {
-        if (!_isActive)
-        {
-            MainThread.BeginInvokeOnMainThread(SyncMonthSelection);
-            return;
-        }
-
-        MainThread.BeginInvokeOnMainThread(SyncMonthSelection);
-    }
-
-    private void OnMonthOptionsChanged(object? sender, EventArgs e)
-    {
-        MainThread.BeginInvokeOnMainThread(() =>
-        {
-            RefreshMonthPickerItems();
-            SyncMonthSelection();
-        });
-    }
-
-    private void RefreshMonthPickerItems()
-    {
-        MonthPicker.ItemsSource = _monthContext.MonthOptions.ToList();
-    }
-
-    private void SyncMonthSelection()
-    {
-        var selected = _monthContext.MonthOptions.FirstOrDefault(item => item.Value == _monthContext.SelectedMonth);
-        if (selected is null)
-        {
-            return;
-        }
-
-        _isMonthPickerSyncing = true;
-        MonthPicker.SelectedItem = selected;
-        _isMonthPickerSyncing = false;
-        MonthSelectorLabel.Text = selected.Label;
     }
 
     private void SetLoading(bool isLoading)
@@ -288,33 +269,13 @@ public partial class SettingsPage : ContentPage
         _editingOriginalValue = null;
     }
 
-    private async void OnMonthSelectorTapped(object? sender, EventArgs e)
-    {
-        var monthOptions = _monthContext.MonthOptions.ToList();
-        if (monthOptions.Count == 0)
-        {
-            return;
-        }
-
-        var options = monthOptions.Select(option => option.Label).ToList();
-        var selected = await StyledSelectorModalPage.PickAsync(this, "Seleccionar mes", options, MonthSelectorLabel.Text);
-        if (selected is null)
-        {
-            return;
-        }
-
-        var selectedMonth = monthOptions.FirstOrDefault(option => option.Label == selected);
-        if (selectedMonth is not null)
-        {
-            _monthContext.SetMonth(selectedMonth.Value);
-        }
-    }
-
     private async void OnConfirmEditModalClicked(object? sender, EventArgs e)
     {
         var edited = EditModalEntry.Text?.Trim();
         if (string.IsNullOrWhiteSpace(edited) || string.IsNullOrWhiteSpace(_editingOriginalValue))
         {
+            EditModalEntry.Text = "0";
+            await StyledResultModalPage.ShowAsync(this, false, "No se pudo guardar", "Debes ingresar un valor válido.");
             return;
         }
 
@@ -322,7 +283,8 @@ public partial class SettingsPage : ContentPage
         {
             if (_movementTypes.Any(item => !string.Equals(item, _editingOriginalValue, StringComparison.OrdinalIgnoreCase) && string.Equals(item, edited, StringComparison.OrdinalIgnoreCase)))
             {
-                StatusLabel.Text = "Esa sección ya existe.";
+                EditModalEntry.Text = "0";
+                await StyledResultModalPage.ShowAsync(this, false, "Dato duplicado", "Esa sección ya existe.");
                 return;
             }
 
@@ -333,7 +295,8 @@ public partial class SettingsPage : ContentPage
         {
             if (_paymentMethods.Any(item => !string.Equals(item, _editingOriginalValue, StringComparison.OrdinalIgnoreCase) && string.Equals(item, edited, StringComparison.OrdinalIgnoreCase)))
             {
-                StatusLabel.Text = "Ese medio de pago ya existe.";
+                EditModalEntry.Text = "0";
+                await StyledResultModalPage.ShowAsync(this, false, "Dato duplicado", "Ese medio de pago ya existe.");
                 return;
             }
 
@@ -344,5 +307,15 @@ public partial class SettingsPage : ContentPage
         EditOverlay.IsVisible = false;
         _editingOriginalValue = null;
         await SaveCatalogsAsync();
+    }
+
+    private void ResetSettingsInputs()
+    {
+        NewMovementEntry.Text = "0";
+        NewPaymentEntry.Text = "0";
+        if (EditOverlay.IsVisible)
+        {
+            EditModalEntry.Text = "0";
+        }
     }
 }

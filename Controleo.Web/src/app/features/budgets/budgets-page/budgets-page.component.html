@@ -1,8 +1,8 @@
 <section class="budgets-grid">
 	<article class="card month-row">
-		<button class="btn btn-ghost" type="button" (click)="previousMonth()">◀</button>
+		<button class="btn btn-ghost" type="button" (click)="previousMonth()" [disabled]="months.indexOf(selectedMonth) <= 0">◀</button>
 		<strong>{{ monthLabelText }}</strong>
-		<button class="btn btn-ghost" type="button" (click)="nextMonth()">▶</button>
+		<button class="btn btn-ghost" type="button" (click)="nextMonth()" [disabled]="months.indexOf(selectedMonth) >= months.length - 1">▶</button>
 	</article>
 
 	<article class="card">
@@ -10,11 +10,7 @@
 		<form class="form-grid" [formGroup]="form" (ngSubmit)="save()">
 			<div class="field">
 				<label>Sección</label>
-				<select formControlName="movementType">
-					@for (item of movementTypes; track item) {
-						<option [value]="item">{{ item }}</option>
-					}
-				</select>
+				<button class="selector-trigger" type="button" (click)="openMovementTypeSelector()">{{ form.controls.movementType.value || 'Seleccionar sección' }}</button>
 			</div>
 
 			<div class="field">
@@ -22,7 +18,7 @@
 				<input type="number" formControlName="amount" />
 			</div>
 
-			<button class="btn btn-primary" type="submit">Guardar presupuesto</button>
+			<button class="btn btn-save" type="submit" [disabled]="form.invalid">Guardar presupuesto</button>
 			<p class="muted">{{ message }}</p>
 		</form>
 	</article>
@@ -49,4 +45,22 @@
 			</div>
 		}
 	</article>
+
+	<app-confirm-modal
+		[isOpen]="confirmDeleteOpen"
+		title="Eliminar presupuesto"
+		[message]="pendingDelete ? '¿Eliminar presupuesto de ' + pendingDelete.movementType + '?' : ''"
+		confirmLabel="Eliminar"
+		cancelLabel="Cancelar"
+		[danger]="true"
+		(confirm)="confirmDelete()"
+		(cancel)="cancelDelete()" />
+
+	<app-selector-modal
+		[isOpen]="selectorOpen"
+		title="Selecciona sección"
+		[options]="movementTypes"
+		[selectedValue]="form.controls.movementType.value || ''"
+		(choose)="selectMovementType($event)"
+		(close)="closeSelector()" />
 </section>

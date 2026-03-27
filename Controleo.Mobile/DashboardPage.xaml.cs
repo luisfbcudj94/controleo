@@ -9,6 +9,7 @@ public partial class DashboardPage : ContentPage
     private readonly ExpenseApiClient _apiClient;
     private readonly MonthContextService _monthContext;
     private readonly ObservableCollection<DashboardCategoryViewItem> _items = [];
+    private readonly ObservableCollection<DashboardSummaryCard> _summaryCards = [];
     private bool _isRefreshing;
     private bool _isOpeningDetail;
     private bool _isMonthPickerSyncing;
@@ -25,6 +26,7 @@ public partial class DashboardPage : ContentPage
         _monthContext.MonthOptionsChanged += OnMonthOptionsChanged;
         SyncMonthSelection();
         ChartCollection.ItemsSource = _items;
+        SummaryCarousel.ItemsSource = _summaryCards;
         BudgetRingView.Drawable = _budgetRingDrawable;
     }
 
@@ -63,75 +65,49 @@ public partial class DashboardPage : ContentPage
         {
             var data = await _apiClient.GetDashboardByCategoryAsync(_monthContext.SelectedMonthKey, CancellationToken.None);
 
-            var maxExpense = data.Count == 0 ? 0m : data.Max(item => item.ExpenseTotal);
-            if (maxExpense <= 0)
-            {
-                maxExpense = 1;
-            }
+            var orderedData = data
+                .OrderBy(item => item.BudgetTotal <= 0 ? 1 : 0)
+                .ThenByDescending(item => item.BudgetTotal)
+                .ThenByDescending(item => item.ExpenseTotal)
+                .ToList();
 
             _items.Clear();
-            foreach (var row in data)
+            foreach (var row in orderedData)
             {
+                var hasBudget = row.BudgetTotal > 0;
+                var progress = hasBudget
+                    ? (double)Math.Clamp(row.ExpenseTotal / row.BudgetTotal, 0m, 1m)
+                    : (row.ExpenseTotal > 0 ? 1d : 0d);
+
                 _items.Add(new DashboardCategoryViewItem(
                     row.MovementType,
                     row.ExpenseTotal,
                     row.BudgetTotal,
                     row.Balance,
-                    Math.Min(1d, (double)(row.ExpenseTotal / maxExpense)),
-                    row.Balance < 0 ? Colors.IndianRed : Colors.ForestGreen));
+                    progress,
+                    row.Balance < 0 ? Colors.IndianRed : Colors.ForestGreen,
+                    hasBudget ? Colors.Goldenrod : Colors.IndianRed,
+                    hasBudget
+                        ? $"Presupuesto: ${row.BudgetTotal:N0}"
+                        : "Sin presupuesto asignado"));
             }
 
             var totalBudget = data.Sum(item => item.BudgetTotal);
             var spentFromBudget = data.Where(item => item.BudgetTotal > 0).Sum(item => item.ExpenseTotal);
             var availableBudget = totalBudget - spentFromBudget;
-            var others = data
-                .Where(item => item.BudgetTotal <= 0 && item.ExpenseTotal != 0)
-                .OrderByDescending(item => item.ExpenseTotal)
-                .ToList();
-            var othersTotal = others.Sum(item => item.ExpenseTotal);
             var totalExpenses = data.Sum(item => item.ExpenseTotal);
-
-            BudgetTotalLabel.Text = $"${totalBudget:N0}";
-            BudgetAvailableLabel.Text = $"${availableBudget:N0}";
             var budgetProgress = totalBudget <= 0 ? 0d : (double)Math.Min(1m, spentFromBudget / totalBudget);
-            SpentFromBudgetValueLabel.Text = $"${spentFromBudget:N0}";
-            TotalSpentLabel.Text = $"${totalExpenses:N0}";
-            MiniBudgetLabel.Text = $"${totalBudget:N0}";
-            MiniSpentLabel.Text = $"${spentFromBudget:N0}";
-            MiniAvailableLabel.Text = $"${availableBudget:N0}";
             RingPercentLabel.Text = $"{budgetProgress * 100:0}%";
             _budgetRingDrawable.Progress = budgetProgress;
             _budgetRingDrawable.TrackColor = Color.FromArgb("#2A2A2A");
             _budgetRingDrawable.ProgressColor = Color.FromArgb("#C8F55A");
             BudgetRingView.Invalidate();
 
-            if (others.Count == 0)
-            {
-                OthersLabel.Text = "Sin gastos en otras secciones.";
-                OthersTotalLabel.Text = "$0";
-                OthersPillLeftNameLabel.Text = "Sin datos";
-                OthersPillLeftValueLabel.Text = "$0";
-                OthersPillRightNameLabel.Text = "Sin datos";
-                OthersPillRightValueLabel.Text = "$0";
-            }
-            else
-            {
-                var topOthers = others.Take(2).Select(item => $"{item.MovementType}: ${item.ExpenseTotal:N0}");
-                var hiddenCount = Math.Max(0, others.Count - 2);
-                OthersLabel.Text = string.Join(" · ", topOthers);
-                OthersTotalLabel.Text = $"Otros: ${othersTotal:N0}";
-                if (hiddenCount > 0)
-                {
-                    OthersLabel.Text += $" · +{hiddenCount} más";
-                }
-
-                var first = others.ElementAtOrDefault(0);
-                var second = others.ElementAtOrDefault(1);
-                OthersPillLeftNameLabel.Text = first?.MovementType ?? "Sin datos";
-                OthersPillLeftValueLabel.Text = first is null ? "$0" : $"${first.ExpenseTotal:N0}";
-                OthersPillRightNameLabel.Text = second?.MovementType ?? "Sin datos";
-                OthersPillRightValueLabel.Text = second is null ? "$0" : $"${second.ExpenseTotal:N0}";
-            }
+            _summaryCards.Clear();
+            _summaryCards.Add(new DashboardSummaryCard("Disponible", $"${availableBudget:N0}", Color.FromArgb("#4ECBA0")));
+            _summaryCards.Add(new DashboardSummaryCard("Presupuesto", $"${totalBudget:N0}", Color.FromArgb("#C8F55A")));
+            _summaryCards.Add(new DashboardSummaryCard("Gastado", $"${spentFromBudget:N0}", Color.FromArgb("#FF6B6B")));
+            _summaryCards.Add(new DashboardSummaryCard("Total gastado", $"${totalExpenses:N0}", Color.FromArgb("#B39DFA")));
         }
         finally
         {
@@ -270,7 +246,11 @@ public partial class DashboardPage : ContentPage
         decimal BudgetTotal,
         decimal Balance,
         double ExpenseRatio,
-        Color BalanceColor);
+        Color BalanceColor,
+        Color ProgressColor,
+        string BudgetLabel);
+
+    private sealed record DashboardSummaryCard(string Title, string Value, Color AccentColor);
 
     private sealed class BudgetRingDrawable : IDrawable
     {

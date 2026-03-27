@@ -1,0 +1,77 @@
+<section class="recurring-grid">
+  <article class="card">
+    <h3>{{ editingId ? 'Editar recurrente' : 'Nuevo gasto recurrente' }}</h3>
+
+    <form class="form-grid" [formGroup]="form" (ngSubmit)="save()">
+      <div class="field"><label>Descripción</label><input type="text" formControlName="description" /></div>
+      <div class="field"><label>Monto</label><input type="number" formControlName="amount" min="1" (focus)="onAmountFocus($event)" (blur)="onAmountBlur($event)" /></div>
+      <div class="field">
+        <label>Tipo</label>
+        <button class="selector-trigger" type="button" (click)="openMovementTypeSelector()">{{ form.controls.movementType.value || 'Seleccionar tipo' }}</button>
+      </div>
+      <div class="field">
+        <label>Medio</label>
+        <button class="selector-trigger" type="button" (click)="openPaymentMethodSelector()">{{ form.controls.paymentMethod.value || 'Seleccionar medio' }}</button>
+      </div>
+      <div class="field"><label>Día de cobro</label><input type="number" min="1" max="31" formControlName="dayOfMonth" /></div>
+      <div class="field"><label>Inicio</label><app-custom-date-input formControlName="startDate" /></div>
+      <label class="field check-field"><input type="checkbox" formControlName="isActive" /> Activo</label>
+
+      <div class="row-actions">
+        <button class="btn btn-save" type="submit" [disabled]="isSaving || form.invalid">{{ isSaving ? 'Guardando...' : 'Guardar' }}</button>
+        <button class="btn btn-ghost" type="button" (click)="clearForm()">Limpiar</button>
+      </div>
+    </form>
+  </article>
+
+  <article class="card">
+    <h3>Programados</h3>
+
+    @if (isLoading) {
+      <p class="muted">Cargando...</p>
+    } @else if (!items.length) {
+      <p class="muted">Aún no tienes gastos recurrentes.</p>
+    } @else {
+      <div class="table">
+        @for (item of items; track trackById($index, item)) {
+          <div class="row">
+            <div>
+              <strong>{{ item.description }}</strong>
+              <div class="muted">{{ item.movementType }} · {{ item.paymentMethod }}</div>
+            </div>
+            <div class="right">
+              <div>${{ item.amount | number:'1.0-0' }}</div>
+              <div class="muted">Día {{ item.dayOfMonth }} · {{ item.isActive ? 'Activo' : 'Inactivo' }}</div>
+            </div>
+            <div class="actions">
+              <button class="btn btn-edit" type="button" (click)="edit(item)">Editar</button>
+              <button class="btn btn-delete" type="button" (click)="remove(item)">Eliminar</button>
+            </div>
+          </div>
+        }
+      </div>
+    }
+  </article>
+
+  @if (statusMessage) {
+    <p class="muted">{{ statusMessage }}</p>
+  }
+
+  <app-confirm-modal
+    [isOpen]="confirmDeleteOpen"
+    title="Eliminar programado"
+    [message]="pendingDelete ? '¿Eliminar ' + pendingDelete.description + '?' : ''"
+    confirmLabel="Eliminar"
+    cancelLabel="Cancelar"
+    [danger]="true"
+    (confirm)="confirmRemove()"
+    (cancel)="cancelRemove()" />
+
+  <app-selector-modal
+    [isOpen]="selectorOpen"
+    [title]="selectorTitle"
+    [options]="selectorOptions"
+    [selectedValue]="selectorValue"
+    (choose)="selectOption($event)"
+    (close)="closeSelector()" />
+</section>

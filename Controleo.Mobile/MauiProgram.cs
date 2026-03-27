@@ -19,7 +19,11 @@ public static class MauiProgram
 		var apiBaseUrl = Environment.GetEnvironmentVariable("CONTROLEO_API_BASE_URL");
 		if (string.IsNullOrWhiteSpace(apiBaseUrl))
 		{
-			apiBaseUrl = "https://controleo-api-414008451882.us-central1.run.app/";
+		#if DEBUG
+			apiBaseUrl = "http://10.0.2.2:5051/";
+		#else
+			apiBaseUrl = "https://controleo-api.azurewebsites.net/";
+		#endif
 		}
 
 		if (!apiBaseUrl.EndsWith('/'))
@@ -28,10 +32,13 @@ public static class MauiProgram
 		}
 
 		builder.Services.AddSingleton(new HttpClient { BaseAddress = new Uri(apiBaseUrl) });
+		builder.Services.AddSingleton<AuthService>();
 		builder.Services.AddSingleton<MonthContextService>();
 		builder.Services.AddSingleton<ExpenseApiClient>();
+		builder.Services.AddSingleton<LoginPage>();
 		builder.Services.AddSingleton<MainPage>();
 		builder.Services.AddSingleton<ExpensesPage>();
+		builder.Services.AddSingleton<RecurringPage>();
 		builder.Services.AddSingleton<DashboardPage>();
 		builder.Services.AddSingleton<BudgetsPage>();
 		builder.Services.AddSingleton<SettingsPage>();

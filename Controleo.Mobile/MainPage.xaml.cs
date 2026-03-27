@@ -6,21 +6,28 @@ namespace Controleo.Mobile;
 
 public partial class MainPage : ContentPage
 {
+	private const decimal MaxAllowedAmount = 10_000_000_000m;
+	private const int MaxAllowedAmountDigits = 11;
+	private const int MaxDescriptionLength = 100;
+
 	private readonly ExpenseApiClient _apiClient;
 	private readonly MonthContextService _monthContext;
 	private bool _isRefreshing;
-	private bool _isMonthPickerSyncing;
+	private bool _isFormattingAmount;
+	private DateOnly _selectedExpenseDate = DateOnly.FromDateTime(DateTime.Today);
+	private DateOnly _minExpenseDate;
+	private DateOnly _maxExpenseDate;
 
 	public MainPage(ExpenseApiClient apiClient, MonthContextService monthContext)
 	{
 		InitializeComponent();
 		_apiClient = apiClient;
 		_monthContext = monthContext;
-		RefreshMonthPickerItems();
 		_monthContext.MonthChanged += OnMonthChanged;
 		_monthContext.MonthOptionsChanged += OnMonthOptionsChanged;
-		SyncMonthSelection();
+		HeaderMonthBadgeLabel.Text = _monthContext.SelectedMonth.ToString("MMM yyyy", CultureInfo.InvariantCulture);
 		ApplyDateBoundsForSelectedMonth();
+		UpdateDateSelectorLabel();
 	}
 
 	protected override async void OnAppearing()
@@ -34,8 +41,8 @@ public partial class MainPage : ContentPage
 	{
 		var monthKeys = await _apiClient.GetAvailableMonthsAsync(CancellationToken.None);
 		_monthContext.SetAvailableMonths(monthKeys);
-		RefreshMonthPickerItems();
-		SyncMonthSelection();
+		HeaderMonthBadgeLabel.Text = _monthContext.SelectedMonth.ToString("MMM yyyy", CultureInfo.InvariantCulture);
+		ApplyDateBoundsForSelectedMonth();
 	}
 
 	private async Task LoadCatalogsAsync()
@@ -64,19 +71,23 @@ public partial class MainPage : ContentPage
 			if (!string.IsNullOrWhiteSpace(selectedMovement) && movements.Contains(selectedMovement))
 			{
 				MovementTypePicker.SelectedItem = selectedMovement;
+				MovementTypeSelectorLabel.Text = selectedMovement;
 			}
 			else if (movements.Count > 0)
 			{
 				MovementTypePicker.SelectedIndex = 0;
+				MovementTypeSelectorLabel.Text = movements[0];
 			}
 
 			if (!string.IsNullOrWhiteSpace(selectedPayment) && payments.Contains(selectedPayment))
 			{
 				PaymentMethodPicker.SelectedItem = selectedPayment;
+				PaymentMethodSelectorLabel.Text = selectedPayment;
 			}
 			else if (payments.Count > 0)
 			{
 				PaymentMethodPicker.SelectedIndex = 0;
+				PaymentMethodSelectorLabel.Text = payments[0];
 			}
 
 			StatusLabel.Text = "Listo para registrar.";
@@ -98,7 +109,8 @@ public partial class MainPage : ContentPage
 	{
 		if (!ValidateForm(out var amount, out var errorMessage))
 		{
-			StatusLabel.Text = errorMessage;
+			ResetMainInputs();
+			await StyledResultModalPage.ShowAsync(this, false, "No se pudo guardar", errorMessage);
 			return;
 		}
 
@@ -107,14 +119,18 @@ public partial class MainPage : ContentPage
 		StatusLabel.Text = "Guardando...";
 
 		var request = new ExpenseEntryRequest(
-			DateOnly.FromDateTime(DatePickerField.Date),
+			_selectedExpenseDate,
 			DescriptionField.Text!.Trim(),
 			amount,
 			MovementTypePicker.SelectedItem!.ToString()!,
 			PaymentMethodPicker.SelectedItem!.ToString()!);
 
 		var result = await _apiClient.SaveExpenseAsync(request, CancellationToken.None);
-		StatusLabel.Text = result.Message;
+		await StyledResultModalPage.ShowAsync(
+			this,
+			result.IsSuccess,
+			result.IsSuccess ? "Gasto guardado" : "No se pudo guardar",
+			result.IsSuccess ? "El gasto se registró correctamente." : result.Message);
 
 		if (result.IsSuccess)
 		{
@@ -123,9 +139,19 @@ public partial class MainPage : ContentPage
 			ApplyDateBoundsForSelectedMonth();
 			await RefreshMonthOptionsAsync();
 		}
+		else
+		{
+			ResetMainInputs();
+		}
 
 		SaveButton.IsEnabled = true;
 		SetLoading(false);
+	}
+
+	private void ResetMainInputs()
+	{
+		DescriptionField.Text = "0";
+		AmountField.Text = "0";
 	}
 
 	private bool ValidateForm(out decimal amount, out string errorMessage)
@@ -133,14 +159,20 @@ public partial class MainPage : ContentPage
 		amount = 0;
 		errorMessage = string.Empty;
 
-		if (string.IsNullOrWhiteSpace(DescriptionField.Text))
+		var description = DescriptionField.Text?.Trim() ?? string.Empty;
+		if (string.IsNullOrWhiteSpace(description))
 		{
 			errorMessage = "La descripción es requerida.";
 			return false;
 		}
 
-		if (!decimal.TryParse(AmountField.Text, NumberStyles.Number, CultureInfo.InvariantCulture, out amount) &&
-		    !decimal.TryParse(AmountField.Text, NumberStyles.Number, CultureInfo.GetCultureInfo("es-CO"), out amount))
+		if (description.Length > MaxDescriptionLength)
+		{
+			errorMessage = $"La descripción no puede superar {MaxDescriptionLength} caracteres.";
+			return false;
+		}
+
+		if (!TryParseAmount(AmountField.Text, out amount))
 		{
 			errorMessage = "El valor debe ser numérico.";
 			return false;
@@ -152,8 +184,13 @@ public partial class MainPage : ContentPage
 			return false;
 		}
 
-		var selectedDate = DateOnly.FromDateTime(DatePickerField.Date);
-		if (selectedDate.Year != _monthContext.SelectedMonth.Year || selectedDate.Month != _monthContext.SelectedMonth.Month)
+		if (amount > MaxAllowedAmount)
+		{
+			errorMessage = "El valor máximo permitido es 10.000.000.000.";
+			return false;
+		}
+
+		if (_selectedExpenseDate.Year != _monthContext.SelectedMonth.Year || _selectedExpenseDate.Month != _monthContext.SelectedMonth.Month)
 		{
 			errorMessage = "La fecha debe pertenecer al mes seleccionado.";
 			return false;
@@ -186,31 +223,10 @@ public partial class MainPage : ContentPage
 		await DisplayAlert("Navegación", "No fue posible abrir la lista de gastos.", "OK");
 	}
 
-	private void OnPrevMonthClicked(object? sender, EventArgs e)
-	{
-		_monthContext.MoveMonths(-1);
-	}
-
-	private void OnNextMonthClicked(object? sender, EventArgs e)
-	{
-		_monthContext.MoveMonths(1);
-	}
-
-	private void OnMonthPickerChanged(object? sender, EventArgs e)
-	{
-		if (_isMonthPickerSyncing || MonthPicker.SelectedItem is not MonthContextService.MonthOption option)
-		{
-			return;
-		}
-
-		_monthContext.SetMonth(option.Value);
-	}
-
 	private void OnMonthChanged(object? sender, DateOnly month)
 	{
 		MainThread.BeginInvokeOnMainThread(() =>
 		{
-			SyncMonthSelection();
 			HeaderMonthBadgeLabel.Text = month.ToString("MMM yyyy", CultureInfo.InvariantCulture);
 			ApplyDateBoundsForSelectedMonth();
 		});
@@ -220,42 +236,9 @@ public partial class MainPage : ContentPage
 	{
 		MainThread.BeginInvokeOnMainThread(() =>
 		{
-			RefreshMonthPickerItems();
-			SyncMonthSelection();
+			HeaderMonthBadgeLabel.Text = _monthContext.SelectedMonth.ToString("MMM yyyy", CultureInfo.InvariantCulture);
 			ApplyDateBoundsForSelectedMonth();
 		});
-	}
-
-	private void RefreshMonthPickerItems()
-	{
-		MonthPicker.ItemsSource = _monthContext.MonthOptions.ToList();
-		MonthSelectorLabel.Text = _monthContext.MonthOptions.FirstOrDefault(item => item.Value == _monthContext.SelectedMonth)?.Label
-			?? _monthContext.SelectedMonth.ToString("MMMM yyyy", CultureInfo.GetCultureInfo("es-CO"));
-	}
-
-	private void SyncMonthSelection()
-	{
-		var selected = _monthContext.MonthOptions.FirstOrDefault(item => item.Value == _monthContext.SelectedMonth);
-		if (selected is null)
-		{
-			return;
-		}
-
-		_isMonthPickerSyncing = true;
-		MonthPicker.SelectedItem = selected;
-		_isMonthPickerSyncing = false;
-		HeaderMonthBadgeLabel.Text = _monthContext.SelectedMonth.ToString("MMM yyyy", CultureInfo.InvariantCulture);
-		MonthSelectorLabel.Text = selected.Label;
-
-		if (MovementTypePicker.SelectedItem is string movement)
-		{
-			MovementTypeSelectorLabel.Text = movement;
-		}
-
-		if (PaymentMethodPicker.SelectedItem is string payment)
-		{
-			PaymentMethodSelectorLabel.Text = payment;
-		}
 	}
 
 	private void SetLoading(bool isLoading)
@@ -266,35 +249,38 @@ public partial class MainPage : ContentPage
 	private void ApplyDateBoundsForSelectedMonth()
 	{
 		var month = _monthContext.SelectedMonth;
-		var minDate = new DateTime(month.Year, month.Month, 1);
-		var maxDate = new DateTime(month.Year, month.Month, DateTime.DaysInMonth(month.Year, month.Month));
+		_minExpenseDate = new DateOnly(month.Year, month.Month, 1);
+		_maxExpenseDate = new DateOnly(month.Year, month.Month, DateTime.DaysInMonth(month.Year, month.Month));
 
-		DatePickerField.MinimumDate = minDate;
-		DatePickerField.MaximumDate = maxDate;
-
-		var current = DatePickerField.Date;
-		if (current < minDate || current > maxDate)
+		if (_selectedExpenseDate < _minExpenseDate || _selectedExpenseDate > _maxExpenseDate)
 		{
-			DatePickerField.Date = minDate;
+			_selectedExpenseDate = _minExpenseDate;
 		}
+
+		UpdateDateSelectorLabel();
 	}
 
-	private async void OnMonthSelectorTapped(object? sender, TappedEventArgs e)
+	private async void OnDateSelectorTapped(object? sender, TappedEventArgs e)
 	{
-		var options = _monthContext.MonthOptions.ToList();
-		var labels = options.Select(item => item.Label).ToList();
-		var current = options.FirstOrDefault(item => item.Value == _monthContext.SelectedMonth)?.Label;
-		var selectedLabel = await StyledSelectorModalPage.PickAsync(this, "Selecciona mes", labels, current);
-		if (string.IsNullOrWhiteSpace(selectedLabel))
+		var selectedDate = await CalendarDateModalPage.PickAsync(
+			this,
+			"Fecha del gasto",
+			_selectedExpenseDate,
+			_minExpenseDate,
+			_maxExpenseDate);
+
+		if (selectedDate is null)
 		{
 			return;
 		}
 
-		var selectedOption = options.FirstOrDefault(item => string.Equals(item.Label, selectedLabel, StringComparison.Ordinal));
-		if (selectedOption is not null)
-		{
-			_monthContext.SetMonth(selectedOption.Value);
-		}
+		_selectedExpenseDate = selectedDate.Value;
+		UpdateDateSelectorLabel();
+	}
+
+	private void UpdateDateSelectorLabel()
+	{
+		DateSelectorLabel.Text = _selectedExpenseDate.ToString("dd/MM/yyyy", CultureInfo.GetCultureInfo("es-CO"));
 	}
 
 	private async void OnMovementTypeSelectorTapped(object? sender, TappedEventArgs e)
@@ -333,5 +319,137 @@ public partial class MainPage : ContentPage
 
 		PaymentMethodPicker.SelectedItem = selected;
 		PaymentMethodSelectorLabel.Text = selected;
+	}
+
+	private void OnAmountFieldTextChanged(object? sender, TextChangedEventArgs e)
+	{
+		if (_isFormattingAmount)
+		{
+			return;
+		}
+
+		try
+		{
+			var raw = e.NewTextValue ?? string.Empty;
+			if (string.IsNullOrEmpty(raw))
+			{
+				return;
+			}
+
+			var digits = new string(raw.Where(char.IsDigit).ToArray());
+			if (string.IsNullOrWhiteSpace(digits))
+			{
+				Dispatcher.Dispatch(() =>
+				{
+					if (_isFormattingAmount)
+					{
+						return;
+					}
+
+					_isFormattingAmount = true;
+					try
+					{
+						AmountField.Text = string.Empty;
+					}
+					finally
+					{
+						_isFormattingAmount = false;
+					}
+				});
+				return;
+			}
+
+			if (digits.Length > MaxAllowedAmountDigits)
+			{
+				digits = digits[..MaxAllowedAmountDigits];
+			}
+
+			if (decimal.TryParse(digits, NumberStyles.Number, CultureInfo.InvariantCulture, out var parsedDigits)
+				&& parsedDigits > MaxAllowedAmount)
+			{
+				digits = ((long)MaxAllowedAmount).ToString(CultureInfo.InvariantCulture);
+			}
+
+			var formatted = FormatThousandsWithDots(digits);
+			if (string.Equals(formatted, raw, StringComparison.Ordinal))
+			{
+				return;
+			}
+
+			Dispatcher.Dispatch(() =>
+			{
+				if (_isFormattingAmount)
+				{
+					return;
+				}
+
+				var currentText = AmountField.Text ?? string.Empty;
+				if (string.Equals(currentText, formatted, StringComparison.Ordinal))
+				{
+					return;
+				}
+
+				_isFormattingAmount = true;
+				try
+				{
+					AmountField.Text = formatted;
+				}
+				finally
+				{
+					_isFormattingAmount = false;
+				}
+			});
+		}
+		catch
+		{
+		}
+	}
+
+	private static bool TryParseAmount(string? text, out decimal amount)
+	{
+		amount = 0;
+		if (string.IsNullOrWhiteSpace(text))
+		{
+			return false;
+		}
+
+		var digitsOnly = new string(text.Where(char.IsDigit).ToArray());
+		if (!string.IsNullOrWhiteSpace(digitsOnly) && decimal.TryParse(digitsOnly, NumberStyles.Number, CultureInfo.InvariantCulture, out var parsedDigits))
+		{
+			amount = parsedDigits;
+			return true;
+		}
+
+		return decimal.TryParse(text, NumberStyles.Number, CultureInfo.InvariantCulture, out amount)
+			|| decimal.TryParse(text, NumberStyles.Number, CultureInfo.GetCultureInfo("es-CO"), out amount);
+	}
+
+	private static string FormatThousandsWithDots(string digits)
+	{
+		if (string.IsNullOrWhiteSpace(digits))
+		{
+			return string.Empty;
+		}
+
+		var cleanDigits = digits.TrimStart('0');
+		if (string.IsNullOrEmpty(cleanDigits))
+		{
+			cleanDigits = "0";
+		}
+
+		var chars = new List<char>(cleanDigits.Length + (cleanDigits.Length / 3));
+		var count = 0;
+		for (var index = cleanDigits.Length - 1; index >= 0; index--)
+		{
+			chars.Add(cleanDigits[index]);
+			count++;
+			if (count % 3 == 0 && index > 0)
+			{
+				chars.Add('.');
+			}
+		}
+
+		chars.Reverse();
+		return new string(chars.ToArray());
 	}
 }

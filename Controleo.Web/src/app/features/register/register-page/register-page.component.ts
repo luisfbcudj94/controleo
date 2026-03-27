@@ -4,10 +4,12 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { finalize } from 'rxjs';
 import { ApiService } from '../../../core/services/api.service';
 import { firstMonthOfAvailable, monthKeyFromDate, monthLabel } from '../../../core/utils/month.utils';
+import { SelectorModalComponent } from '../../../shared/ui/selector-modal/selector-modal.component';
+import { CustomDateInputComponent } from '../../../shared/ui/custom-date-input/custom-date-input.component';
 
 @Component({
   selector: 'app-register-page',
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [CommonModule, ReactiveFormsModule, SelectorModalComponent, CustomDateInputComponent],
   templateUrl: './register-page.component.html',
   styleUrl: './register-page.component.scss'
 })
@@ -18,6 +20,11 @@ export class RegisterPageComponent {
   paymentMethods: string[] = [];
   isSaving = false;
   statusMessage = '';
+  selectorOpen = false;
+  selectorTitle = '';
+  selectorOptions: string[] = [];
+  selectorValue = '';
+  selectorContext: 'month' | 'movementType' | 'paymentMethod' | null = null;
 
   readonly form;
 
@@ -79,6 +86,63 @@ export class RegisterPageComponent {
   onMonthSelected(month: string): void {
     this.selectedMonth = month;
     this.syncDateToMonth();
+  }
+
+  openMonthSelector(): void {
+    this.openSelector('month', 'Selecciona mes del gasto', this.months, this.selectedMonth);
+  }
+
+  openMovementTypeSelector(): void {
+    this.openSelector('movementType', 'Selecciona tipo de movimiento', this.movementTypes, this.form.controls.movementType.value || '');
+  }
+
+  openPaymentMethodSelector(): void {
+    this.openSelector('paymentMethod', 'Selecciona medio de pago', this.paymentMethods, this.form.controls.paymentMethod.value || '');
+  }
+
+  closeSelector(): void {
+    this.selectorOpen = false;
+    this.selectorContext = null;
+  }
+
+  selectOption(value: string): void {
+    if (this.selectorContext === 'month') {
+      this.onMonthSelected(value);
+    }
+
+    if (this.selectorContext === 'movementType') {
+      this.form.patchValue({ movementType: value });
+    }
+
+    if (this.selectorContext === 'paymentMethod') {
+      this.form.patchValue({ paymentMethod: value });
+    }
+
+    this.closeSelector();
+  }
+
+  onAmountFocus(event: FocusEvent): void {
+    const target = event.target as HTMLInputElement | null;
+    if (!target) {
+      return;
+    }
+
+    if (target.value === '0') {
+      target.value = '';
+      target.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+  }
+
+  onAmountBlur(event: FocusEvent): void {
+    const target = event.target as HTMLInputElement | null;
+    if (!target) {
+      return;
+    }
+
+    if (!target.value.trim()) {
+      target.value = '0';
+      target.dispatchEvent(new Event('input', { bubbles: true }));
+    }
   }
 
   save(): void {
@@ -156,6 +220,19 @@ export class RegisterPageComponent {
     const day = 1;
     const date = new Date(year, (month || 1) - 1, day);
     this.form.patchValue({ date: date.toISOString().slice(0, 10) }, { emitEvent: false });
+  }
+
+  private openSelector(
+    context: 'month' | 'movementType' | 'paymentMethod',
+    title: string,
+    options: string[],
+    currentValue: string
+  ): void {
+    this.selectorContext = context;
+    this.selectorTitle = title;
+    this.selectorOptions = options;
+    this.selectorValue = currentValue;
+    this.selectorOpen = true;
   }
 
 }

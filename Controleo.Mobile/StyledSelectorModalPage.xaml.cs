@@ -8,7 +8,9 @@ public partial class StyledSelectorModalPage : ContentPage
     {
         InitializeComponent();
         TitleLabel.Text = title;
-        OptionsCollection.ItemsSource = options;
+        OptionsCollection.ItemsSource = options
+            .Select(option => new SelectorOption(option, string.Equals(option, selected, StringComparison.Ordinal)))
+            .ToList();
     }
 
     public Task<string?> Result => _completionSource.Task;
@@ -32,17 +34,20 @@ public partial class StyledSelectorModalPage : ContentPage
 
     private async void OnOptionTapped(object? sender, TappedEventArgs e)
     {
-        var selected = (sender as BindableObject)?.BindingContext?.ToString();
-        if (string.IsNullOrWhiteSpace(selected))
+        var selected = (sender as BindableObject)?.BindingContext as SelectorOption;
+        var selectedLabel = selected?.Label;
+        if (string.IsNullOrWhiteSpace(selectedLabel))
         {
             return;
         }
 
         if (!_completionSource.Task.IsCompleted)
         {
-            _completionSource.TrySetResult(selected);
+            _completionSource.TrySetResult(selectedLabel);
         }
 
         await Navigation.PopModalAsync();
     }
+
+    private sealed record SelectorOption(string Label, bool IsSelected);
 }

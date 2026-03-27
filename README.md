@@ -77,3 +77,9 @@ Comando APK:
 ## iOS
 
 Para compilar/publicar iOS (`.ipa`) necesitas Mac (local o remoto con Pair to Mac).
+
+## Entra External ID + Google
+
+La configuración de autenticación para web/móvil y API está documentada en:
+
+- `docs/entra-external-id-setup.md`

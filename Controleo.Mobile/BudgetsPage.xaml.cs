@@ -95,27 +95,34 @@ public partial class BudgetsPage : ContentPage
     {
         if (MovementTypePicker.SelectedItem is null)
         {
-            StatusLabel.Text = "Selecciona una sección.";
+            ResetAmountInput();
+            await StyledResultModalPage.ShowAsync(this, false, "No se pudo guardar", "Selecciona una sección.");
             return;
         }
 
         if (!decimal.TryParse(AmountEntry.Text, NumberStyles.Number, CultureInfo.InvariantCulture, out var amount) &&
             !decimal.TryParse(AmountEntry.Text, NumberStyles.Number, CultureInfo.GetCultureInfo("es-CO"), out amount))
         {
-            StatusLabel.Text = "El presupuesto debe ser numérico.";
+            ResetAmountInput();
+            await StyledResultModalPage.ShowAsync(this, false, "No se pudo guardar", "El presupuesto debe ser numérico.");
             return;
         }
 
         if (amount < 0)
         {
-            StatusLabel.Text = "El presupuesto no puede ser negativo.";
+            ResetAmountInput();
+            await StyledResultModalPage.ShowAsync(this, false, "No se pudo guardar", "El presupuesto no puede ser negativo.");
             return;
         }
 
         SaveBudgetButton.IsEnabled = false;
         SetLoading(true);
         var result = await _apiClient.UpsertBudgetAsync(MovementTypePicker.SelectedItem.ToString()!, amount, CancellationToken.None);
-        StatusLabel.Text = result.Message;
+        await StyledResultModalPage.ShowAsync(
+            this,
+            result.IsSuccess,
+            result.IsSuccess ? "Presupuesto guardado" : "No se pudo guardar",
+            result.IsSuccess ? "El presupuesto se guardó correctamente." : result.Message);
         SaveBudgetButton.IsEnabled = true;
         SetLoading(false);
 
@@ -123,6 +130,10 @@ public partial class BudgetsPage : ContentPage
         {
             AmountEntry.Text = string.Empty;
             await LoadDataAsync();
+        }
+        else
+        {
+            ResetAmountInput();
         }
     }
 
@@ -133,7 +144,10 @@ public partial class BudgetsPage : ContentPage
             return;
         }
 
-        var confirm = await DisplayAlert("Eliminar presupuesto", $"¿Eliminar presupuesto de '{movementType}'?", "Sí", "No");
+        var confirm = await StyledConfirmModalPage.ConfirmAsync(
+            this,
+            "Eliminar presupuesto",
+            $"¿Eliminar presupuesto de '{movementType}'?");
         if (!confirm)
         {
             return;
@@ -141,7 +155,11 @@ public partial class BudgetsPage : ContentPage
 
         SetLoading(true);
         var result = await _apiClient.DeleteBudgetAsync(movementType, CancellationToken.None);
-        StatusLabel.Text = result.Message;
+        await StyledResultModalPage.ShowAsync(
+            this,
+            result.IsSuccess,
+            result.IsSuccess ? "Presupuesto eliminado" : "No se pudo eliminar",
+            result.IsSuccess ? "El presupuesto se eliminó correctamente." : result.Message);
         if (result.IsSuccess)
         {
             await LoadDataAsync();
@@ -264,5 +282,10 @@ public partial class BudgetsPage : ContentPage
 
         MovementTypePicker.SelectedItem = selected;
         MovementTypeSelectorLabel.Text = selected;
+    }
+
+    private void ResetAmountInput()
+    {
+        AmountEntry.Text = "0";
     }
 }

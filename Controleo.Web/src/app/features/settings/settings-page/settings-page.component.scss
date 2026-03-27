@@ -1,9 +1,66 @@
 .settings-grid {
 	display: grid;
 	gap: 1rem;
+	grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
 }
 
-textarea {
-	resize: vertical;
-	min-height: 8.5rem;
+.catalog-card {
+	display: grid;
+	gap: 0.65rem;
+}
+
+.add-row {
+	display: grid;
+	grid-template-columns: 1fr auto;
+	gap: 0.5rem;
+}
+
+.add-row input {
+	border-radius: var(--rs);
+	border: 1px solid var(--b2);
+	background: var(--s2);
+	color: var(--text);
+	padding: 0.65rem 0.72rem;
+}
+
+.item-list {
+	display: grid;
+	gap: 0.45rem;
+	max-height: 220px;
+	overflow-y: auto;
+}
+
+.item-row {
+	border-radius: var(--rs);
+	border: 1px solid var(--b2);
+	background: var(--s2);
+	color: var(--text);
+	padding: 0.65rem 0.72rem;
+	text-align: left;
+	cursor: pointer;
+}
+
+.item-row.active {
+	background: var(--ac2);
+	border-color: color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
+.edit-overlay {
+	position: fixed;
+	inset: 0;
+	background: rgba(8, 8, 8, 0.7);
+	display: grid;
+	place-items: center;
+	padding: 1rem;
+	z-index: 1200;
+}
+
+.edit-modal {
+	width: min(420px, 100%);
+}
+
+h3 {
+	margin: 0;
+	font-family: 'Syne', sans-serif;
+	font-size: 1rem;
 }
