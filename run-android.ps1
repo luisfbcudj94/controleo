@@ -53,7 +53,7 @@ function Stop-ListenerOnPort([int]$Port) {
 }
 
 $RepoRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
-$ApiProject = Join-Path $RepoRoot "Controleo.Api\Controleo.Api.csproj"
+$ApiProject = Join-Path $RepoRoot "Controleo.Backend\Controleo.Api\Controleo.Api.csproj"
 $MobileProject = Join-Path $RepoRoot "Controleo.Mobile\Controleo.Mobile.csproj"
 
 if (-not (Test-Path $MobileProject)) { throw "No existe: $MobileProject" }
@@ -115,7 +115,7 @@ if (-not $UseCloudApi) {
     Start-Process powershell -ArgumentList @(
         "-NoExit",
         "-Command",
-        "`$env:COSMOS_DB_ENDPOINT='$cosmosEndpoint'; `$env:COSMOS_DB_KEY='$cosmosKey'; `$env:LocalAuth__JwtSecret='$localJwtSecret'; cd '$RepoRoot\Controleo.Api'; Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force; func.cmd start --dotnet-isolated --port 5051"
+        "`$env:COSMOS_DB_ENDPOINT='$cosmosEndpoint'; `$env:COSMOS_DB_KEY='$cosmosKey'; `$env:LocalAuth__JwtSecret='$localJwtSecret'; cd '$RepoRoot\Controleo.Backend\Controleo.Api'; Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force; func.cmd start --dotnet-isolated --port 5051"
     ) | Out-Null
 
     Write-Step "Esperando API en http://localhost:5051/api/catalogs"

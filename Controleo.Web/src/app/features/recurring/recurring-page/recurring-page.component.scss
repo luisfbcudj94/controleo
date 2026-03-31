@@ -4,8 +4,8 @@
 }
 
 .card {
-  background: var(--s1);
-  border: 1px solid var(--b1);
+  background: #FFFFFF;
+  border: 1px solid #DCE5DF;
   border-radius: var(--rm);
   padding: 1rem;
 }
@@ -41,8 +41,8 @@ label {
 input,
 select {
   border-radius: var(--rs);
-  border: 1px solid var(--b2);
-  background: var(--s2);
+  border: 1px solid #D0D9D3;
+  background: #EFF3F1;
   color: var(--text);
   padding: 0.55rem 0.6rem;
 }
@@ -65,8 +65,8 @@ input[type='number']::-webkit-inner-spin-button {
 .selector-trigger {
   width: 100%;
   border-radius: var(--rs);
-  border: 1px solid var(--b2);
-  background: var(--s2);
+  border: 1px solid #D0D9D3;
+  background: #EFF3F1;
   color: var(--text);
   padding: 0.55rem 0.6rem;
   display: inline-flex;
@@ -85,17 +85,17 @@ input[type='number']::-webkit-inner-spin-button {
 
 .btn {
   border-radius: var(--rs);
-  border: 1px solid var(--b2);
+  border: 1px solid #D0D9D3;
   color: var(--muted);
-  background: var(--s2);
+  background: #EFF3F1;
   padding: 0.5rem 0.8rem;
   cursor: pointer;
 }
 
 .btn-primary {
   border-color: transparent;
-  color: #080808;
-  background: var(--accent);
+  color: #FFFFFF;
+  background: #2D6A4F;
   font-weight: 700;
 }
 
@@ -105,9 +105,9 @@ input[type='number']::-webkit-inner-spin-button {
 }
 
 .row {
-  border: 1px solid var(--b1);
+  border: 1px solid #DCE5DF;
   border-radius: var(--rs);
-  background: var(--s2);
+  background: #EFF3F1;
   padding: 0.7rem;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto auto;

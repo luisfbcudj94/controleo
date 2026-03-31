@@ -9,12 +9,13 @@ public partial class DashboardPage : ContentPage
     private readonly ExpenseApiClient _apiClient;
     private readonly MonthContextService _monthContext;
     private readonly ObservableCollection<DashboardCategoryViewItem> _items = [];
-    private readonly ObservableCollection<DashboardSummaryCard> _summaryCards = [];
+    private readonly ObservableCollection<DonutLegendItem> _donutLegendItems = [];
     private bool _isRefreshing;
     private bool _isOpeningDetail;
     private bool _isMonthPickerSyncing;
     private bool _isActive;
     private readonly BudgetRingDrawable _budgetRingDrawable = new();
+    private readonly DistributionDonutDrawable _distributionDonutDrawable = new();
 
     public DashboardPage(ExpenseApiClient apiClient, MonthContextService monthContext)
     {
@@ -26,8 +27,9 @@ public partial class DashboardPage : ContentPage
         _monthContext.MonthOptionsChanged += OnMonthOptionsChanged;
         SyncMonthSelection();
         ChartCollection.ItemsSource = _items;
-        SummaryCarousel.ItemsSource = _summaryCards;
+        DonutLegendCollection.ItemsSource = _donutLegendItems;
         BudgetRingView.Drawable = _budgetRingDrawable;
+        DistributionDonutView.Drawable = _distributionDonutDrawable;
     }
 
     protected override async void OnAppearing()
@@ -83,17 +85,16 @@ public partial class DashboardPage : ContentPage
                     ? (double)Math.Clamp(row.ExpenseTotal / row.BudgetTotal, 0m, 1m)
                     : (row.ExpenseTotal > 0 ? 1d : 0d);
 
+                var balanceText = hasBudget
+                    ? $"Presupuesto: ${row.BudgetTotal:N0} · Saldo: ${row.Balance:N0}"
+                    : "Sin presupuesto asignado";
+
                 _items.Add(new DashboardCategoryViewItem(
                     row.MovementType,
                     row.ExpenseTotal,
-                    row.BudgetTotal,
-                    row.Balance,
                     progress,
-                    row.Balance < 0 ? Color.FromArgb("#E5534B") : Color.FromArgb("#40916C"),
-                    hasBudget ? Color.FromArgb("#40916C") : Color.FromArgb("#E5534B"),
-                    hasBudget
-                        ? $"Presupuesto: ${row.BudgetTotal:N0}"
-                        : "Sin presupuesto asignado",
+                    hasBudget ? ProgressColorForType(row.MovementType) : Color.FromArgb("#E5534B"),
+                    balanceText,
                     Services.PastelColorHelper.ForMovementType(row.MovementType),
                     Services.PastelColorHelper.IconForMovementType(row.MovementType)));
             }
@@ -105,15 +106,46 @@ public partial class DashboardPage : ContentPage
             var budgetProgress = totalBudget <= 0 ? 0d : (double)Math.Min(1m, spentFromBudget / totalBudget);
             RingPercentLabel.Text = $"{budgetProgress * 100:0}%";
             _budgetRingDrawable.Progress = budgetProgress;
-            _budgetRingDrawable.TrackColor = Color.FromArgb("#D8F3DC");
+            _budgetRingDrawable.TrackColor = Color.FromArgb("#DCE5DF");
             _budgetRingDrawable.ProgressColor = Color.FromArgb("#2D6A4F");
             BudgetRingView.Invalidate();
 
-            _summaryCards.Clear();
-            _summaryCards.Add(new DashboardSummaryCard("Disponible", $"${availableBudget:N0}", Color.FromArgb("#40916C")));
-            _summaryCards.Add(new DashboardSummaryCard("Presupuesto", $"${totalBudget:N0}", Color.FromArgb("#2D6A4F")));
-            _summaryCards.Add(new DashboardSummaryCard("Gastado", $"${spentFromBudget:N0}", Color.FromArgb("#E5534B")));
-            _summaryCards.Add(new DashboardSummaryCard("Total gastado", $"${totalExpenses:N0}", Color.FromArgb("#7B61C4")));
+            BudgetSummaryLabel.Text = $"{FormatCompactCurrency(spentFromBudget)} / {FormatCompactCurrency(totalBudget)}";
+            DistributionSummaryLabel.Text = "100% de gastos";
+            DistributionSummaryLabel.TextColor = Color.FromArgb("#1A2E23");
+            AvailableSummaryLabel.Text = $"${availableBudget:N0}";
+            TotalBudgetSummaryLabel.Text = $"${totalBudget:N0}";
+            SpentSummaryLabel.Text = $"${spentFromBudget:N0}";
+
+            var distributionByExpense = data
+                .Where(item => item.ExpenseTotal > 0)
+                .OrderByDescending(item => item.ExpenseTotal)
+                .ToList();
+            var totalForDistribution = distributionByExpense.Sum(item => item.ExpenseTotal);
+
+            _distributionDonutDrawable.Segments = distributionByExpense
+                .Select(item => new DistributionDonutDrawable.Segment(
+                    ProgressColorForType(item.MovementType),
+                    totalForDistribution <= 0 ? 0 : (double)(item.ExpenseTotal / totalForDistribution)))
+                .ToList();
+            DistributionDonutView.Invalidate();
+
+            _donutLegendItems.Clear();
+            if (totalForDistribution <= 0)
+            {
+                DistributionSummaryLabel.Text = "Añade gastos para ver la distribución";
+                DistributionSummaryLabel.TextColor = Color.FromArgb("#E5534B");
+            }
+            else
+            {
+                foreach (var item in distributionByExpense)
+                {
+                    var pct = Math.Round((item.ExpenseTotal / totalForDistribution) * 100m);
+                    _donutLegendItems.Add(new DonutLegendItem(
+                        $"{item.MovementType} {pct:0}%",
+                        ProgressColorForType(item.MovementType)));
+                }
+            }
         }
         finally
         {
@@ -224,6 +256,39 @@ public partial class DashboardPage : ContentPage
         LoadingOverlay.IsVisible = isLoading;
     }
 
+    private static string FormatCompactCurrency(decimal value)
+    {
+        if (value >= 1_000_000m)
+        {
+            return $"${value / 1_000_000m:0.#}M";
+        }
+
+        if (value >= 1_000m)
+        {
+            return $"${value / 1_000m:0.#}K";
+        }
+
+        return $"${value:0}";
+    }
+
+    private static Color ProgressColorForType(string movementType)
+    {
+        return movementType.ToLowerInvariant() switch
+        {
+            "basicos para vivir" => Color.FromArgb("#2D6A4F"),
+            "hogar" => Color.FromArgb("#3A8FBF"),
+            "salidas" => Color.FromArgb("#D4765A"),
+            "imprevistos" => Color.FromArgb("#7B5EA7"),
+            "suscripciones" => Color.FromArgb("#C5A200"),
+            "bienestar" => Color.FromArgb("#C0608F"),
+            "viajes" => Color.FromArgb("#3A9E8E"),
+            "deudas" => Color.FromArgb("#5A7FA0"),
+            "prestamo" => Color.FromArgb("#B08A40"),
+            "obra" => Color.FromArgb("#4A8B72"),
+            _ => Color.FromArgb("#2D6A4F")
+        };
+    }
+
     private async void OnMonthSelectorTapped(object? sender, EventArgs e)
     {
         var monthOptions = _monthContext.MonthOptions.ToList();
@@ -249,16 +314,13 @@ public partial class DashboardPage : ContentPage
     private sealed record DashboardCategoryViewItem(
         string MovementType,
         decimal ExpenseTotal,
-        decimal BudgetTotal,
-        decimal Balance,
         double ExpenseRatio,
-        Color BalanceColor,
         Color ProgressColor,
-        string BudgetLabel,
+        string BudgetAndBalanceLabel,
         Color CardColor,
         string Icon);
 
-    private sealed record DashboardSummaryCard(string Title, string Value, Color AccentColor);
+    private sealed record DonutLegendItem(string Label, Color DotColor);
 
     private sealed class BudgetRingDrawable : IDrawable
     {
@@ -268,7 +330,7 @@ public partial class DashboardPage : ContentPage
 
         public void Draw(ICanvas canvas, RectF dirtyRect)
         {
-            var stroke = 12f;
+            var stroke = 22f;
             var padding = stroke / 2 + 4;
             var size = Math.Min(dirtyRect.Width, dirtyRect.Height) - (padding * 2);
             if (size <= 0)
@@ -280,19 +342,78 @@ public partial class DashboardPage : ContentPage
             var y = (dirtyRect.Height - size) / 2;
 
             canvas.StrokeSize = stroke;
-            canvas.StrokeLineCap = LineCap.Round;
+            canvas.StrokeLineCap = LineCap.Butt;
 
             canvas.StrokeColor = TrackColor;
-            canvas.DrawArc(x, y, size, size, -90, 270, false, false);
+            canvas.DrawArc(x, y, size, size, 0, 360, true, false);
 
             if (Progress <= 0)
             {
                 return;
             }
 
-            var end = -90 + (float)(360 * Math.Clamp(Progress, 0, 1));
+            var sweep = (float)(360 * Math.Clamp(Progress, 0, 1));
+            var start = -90f;
+            var end = start - sweep;
             canvas.StrokeColor = ProgressColor;
-            canvas.DrawArc(x, y, size, size, -90, end, false, false);
+            canvas.DrawArc(x, y, size, size, start, end, true, false);
+        }
+    }
+
+    private sealed class DistributionDonutDrawable : IDrawable
+    {
+        public sealed record Segment(Color Color, double Ratio);
+        public List<Segment> Segments { get; set; } = [];
+
+        public void Draw(ICanvas canvas, RectF dirtyRect)
+        {
+            var stroke = 34f;
+            var padding = stroke / 2 + 4;
+            var size = Math.Min(dirtyRect.Width, dirtyRect.Height) - (padding * 2);
+            if (size <= 0)
+            {
+                return;
+            }
+
+            var x = (dirtyRect.Width - size) / 2;
+            var y = (dirtyRect.Height - size) / 2;
+
+            canvas.StrokeSize = stroke;
+            canvas.StrokeLineCap = LineCap.Butt;
+
+            var start = -90f;
+            var normalizedSegments = Segments
+                .Where(segment => segment.Ratio > 0)
+                .ToList();
+            var total = normalizedSegments.Sum(segment => segment.Ratio);
+            if (total <= 0)
+            {
+                canvas.StrokeColor = Color.FromArgb("#DCE5DF");
+                canvas.DrawArc(x, y, size, size, 0, 360, true, false);
+                return;
+            }
+
+            float consumedSweep = 0f;
+            for (var i = 0; i < normalizedSegments.Count; i++)
+            {
+                var segment = normalizedSegments[i];
+                var isLast = i == normalizedSegments.Count - 1;
+                var sweep = isLast
+                    ? 360f - consumedSweep
+                    : (float)(360d * (segment.Ratio / total));
+
+                if (sweep <= 0.01f)
+                {
+                    continue;
+                }
+
+                var end = start - sweep;
+                canvas.StrokeColor = segment.Color;
+                canvas.DrawArc(x, y, size, size, start, end, true, false);
+
+                start = end;
+                consumedSweep += sweep;
+            }
         }
     }
 }

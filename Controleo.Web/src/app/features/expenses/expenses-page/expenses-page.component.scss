@@ -21,8 +21,8 @@
 }
 
 .month-nav.inactive {
-	border-color: var(--b1);
-	background: var(--s3);
+	border-color: #DCE5DF;
+	background: #E4EAE6;
 	color: var(--hint);
 }
 
@@ -39,8 +39,8 @@
 	display: flex;
 	align-items: center;
 	gap: 0.5rem;
-	background: var(--s2);
-	border: 1px solid var(--b2);
+	background: #EFF3F1;
+	border: 1px solid #D0D9D3;
 	border-radius: var(--rs);
 	padding: 0.6rem 0.75rem;
 
@@ -61,8 +61,8 @@
 
 
 .filter-card {
-	border: 1px solid var(--b2);
-	background: var(--s2);
+	border: 1px solid #D0D9D3;
+	background: #EFF3F1;
 	color: var(--text);
 	border-radius: var(--rs);
 	padding: 0.5rem 0.78rem;
@@ -73,9 +73,9 @@
 
 
 .filter-card.active {
-	background: var(--ac2);
-	border-color: color-mix(in srgb, var(--accent) 35%, transparent);
-	color: var(--accent);
+	background: #D8F3DC;
+	border-color: rgba(45, 106, 79, 0.35);
+	color: #2D6A4F;
 }
 
 .edit-card {
@@ -83,8 +83,8 @@
 }
 
 .expense-table {
-	background: var(--s1);
-	border: 1px solid var(--b1);
+	background: #FFFFFF;
+	border: 1px solid #DCE5DF;
 	border-radius: var(--rx);
 	overflow: hidden;
 }
@@ -99,8 +99,8 @@
 }
 
 .et-head {
-	background: var(--s2);
-	border-bottom: 1px solid var(--b1);
+	background: #EFF3F1;
+	border-bottom: 1px solid #DCE5DF;
 }
 
 .et-hcell {
@@ -115,7 +115,7 @@
 }
 
 .et-row {
-	border-bottom: 1px solid var(--b1);
+	border-bottom: 1px solid #DCE5DF;
 }
 
 .et-row:last-child {
@@ -204,8 +204,8 @@
 
 .selector-trigger {
 	border-radius: var(--rs);
-	border: 1px solid var(--b2);
-	background: var(--s2);
+	border: 1px solid #D0D9D3;
+	background: #EFF3F1;
 	color: var(--text);
 	padding: 0.45rem 0.65rem;
 	text-align: left;

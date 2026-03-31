@@ -2,15 +2,15 @@
   min-height: 100dvh;
   display: grid;
   place-items: center;
-  background: var(--bg);
+  background: #F4F7F5;
   color: var(--text);
   padding: 1rem;
 }
 
 .login-card {
   width: min(420px, 100%);
-  background: var(--s1);
-  border: 1px solid var(--b1);
+  background: #FFFFFF;
+  border: 1px solid #DCE5DF;
   border-radius: var(--rm);
   padding: 1.5rem;
   display: grid;
@@ -37,8 +37,8 @@ label {
 
 input {
   border-radius: var(--rs);
-  border: 1px solid var(--b1);
-  background: var(--bg);
+  border: 1px solid #DCE5DF;
+  background: #EFF3F1;
   color: var(--text);
   padding: 0.62rem 0.75rem;
 }
@@ -77,8 +77,8 @@ input.is-invalid {
 }
 
 .btn-primary {
-  color: #080808;
-  background: var(--accent);
+  color: #FFFFFF;
+  background: #2D6A4F;
   font-weight: 700;
 }
 
@@ -89,8 +89,8 @@ input.is-invalid {
 }
 
 .btn-secondary.active {
-  border-color: var(--accent);
-  color: var(--accent);
+  border-color: #2D6A4F;
+  color: #2D6A4F;
 }
 
 .error {

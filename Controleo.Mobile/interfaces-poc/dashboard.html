@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Controleo — Dashboard</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .ring {
+      width: 140px;
+      height: 140px;
+      border-radius: 50%;
+      background: conic-gradient(var(--primary) 0% 86%, var(--gray-200) 86% 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .ring-inner {
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      background: var(--app-surface);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    .ring-inner .pct { font-size: 28px; font-weight: 700; color: var(--primary); }
+    .ring-inner .lbl { font-size: 9px; color: var(--app-hint); letter-spacing: 1px; text-transform: uppercase; }
+
+    /* Donut por categoría */
+    .donut {
+      width: 140px;
+      height: 140px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      position: relative;
+    }
+    .donut-center {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .donut-center-circle {
+      width: 70px;
+      height: 70px;
+      border-radius: 50%;
+      background: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--app-hint);
+    }
+
+    .summary-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+      padding: 16px 4px;
+    }
+
+    .carousel {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      scroll-snap-type: x mandatory;
+      -webkit-overflow-scrolling: touch;
+      padding: 4px 0;
+    }
+    .carousel::-webkit-scrollbar { display: none; }
+    .carousel-item {
+      flex: 0 0 auto;
+      scroll-snap-align: start;
+      text-align: center;
+      padding: 10px 16px;
+      border-radius: var(--radius-sm);
+      background: var(--app-surface2);
+      min-width: 130px;
+    }
+    .carousel-item .c-label { font-size: 11px; color: var(--app-hint); font-weight: 600; }
+    .carousel-item .c-value { font-size: 16px; font-weight: 700; margin-top: 2px; }
+
+    /* Legend */
+    .legend {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px 16px;
+      margin-top: 10px;
+      padding: 0 4px;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      color: var(--gray-600);
+    }
+    .legend-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .section-header {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 1.2px;
+      color: var(--app-hint);
+      text-transform: uppercase;
+      margin: 18px 0 10px;
+    }
+    .cat-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px;
+      border-radius: var(--radius);
+      margin-bottom: 8px;
+    }
+    .cat-row .icon-circle {
+      width: 40px; height: 40px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      background: rgba(255,255,255,0.55);
+      flex-shrink: 0;
+    }
+    .cat-row .info { flex: 1; min-width: 0; }
+    .cat-row .info .name { font-weight: 600; font-size: 14px; }
+    .cat-row .info .meta { font-size: 11px; color: var(--gray-600); }
+    .cat-row .amounts { text-align: right; white-space: nowrap; }
+    .cat-row .amounts .spent { font-weight: 700; font-size: 15px; }
+  </style>
+</head>
+<body>
+
+  <div class="phone-frame">
+    <!-- Month Selector -->
+    <div class="month-selector" style="background:var(--pastel-mint);">
+      <button class="nav-btn">◀</button>
+      <div class="month-label">marzo 2026</div>
+      <button class="nav-btn">▶</button>
+    </div>
+
+    <!-- Summary Card -->
+    <div class="card">
+      <div class="summary-row">
+        <!-- Budget execution ring (left) -->
+        <div style="display:flex;flex-direction:column;align-items:center;gap:6px;">
+          <div class="ring">
+            <div class="ring-inner">
+              <span class="pct">86%</span>
+              <span class="lbl">Usado</span>
+            </div>
+          </div>
+          <div style="text-align:center;">
+            <div style="font-size:10px;font-weight:600;color:var(--app-hint);letter-spacing:0.5px;text-transform:uppercase;">Presupuesto</div>
+            <div style="font-size:15px;font-weight:700;color:var(--primary-dark);margin-top:1px;">$6.9M <span style="font-size:11px;font-weight:400;color:var(--app-hint);">/ $8.0M</span></div>
+          </div>
+        </div>
+
+        <!-- Category distribution donut (right) -->
+        <div style="display:flex;flex-direction:column;align-items:center;gap:6px;">
+          <div class="donut" style="background: conic-gradient(
+          #B6E6BD 0% 55%,
+          #A8D8F0 55% 72%,
+          #F8C4B4 72% 79%,
+          #C5B3E6 79% 84%,
+          #F9E07F 84% 87%,
+          #F0B5D0 87% 90%,
+          #7ECEC1 90% 93%,
+          #9DB8D4 93% 95%,
+          #E6C88C 95% 98%,
+          #8CC5B2 98% 100%
+        );">
+          <div class="donut-center">
+            <div class="donut-center-circle">Por tipo</div>
+          </div>
+        </div>
+          <div style="text-align:center;">
+            <div style="font-size:10px;font-weight:600;color:var(--app-hint);letter-spacing:0.5px;text-transform:uppercase;">Distribución</div>
+            <div style="font-size:15px;font-weight:700;color:var(--primary-dark);margin-top:1px;">10 <span style="font-size:11px;font-weight:400;color:var(--app-hint);">categorías</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Legend for donut -->
+      <div class="legend">
+        <div class="legend-item"><div class="legend-dot" style="background:#B6E6BD;"></div>Básicos 55%</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#A8D8F0;"></div>Hogar 17%</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#F8C4B4;"></div>Salidas 7%</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#C5B3E6;"></div>Imprevistos 5%</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#F9E07F;"></div>Suscripciones 3%</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#F0B5D0;"></div>Bienestar 3%</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#7ECEC1;"></div>Viajes 3%</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#9DB8D4;"></div>Deudas 2%</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#E6C88C;"></div>Préstamo 3%</div>
+        <div class="legend-item"><div class="legend-dot" style="background:#8CC5B2;"></div>Obra 2%</div>
+      </div>
+
+      <!-- Summary carousel -->
+      <div class="carousel" style="margin-top:12px;">
+        <div class="carousel-item">
+          <div class="c-label">Disponible</div>
+          <div class="c-value" style="color:var(--primary);">$1,106,500</div>
+        </div>
+        <div class="carousel-item">
+          <div class="c-label">Presupuesto</div>
+          <div class="c-value">$8,075,000</div>
+        </div>
+        <div class="carousel-item">
+          <div class="c-label">Gastado</div>
+          <div class="c-value" style="color:var(--action-delete);">$6,968,500</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Category Section -->
+    <div class="section-header">CATEGORÍAS</div>
+
+    <!-- Basicos para vivir -->
+    <div class="cat-row" style="background:#B6E6BD;">
+      <div class="icon-circle">🛒</div>
+      <div class="info">
+        <div class="name">Basicos para vivir</div>
+        <div class="progress-bar" style="margin:4px 0;">
+          <div class="progress-bar-fill" style="width:92%;background:var(--primary);"></div>
+        </div>
+        <div class="meta">Presupuesto: $4,200,000 · Saldo: $336,000</div>
+      </div>
+      <div class="amounts">
+        <div class="spent">$3,864,000</div>
+      </div>
+    </div>
+
+    <!-- Hogar -->
+    <div class="cat-row" style="background:#A8D8F0;">
+      <div class="icon-circle">🏠</div>
+      <div class="info">
+        <div class="name">Hogar</div>
+        <div class="progress-bar" style="margin:4px 0;">
+          <div class="progress-bar-fill" style="width:78%;background:#3A8FBF;"></div>
+        </div>
+        <div class="meta">Presupuesto: $1,500,000 · Saldo: $330,000</div>
+      </div>
+      <div class="amounts">
+        <div class="spent">$1,170,000</div>
+      </div>
+    </div>
+
+    <!-- Salidas -->
+    <div class="cat-row" style="background:#F8C4B4;">
+      <div class="icon-circle">🎉</div>
+      <div class="info">
+        <div class="name">Salidas</div>
+        <div class="progress-bar" style="margin:4px 0;">
+          <div class="progress-bar-fill" style="width:65%;background:#D4765A;"></div>
+        </div>
+        <div class="meta">Presupuesto: $800,000 · Saldo: $280,000</div>
+      </div>
+      <div class="amounts">
+        <div class="spent">$520,000</div>
+      </div>
+    </div>
+
+    <!-- Imprevistos -->
+    <div class="cat-row" style="background:#C5B3E6;">
+      <div class="icon-circle">⚡</div>
+      <div class="info">
+        <div class="name">Imprevistos</div>
+        <div class="progress-bar" style="margin:4px 0;">
+          <div class="progress-bar-fill" style="width:100%;background:#7B5EA7;"></div>
+        </div>
+        <div class="meta">Presupuesto: $350,000 · Saldo: $0</div>
+      </div>
+      <div class="amounts">
+        <div class="spent">$350,000</div>
+      </div>
+    </div>
+
+    <!-- Suscripciones -->
+    <div class="cat-row" style="background:#F9E07F;">
+      <div class="icon-circle">📱</div>
+      <div class="info">
+        <div class="name">Suscripciones</div>
+        <div class="progress-bar" style="margin:4px 0;">
+          <div class="progress-bar-fill" style="width:88%;background:#C5A200;"></div>
+        </div>
+        <div class="meta">Presupuesto: $250,000 · Saldo: $30,000</div>
+      </div>
+      <div class="amounts">
+        <div class="spent">$220,000</div>
+      </div>
+    </div>
+
+    <!-- Bienestar -->
+    <div class="cat-row" style="background:#F0B5D0;">
+      <div class="icon-circle">🧘</div>
+      <div class="info">
+        <div class="name">Bienestar</div>
+        <div class="progress-bar" style="margin:4px 0;">
+          <div class="progress-bar-fill" style="width:55%;background:#C0608F;"></div>
+        </div>
+        <div class="meta">Presupuesto: $300,000 · Saldo: $135,000</div>
+      </div>
+      <div class="amounts">
+        <div class="spent">$165,000</div>
+      </div>
+    </div>
+
+    <!-- Viajes -->
+    <div class="cat-row" style="background:#7ECEC1;">
+      <div class="icon-circle">✈️</div>
+      <div class="info">
+        <div class="name">Viajes</div>
+        <div class="progress-bar" style="margin:4px 0;">
+          <div class="progress-bar-fill" style="width:40%;background:#3A9E8E;"></div>
+        </div>
+        <div class="meta">Presupuesto: $500,000 · Saldo: $300,000</div>
+      </div>
+      <div class="amounts">
+        <div class="spent">$200,000</div>
+      </div>
+    </div>
+
+    <!-- Deudas -->
+    <div class="cat-row" style="background:#9DB8D4;">
+      <div class="icon-circle">💳</div>
+      <div class="info">
+        <div class="name">Deudas</div>
+        <div class="progress-bar" style="margin:4px 0;">
+          <div class="progress-bar-fill" style="width:100%;background:#5A7FA0;"></div>
+        </div>
+        <div class="meta">Presupuesto: $175,000 · Saldo: $0</div>
+      </div>
+      <div class="amounts">
+        <div class="spent">$175,000</div>
+      </div>
+    </div>
+
+    <!-- Prestamo -->
+    <div class="cat-row" style="background:#E6C88C;">
+      <div class="icon-circle">🏦</div>
+      <div class="info">
+        <div class="name">Prestamo</div>
+        <div class="progress-bar" style="margin:4px 0;">
+          <div class="progress-bar-fill" style="width:70%;background:#B08A40;"></div>
+        </div>
+        <div class="meta">Sin presupuesto asignado</div>
+      </div>
+      <div class="amounts">
+        <div class="spent">$254,500</div>
+      </div>
+    </div>
+
+    <!-- Sogamoso obra -->
+    <div class="cat-row" style="background:#8CC5B2;">
+      <div class="icon-circle">🔨</div>
+      <div class="info">
+        <div class="name">Sogamoso obra</div>
+        <div class="progress-bar" style="margin:4px 0;">
+          <div class="progress-bar-fill" style="width:20%;background:#4A8B72;"></div>
+        </div>
+        <div class="meta">Sin presupuesto asignado</div>
+      </div>
+      <div class="amounts">
+        <div class="spent">$50,000</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab Bar -->
+  <nav class="tab-bar">
+    <a href="register.html">🏠<span>Registro</span></a>
+    <a href="expenses.html">📄<span>Gastos</span></a>
+    <a href="dashboard.html" class="active">📊<span>Dashboard</span></a>
+    <a href="budgets.html">💰<span>Presupuestos</span></a>
+    <a href="recurring.html">🔁<span>Recurrentes</span></a>
+    <a href="settings.html">⚙️<span>Config</span></a>
+  </nav>
+
+</body>
+</html>

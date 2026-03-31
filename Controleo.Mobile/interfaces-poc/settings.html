@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Controleo — Configuración</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .settings-section {
+      background: white;
+      border-radius: var(--radius);
+      padding: 16px;
+      box-shadow: var(--shadow);
+      margin-bottom: 14px;
+    }
+    .settings-section .s-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .settings-section .s-header h3 {
+      font-size: 17px;
+      font-weight: 700;
+    }
+    .s-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 0;
+      border-bottom: 1px solid #F0F0F0;
+      font-size: 15px;
+    }
+    .s-item:last-child { border-bottom: none; }
+    .s-item .s-actions {
+      display: flex;
+      gap: 8px;
+    }
+    .session-card {
+      background: white;
+      border-radius: var(--radius);
+      padding: 16px;
+      box-shadow: var(--shadow);
+      margin-bottom: 14px;
+    }
+    .session-card h3 {
+      font-size: 17px;
+      font-weight: 700;
+      margin-bottom: 12px;
+    }
+    .btn-logout {
+      width: 100%;
+      padding: 14px;
+      border: none;
+      border-radius: 14px;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      background: var(--action-delete);
+      color: white;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="phone-frame">
+    <h1 class="page-title" style="margin-bottom:18px;">Configuración</h1>
+
+    <!-- Secciones de gasto -->
+    <div class="settings-section">
+      <div class="s-header">
+        <h3>Secciones de gasto</h3>
+        <button class="add-btn">+</button>
+      </div>
+
+      <div class="s-item">
+        <span>🛒 Basicos para vivir</span>
+        <div class="s-actions">
+          <button class="emoji-btn emoji-btn-edit emoji-btn-sm">✏️</button>
+          <button class="emoji-btn emoji-btn-delete emoji-btn-sm">🗑️</button>
+        </div>
+      </div>
+      <div class="s-item">
+        <span>🏠 Hogar</span>
+        <div class="s-actions">
+          <button class="emoji-btn emoji-btn-edit emoji-btn-sm">✏️</button>
+          <button class="emoji-btn emoji-btn-delete emoji-btn-sm">🗑️</button>
+        </div>
+      </div>
+      <div class="s-item">
+        <span>🎉 Salidas</span>
+        <div class="s-actions">
+          <button class="emoji-btn emoji-btn-edit emoji-btn-sm">✏️</button>
+          <button class="emoji-btn emoji-btn-delete emoji-btn-sm">🗑️</button>
+        </div>
+      </div>
+      <div class="s-item">
+        <span>⚡ Imprevistos</span>
+        <div class="s-actions">
+          <button class="emoji-btn emoji-btn-edit emoji-btn-sm">✏️</button>
+          <button class="emoji-btn emoji-btn-delete emoji-btn-sm">🗑️</button>
+        </div>
+      </div>
+      <div class="s-item">
+        <span>📱 Suscripciones</span>
+        <div class="s-actions">
+          <button class="emoji-btn emoji-btn-edit emoji-btn-sm">✏️</button>
+          <button class="emoji-btn emoji-btn-delete emoji-btn-sm">🗑️</button>
+        </div>
+      </div>
+      <div class="s-item">
+        <span>🧘 Bienestar</span>
+        <div class="s-actions">
+          <button class="emoji-btn emoji-btn-edit emoji-btn-sm">✏️</button>
+          <button class="emoji-btn emoji-btn-delete emoji-btn-sm">🗑️</button>
+        </div>
+      </div>
+      <div class="s-item">
+        <span>✈️ Viajes</span>
+        <div class="s-actions">
+          <button class="emoji-btn emoji-btn-edit emoji-btn-sm">✏️</button>
+          <button class="emoji-btn emoji-btn-delete emoji-btn-sm">🗑️</button>
+        </div>
+      </div>
+      <div class="s-item">
+        <span>💳 Deudas</span>
+        <div class="s-actions">
+          <button class="emoji-btn emoji-btn-edit emoji-btn-sm">✏️</button>
+          <button class="emoji-btn emoji-btn-delete emoji-btn-sm">🗑️</button>
+        </div>
+      </div>
+      <div class="s-item">
+        <span>🏦 Prestamo</span>
+        <div class="s-actions">
+          <button class="emoji-btn emoji-btn-edit emoji-btn-sm">✏️</button>
+          <button class="emoji-btn emoji-btn-delete emoji-btn-sm">🗑️</button>
+        </div>
+      </div>
+      <div class="s-item">
+        <span>🔨 Sogamoso obra</span>
+        <div class="s-actions">
+          <button class="emoji-btn emoji-btn-edit emoji-btn-sm">✏️</button>
+          <button class="emoji-btn emoji-btn-delete emoji-btn-sm">🗑️</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Medios de pago -->
+    <div class="settings-section">
+      <div class="s-header">
+        <h3>Medios de pago</h3>
+        <button class="add-btn">+</button>
+      </div>
+
+      <div class="s-item">
+        <span>💳 TC Black</span>
+        <div class="s-actions">
+          <button class="emoji-btn emoji-btn-edit emoji-btn-sm">✏️</button>
+          <button class="emoji-btn emoji-btn-delete emoji-btn-sm">🗑️</button>
+        </div>
+      </div>
+      <div class="s-item">
+        <span>💳 TC Visa</span>
+        <div class="s-actions">
+          <button class="emoji-btn emoji-btn-edit emoji-btn-sm">✏️</button>
+          <button class="emoji-btn emoji-btn-delete emoji-btn-sm">🗑️</button>
+        </div>
+      </div>
+      <div class="s-item">
+        <span>📲 Nequi</span>
+        <div class="s-actions">
+          <button class="emoji-btn emoji-btn-edit emoji-btn-sm">✏️</button>
+          <button class="emoji-btn emoji-btn-delete emoji-btn-sm">🗑️</button>
+        </div>
+      </div>
+      <div class="s-item">
+        <span>💵 Efectivo</span>
+        <div class="s-actions">
+          <button class="emoji-btn emoji-btn-edit emoji-btn-sm">✏️</button>
+          <button class="emoji-btn emoji-btn-delete emoji-btn-sm">🗑️</button>
+        </div>
+      </div>
+      <div class="s-item">
+        <span>🏦 Transferencia</span>
+        <div class="s-actions">
+          <button class="emoji-btn emoji-btn-edit emoji-btn-sm">✏️</button>
+          <button class="emoji-btn emoji-btn-delete emoji-btn-sm">🗑️</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sesión -->
+    <div class="session-card">
+      <h3>Sesión</h3>
+      <button class="btn-logout" onclick="window.location='login.html'">Cerrar sesión</button>
+    </div>
+  </div>
+
+  <!-- Tab Bar -->
+  <nav class="tab-bar">
+    <a href="register.html">🏠<span>Registro</span></a>
+    <a href="expenses.html">📄<span>Gastos</span></a>
+    <a href="dashboard.html">📊<span>Dashboard</span></a>
+    <a href="budgets.html">💰<span>Presupuestos</span></a>
+    <a href="recurring.html">🔁<span>Recurrentes</span></a>
+    <a href="settings.html" class="active">⚙️<span>Config</span></a>
+  </nav>
+
+</body>
+</html>

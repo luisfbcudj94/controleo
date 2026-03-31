@@ -485,6 +485,15 @@ public sealed class ExpenseApiClient(HttpClient httpClient, AuthService authServ
 
     private async Task<bool> EnsureAuthenticatedAsync(CancellationToken cancellationToken)
     {
+#if DEBUG
+        // Local Functions allows anonymous dev-user; avoid stale/mismatched tokens hiding data.
+        if (IsLocalDevelopmentApi())
+        {
+            httpClient.DefaultRequestHeaders.Authorization = null;
+            return true;
+        }
+#endif
+
         var accessToken = await authService.GetAccessTokenAsync(cancellationToken);
         if (string.IsNullOrWhiteSpace(accessToken))
         {
@@ -497,6 +506,19 @@ public sealed class ExpenseApiClient(HttpClient httpClient, AuthService authServ
         }
 
         return true;
+    }
+
+    private bool IsLocalDevelopmentApi()
+    {
+        var host = httpClient.BaseAddress?.Host;
+        if (string.IsNullOrWhiteSpace(host))
+        {
+            return false;
+        }
+
+        return string.Equals(host, "10.0.2.2", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(host, "localhost", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(host, "127.0.0.1", StringComparison.OrdinalIgnoreCase);
     }
 
     private sealed record CacheEntry<T>(DateTimeOffset CreatedAt, T Data);

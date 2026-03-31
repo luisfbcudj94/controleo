@@ -17,8 +17,8 @@
 }
 
 .kpi-card {
-	background: var(--s1);
-	border: 1px solid var(--b1);
+	background: #FFFFFF;
+	border: 1px solid #DCE5DF;
 	border-radius: var(--r);
 	padding: 1rem 1.05rem;
 	display: flex;
@@ -60,8 +60,8 @@
 }
 
 .donut-card {
-	background: var(--s1);
-	border: 1px solid var(--b1);
+	background: #FFFFFF;
+	border: 1px solid #DCE5DF;
 	border-radius: var(--rx);
 	padding: 1.3rem;
 	display: flex;
@@ -84,13 +84,13 @@
 
 .donut-track {
 	fill: none;
-	stroke: var(--s3);
+	stroke: #E4EAE6;
 	stroke-width: 12;
 }
 
 .donut-fill {
 	fill: none;
-	stroke: var(--accent);
+	stroke: #2D6A4F;
 	stroke-width: 12;
 	stroke-linecap: round;
 	transition: stroke-dashoffset 0.35s ease;
@@ -130,7 +130,7 @@
 	align-items: center;
 	gap: 0.5rem;
 	padding: 0.5rem 0;
-	border-bottom: 1px solid var(--b1);
+	border-bottom: 1px solid #DCE5DF;
 }
 
 .ds-row:last-child {
@@ -161,15 +161,15 @@
 }
 
 .cat-table-card {
-	background: var(--s1);
-	border: 1px solid var(--b1);
+	background: #FFFFFF;
+	border: 1px solid #DCE5DF;
 	border-radius: var(--rx);
 	overflow: hidden;
 }
 
 .ctc-header {
 	padding: 1rem 1rem 0.8rem;
-	border-bottom: 1px solid var(--b1);
+	border-bottom: 1px solid #DCE5DF;
 }
 
 .ctc-title {
@@ -181,7 +181,7 @@
 	display: flex;
 	align-items: center;
 	gap: 0.75rem;
-	border-bottom: 1px solid var(--b1);
+	border-bottom: 1px solid #DCE5DF;
 	padding: 0.75rem 1rem;
 }
 
@@ -211,7 +211,7 @@
 .cr-track {
 	height: 4px;
 	border-radius: 99px;
-	background: var(--s3);
+	background: #E4EAE6;
 	overflow: hidden;
 }
 
@@ -239,7 +239,7 @@
 }
 
 .bal-g {
-	color: var(--accent);
+	color: #2D6A4F;
 }
 
 .bal-r {

@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Controleo — Gastos</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .pagination-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 12px;
+      color: var(--app-hint);
+      padding: 6px 2px;
+      margin-bottom: 10px;
+    }
+    .pagination-bar select {
+      padding: 4px 8px;
+      border-radius: 8px;
+      border: 1px solid var(--app-border);
+      font-size: 12px;
+      background: white;
+      color: var(--app-text);
+    }
+    .pagination-bar .nav-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .pagination-bar .pg-btn {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      background: var(--app-surface2);
+      border: 1px solid var(--app-border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 13px;
+    }
+    .expense-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 12px;
+      border-radius: var(--radius);
+      background: white;
+      box-shadow: var(--shadow);
+      margin-bottom: 8px;
+    }
+    .expense-item .e-icon {
+      width: 40px; height: 40px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      flex-shrink: 0;
+    }
+    .expense-item .e-body { flex: 1; min-width: 0; }
+    .expense-item .e-body .e-desc { font-weight: 600; font-size: 14px; }
+    .expense-item .e-body .e-sub { font-size: 11px; color: var(--app-hint); margin-top: 2px; }
+    .expense-item .e-right { text-align: right; flex-shrink: 0; }
+    .expense-item .e-right .e-amount { font-weight: 700; font-size: 15px; }
+    .expense-item .e-right .e-date { font-size: 11px; color: var(--app-hint); }
+    .expense-item .e-right .e-actions { display: flex; gap: 6px; margin-top: 6px; justify-content: flex-end; }
+  </style>
+</head>
+<body>
+
+  <div class="phone-frame">
+    <!-- Month Selector -->
+    <div class="month-selector" style="background:var(--pastel-sky);">
+      <button class="nav-btn">◀</button>
+      <div class="month-label">marzo 2026</div>
+      <button class="nav-btn">▶</button>
+    </div>
+
+    <!-- Search Bar -->
+    <div class="search-bar">
+      <span>🔍</span>
+      <input type="text" placeholder="Buscar gasto...">
+    </div>
+
+    <!-- Pagination Bar -->
+    <div class="pagination-bar">
+      <div class="flex-center gap-6">
+        <span>Mostrar</span>
+        <select><option>5</option><option>10</option><option>20</option></select>
+      </div>
+      <div>Página 1/20 · 96 registros</div>
+      <div class="nav-group">
+        <span class="pg-btn">◀</span>
+        <span class="pg-btn">▶</span>
+      </div>
+    </div>
+
+    <!-- Expense 1 -->
+    <div class="expense-item">
+      <div class="e-icon" style="background:#B6E6BD;">🛒</div>
+      <div class="e-body">
+        <div class="e-desc">Mercado Jumbo semana</div>
+        <div class="e-sub">Basicos para vivir · TC Black</div>
+      </div>
+      <div class="e-right">
+        <div class="e-amount">$385,000</div>
+        <div class="e-date">25 mar 2026</div>
+        <div class="e-actions">
+          <button class="emoji-btn emoji-btn-edit emoji-btn-sm">✏️</button>
+          <button class="emoji-btn emoji-btn-delete emoji-btn-sm">🗑️</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Expense 2 -->
+    <div class="expense-item">
+      <div class="e-icon" style="background:#F8C4B4;">🎉</div>
+      <div class="e-body">
+        <div class="e-desc">Cena restaurante Andrés</div>
+        <div class="e-sub">Salidas · Nequi</div>
+      </div>
+      <div class="e-right">
+        <div class="e-amount">$128,500</div>
+        <div class="e-date">24 mar 2026</div>
+        <div class="e-actions">
+          <button class="emoji-btn emoji-btn-edit emoji-btn-sm">✏️</button>
+          <button class="emoji-btn emoji-btn-delete emoji-btn-sm">🗑️</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Expense 3 -->
+    <div class="expense-item">
+      <div class="e-icon" style="background:#A8D8F0;">🏠</div>
+      <div class="e-body">
+        <div class="e-desc">Arriendo apartamento</div>
+        <div class="e-sub">Hogar · Transferencia</div>
+      </div>
+      <div class="e-right">
+        <div class="e-amount">$1,250,000</div>
+        <div class="e-date">01 mar 2026</div>
+        <div class="e-actions">
+          <button class="emoji-btn emoji-btn-edit emoji-btn-sm">✏️</button>
+          <button class="emoji-btn emoji-btn-delete emoji-btn-sm">🗑️</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Expense 4 -->
+    <div class="expense-item">
+      <div class="e-icon" style="background:#F9E07F;">📱</div>
+      <div class="e-body">
+        <div class="e-desc">Spotify + Netflix</div>
+        <div class="e-sub">Suscripciones · TC Visa</div>
+      </div>
+      <div class="e-right">
+        <div class="e-amount">$68,000</div>
+        <div class="e-date">22 mar 2026</div>
+        <div class="e-actions">
+          <button class="emoji-btn emoji-btn-edit emoji-btn-sm">✏️</button>
+          <button class="emoji-btn emoji-btn-delete emoji-btn-sm">🗑️</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Expense 5 -->
+    <div class="expense-item">
+      <div class="e-icon" style="background:#C5B3E6;">⚡</div>
+      <div class="e-body">
+        <div class="e-desc">Urgencia veterinaria gato</div>
+        <div class="e-sub">Imprevistos · Efectivo</div>
+      </div>
+      <div class="e-right">
+        <div class="e-amount">$245,000</div>
+        <div class="e-date">20 mar 2026</div>
+        <div class="e-actions">
+          <button class="emoji-btn emoji-btn-edit emoji-btn-sm">✏️</button>
+          <button class="emoji-btn emoji-btn-delete emoji-btn-sm">🗑️</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab Bar -->
+  <nav class="tab-bar">
+    <a href="register.html">🏠<span>Registro</span></a>
+    <a href="expenses.html" class="active">📄<span>Gastos</span></a>
+    <a href="dashboard.html">📊<span>Dashboard</span></a>
+    <a href="budgets.html">💰<span>Presupuestos</span></a>
+    <a href="recurring.html">🔁<span>Recurrentes</span></a>
+    <a href="settings.html">⚙️<span>Config</span></a>
+  </nav>
+
+</body>
+</html>

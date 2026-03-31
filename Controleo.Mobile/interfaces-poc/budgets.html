@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Controleo — Presupuestos</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .budget-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 14px;
+      border-radius: var(--radius);
+      margin-bottom: 8px;
+    }
+    .budget-item .b-icon {
+      width: 40px; height: 40px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      background: rgba(255,255,255,0.55);
+      flex-shrink: 0;
+    }
+    .budget-item .b-info { flex: 1; min-width: 0; }
+    .budget-item .b-info .b-name { font-weight: 600; font-size: 15px; }
+    .budget-item .b-amount { font-weight: 700; font-size: 15px; text-align: right; white-space: nowrap; }
+    .budget-item .b-amount.unassigned { color: var(--action-delete); font-size: 13px; font-weight: 600; }
+  </style>
+</head>
+<body>
+
+  <div class="phone-frame">
+    <h1 class="page-title">Presupuestos</h1>
+
+    <!-- Basicos para vivir -->
+    <div class="budget-item" style="background:#B6E6BD;">
+      <div class="b-icon">🛒</div>
+      <div class="b-info">
+        <div class="b-name">Basicos para vivir</div>
+      </div>
+      <div class="b-amount">$4,200,000</div>
+      <button class="emoji-btn emoji-btn-edit">✏️</button>
+    </div>
+
+    <!-- Hogar -->
+    <div class="budget-item" style="background:#A8D8F0;">
+      <div class="b-icon">🏠</div>
+      <div class="b-info">
+        <div class="b-name">Hogar</div>
+      </div>
+      <div class="b-amount">$1,500,000</div>
+      <button class="emoji-btn emoji-btn-edit">✏️</button>
+    </div>
+
+    <!-- Salidas -->
+    <div class="budget-item" style="background:#F8C4B4;">
+      <div class="b-icon">🎉</div>
+      <div class="b-info">
+        <div class="b-name">Salidas</div>
+      </div>
+      <div class="b-amount">$800,000</div>
+      <button class="emoji-btn emoji-btn-edit">✏️</button>
+    </div>
+
+    <!-- Imprevistos -->
+    <div class="budget-item" style="background:#C5B3E6;">
+      <div class="b-icon">⚡</div>
+      <div class="b-info">
+        <div class="b-name">Imprevistos</div>
+      </div>
+      <div class="b-amount">$350,000</div>
+      <button class="emoji-btn emoji-btn-edit">✏️</button>
+    </div>
+
+    <!-- Suscripciones -->
+    <div class="budget-item" style="background:#F9E07F;">
+      <div class="b-icon">📱</div>
+      <div class="b-info">
+        <div class="b-name">Suscripciones</div>
+      </div>
+      <div class="b-amount">$250,000</div>
+      <button class="emoji-btn emoji-btn-edit">✏️</button>
+    </div>
+
+    <!-- Bienestar -->
+    <div class="budget-item" style="background:#F0B5D0;">
+      <div class="b-icon">🧘</div>
+      <div class="b-info">
+        <div class="b-name">Bienestar</div>
+      </div>
+      <div class="b-amount">$300,000</div>
+      <button class="emoji-btn emoji-btn-edit">✏️</button>
+    </div>
+
+    <!-- Viajes -->
+    <div class="budget-item" style="background:#7ECEC1;">
+      <div class="b-icon">✈️</div>
+      <div class="b-info">
+        <div class="b-name">Viajes</div>
+      </div>
+      <div class="b-amount">$500,000</div>
+      <button class="emoji-btn emoji-btn-edit">✏️</button>
+    </div>
+
+    <!-- Deudas -->
+    <div class="budget-item" style="background:#9DB8D4;">
+      <div class="b-icon">💳</div>
+      <div class="b-info">
+        <div class="b-name">Deudas</div>
+      </div>
+      <div class="b-amount">$175,000</div>
+      <button class="emoji-btn emoji-btn-edit">✏️</button>
+    </div>
+
+    <!-- Prestamo -->
+    <div class="budget-item" style="background:#E6C88C;">
+      <div class="b-icon">🏦</div>
+      <div class="b-info">
+        <div class="b-name">Prestamo</div>
+      </div>
+      <div class="b-amount unassigned">Sin asignar</div>
+      <button class="emoji-btn emoji-btn-edit">✏️</button>
+    </div>
+
+    <!-- Sogamoso obra -->
+    <div class="budget-item" style="background:#8CC5B2;">
+      <div class="b-icon">🔨</div>
+      <div class="b-info">
+        <div class="b-name">Sogamoso obra</div>
+      </div>
+      <div class="b-amount unassigned">Sin asignar</div>
+      <button class="emoji-btn emoji-btn-edit">✏️</button>
+    </div>
+  </div>
+
+  <!-- Tab Bar -->
+  <nav class="tab-bar">
+    <a href="register.html">🏠<span>Registro</span></a>
+    <a href="expenses.html">📄<span>Gastos</span></a>
+    <a href="dashboard.html">📊<span>Dashboard</span></a>
+    <a href="budgets.html" class="active">💰<span>Presupuestos</span></a>
+    <a href="recurring.html">🔁<span>Recurrentes</span></a>
+    <a href="settings.html">⚙️<span>Config</span></a>
+  </nav>
+
+</body>
+</html>

@@ -1,4 +1,6 @@
-﻿namespace Controleo.Mobile;
+﻿using Microsoft.Maui.Controls.PlatformConfiguration;
+
+namespace Controleo.Mobile;
 
 public partial class App : Application
 {
@@ -33,14 +35,20 @@ public partial class App : Application
 		{
 			Children =
 			{
-				CreateTabPage(registerPage, "tab_home.svg"),
-				CreateTabPage(expensesPage, "tab_expenses.svg"),
-				CreateTabPage(dashboardPage, "tab_dashboard.svg"),
-				CreateTabPage(budgetsPage, "tab_budgets.svg"),
-				CreateTabPage(recurringPage, "tab_recurring.svg"),
-				CreateTabPage(settingsPage, "tab_settings.svg")
+				CreateTabPage(registerPage, "Registro", "tab_home.svg"),
+				CreateTabPage(expensesPage, "Gastos", "tab_expenses.svg"),
+				CreateTabPage(dashboardPage, "Dashboard", "tab_dashboard.svg"),
+				CreateTabPage(budgetsPage, "Presupuestos", "tab_budgets.svg"),
+				CreateTabPage(recurringPage, "Recurrentes", "tab_recurring.svg"),
+				CreateTabPage(settingsPage, "Config", "tab_settings.svg")
 			}
 		};
+
+#if ANDROID
+		Microsoft.Maui.Controls.PlatformConfiguration.AndroidSpecific.TabbedPage.SetToolbarPlacement(
+			tabs,
+			Microsoft.Maui.Controls.PlatformConfiguration.AndroidSpecific.ToolbarPlacement.Bottom);
+#endif
 
 		ApplyTabColors(tabs);
 		RequestedThemeChanged += (_, __) => ApplyTabColors(tabs);
@@ -59,12 +67,12 @@ public partial class App : Application
 		tabs.BarTextColor = tabs.UnselectedTabColor;
 	}
 
-	private static NavigationPage CreateTabPage(Page page, string icon)
+	private static NavigationPage CreateTabPage(Page page, string title, string icon)
 	{
 		NavigationPage.SetHasNavigationBar(page, false);
 		return new NavigationPage(page)
 		{
-			Title = string.Empty,
+			Title = title,
 			IconImageSource = icon
 		};
 	}

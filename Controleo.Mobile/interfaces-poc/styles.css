@@ -1,0 +1,300 @@
+/* ═══════════════════════════════════════════════════════
+   Controleo v2 — HTML POC Shared Styles
+   Mirrors MAUI Colors.xaml + Styles.xaml
+   ═══════════════════════════════════════════════════════ */
+
+:root {
+  --primary: #2D6A4F;
+  --primary-dark: #1B4332;
+  --primary-dark-text: #FFFFFF;
+  --secondary: #B7E4C7;
+  --tertiary: #40916C;
+  --accent-light: #D8F3DC;
+
+  --pastel-mint: #D8F3DC;
+  --pastel-sky: #D4EAFF;
+  --pastel-peach: #FFE5D4;
+  --pastel-lavender: #E8DEFF;
+
+  --btn-secondary-bg: #B7E4C7;
+  --btn-secondary-text: #1B4332;
+
+  --app-bg: #F4F7F5;
+  --app-surface: #FFFFFF;
+  --app-surface2: #EFF3F1;
+  --app-border: #DCE5DF;
+  --app-text: #1A2E23;
+  --app-hint: #7A9183;
+
+  --action-delete: #E5534B;
+  --action-edit: #5B8DEF;
+  --action-save: #40916C;
+
+  --gray-200: #E4EAE6;
+  --gray-300: #D0D9D3;
+  --gray-400: #A8B8AE;
+  --gray-600: #5A6E63;
+
+  --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --radius: 16px;
+  --radius-sm: 12px;
+  --shadow: 0 1px 4px rgba(0,0,0,0.05);
+  --shadow-md: 0 2px 10px rgba(45,106,79,0.08);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: var(--font);
+  background: var(--app-bg);
+  color: var(--app-text);
+  max-width: 420px;
+  margin: 0 auto;
+  min-height: 100vh;
+  position: relative;
+}
+
+/* ── Phone Frame ── */
+.phone-frame {
+  padding: 16px;
+  padding-bottom: 80px;
+}
+
+/* ── Tab Bar ── */
+.tab-bar {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 420px;
+  background: white;
+  display: flex;
+  justify-content: space-around;
+  padding: 10px 0 14px;
+  border-top: 1px solid var(--app-border);
+  z-index: 100;
+}
+.tab-bar a {
+  text-decoration: none;
+  font-size: 22px;
+  color: var(--app-hint);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  transition: color 0.2s;
+}
+.tab-bar a span { font-size: 10px; }
+.tab-bar a.active { color: var(--primary); }
+.tab-bar a:hover { color: var(--primary); }
+
+/* ── Cards ── */
+.card {
+  background: var(--app-surface);
+  border-radius: var(--radius);
+  padding: 16px;
+  box-shadow: var(--shadow);
+  margin-bottom: 10px;
+}
+.card-pastel {
+  border-radius: var(--radius);
+  padding: 16px;
+  box-shadow: var(--shadow);
+  margin-bottom: 10px;
+}
+
+/* ── Title ── */
+.page-title {
+  font-size: 28px;
+  font-weight: 700;
+  margin-bottom: 12px;
+  color: var(--app-text);
+}
+
+/* ── Month Selector ── */
+.month-selector {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  margin-bottom: 12px;
+}
+.month-selector .nav-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  background: var(--app-surface2);
+  color: var(--app-text);
+  font-size: 16px;
+  cursor: pointer;
+}
+.month-selector .month-label {
+  flex: 1;
+  text-align: center;
+  font-weight: 700;
+  padding: 10px;
+  background: var(--app-surface2);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--app-border);
+}
+
+/* ── Buttons ── */
+.btn {
+  border: none;
+  border-radius: 14px;
+  padding: 12px 20px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+.btn:hover { opacity: 0.85; }
+.btn-primary { background: var(--primary); color: var(--primary-dark-text); }
+.btn-secondary { background: var(--btn-secondary-bg); color: var(--btn-secondary-text); }
+.btn-delete { background: var(--action-delete); color: white; }
+.btn-full { width: 100%; padding: 16px; font-size: 17px; border-radius: 16px; }
+
+/* ── Input ── */
+.input {
+  width: 100%;
+  padding: 14px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--radius-sm);
+  background: var(--app-surface);
+  font-size: 15px;
+  color: var(--app-text);
+  outline: none;
+}
+.input:focus { border-color: var(--tertiary); }
+.input::placeholder { color: var(--app-hint); }
+
+/* ── Label / Hint ── */
+.label { font-size: 11px; font-weight: 700; color: var(--app-hint); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 4px; }
+.hint { font-size: 12px; color: var(--app-hint); }
+.text-bold { font-weight: 700; }
+.text-danger { color: var(--action-delete); }
+.text-primary { color: var(--primary-dark); }
+
+/* ── Flex helpers ── */
+.flex { display: flex; }
+.flex-between { display: flex; justify-content: space-between; align-items: center; }
+.flex-center { display: flex; align-items: center; }
+.flex-col { display: flex; flex-direction: column; }
+.gap-4 { gap: 4px; }
+.gap-6 { gap: 6px; }
+.gap-8 { gap: 8px; }
+.gap-10 { gap: 10px; }
+.gap-12 { gap: 12px; }
+
+/* ── Emoji Button (edit/delete) ── */
+.emoji-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  cursor: pointer;
+  border: none;
+  transition: transform 0.15s;
+}
+.emoji-btn:hover { transform: scale(1.1); }
+.emoji-btn-edit { background: var(--accent-light); }
+.emoji-btn-delete { background: #FFE0E0; }
+.emoji-btn-sm { width: 28px; height: 28px; font-size: 13px; }
+
+/* ── Add Button ── */
+.add-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-sm);
+  background: var(--primary);
+  color: white;
+  font-size: 24px;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ── Progress Bar ── */
+.progress-bar {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--gray-200);
+  overflow: hidden;
+}
+.progress-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.3s;
+}
+
+/* ── Icon circle ── */
+.icon-circle {
+  width: 36px; height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+/* ── Search bar ── */
+.search-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: white;
+  border: 1px solid var(--app-border);
+  margin-bottom: 10px;
+}
+.search-bar input {
+  border: none;
+  outline: none;
+  flex: 1;
+  font-size: 14px;
+  background: transparent;
+  color: var(--app-text);
+}
+
+/* ── Modal Overlay ── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.27);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  padding: 24px;
+}
+.modal-card {
+  background: white;
+  border-radius: 20px;
+  padding: 20px;
+  width: 100%;
+  max-width: 380px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+}
+.modal-close {
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  background: var(--gray-200);
+  border: none;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}

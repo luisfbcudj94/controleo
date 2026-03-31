@@ -17,8 +17,8 @@
 
 .add-row input {
 	border-radius: var(--rs);
-	border: 1px solid var(--b2);
-	background: var(--s2);
+	border: 1px solid #D0D9D3;
+	background: #EFF3F1;
 	color: var(--text);
 	padding: 0.65rem 0.72rem;
 }
@@ -32,8 +32,8 @@
 
 .item-row {
 	border-radius: var(--rs);
-	border: 1px solid var(--b2);
-	background: var(--s2);
+	border: 1px solid #DCE5DF;
+	background: #EFF3F1;
 	color: var(--text);
 	padding: 0.65rem 0.72rem;
 	text-align: left;
@@ -41,14 +41,14 @@
 }
 
 .item-row.active {
-	background: var(--ac2);
-	border-color: color-mix(in srgb, var(--accent) 35%, transparent);
+	background: #D8F3DC;
+	border-color: rgba(45, 106, 79, 0.35);
 }
 
 .edit-overlay {
 	position: fixed;
 	inset: 0;
-	background: rgba(8, 8, 8, 0.7);
+	background: rgba(0, 0, 0, 0.27);
 	display: grid;
 	place-items: center;
 	padding: 1rem;

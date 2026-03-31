@@ -8,7 +8,9 @@ public partial class RecurringPage : ContentPage
 {
     private readonly ExpenseApiClient _apiClient;
     private string? _editingId;
-    private DateOnly _selectedStartDate = DateOnly.FromDateTime(DateTime.Today);
+    private DateOnly _selectedStartDate = new(DateTime.Today.Year, DateTime.Today.Month, 1);
+    private string? _selectedMovementType;
+    private string? _selectedPaymentMethod;
 
     public RecurringPage(ExpenseApiClient apiClient)
     {
@@ -29,24 +31,123 @@ public partial class RecurringPage : ContentPage
     {
         var catalogs = await _apiClient.GetCatalogsAsync(CancellationToken.None);
         Services.PastelColorHelper.SetConfigs(catalogs.MovementTypeConfigs);
-        MovementTypePicker.ItemsSource = catalogs.MovementTypes.ToList();
-        PaymentMethodPicker.ItemsSource = catalogs.PaymentMethods.ToList();
+        BuildTypePickerGrid(catalogs.MovementTypes.ToList());
+        BuildPayPickerGrid(catalogs.PaymentMethods.ToList());
+    }
 
-        if (MovementTypePicker.SelectedIndex < 0 && MovementTypePicker.ItemsSource.Count > 0)
+    private void BuildTypePickerGrid(List<string> types)
+    {
+        TypePickerFlexLayout.Children.Clear();
+        var tileWidth = (DeviceDisplay.MainDisplayInfo.Width / DeviceDisplay.MainDisplayInfo.Density - 48 - 36) / 3;
+        foreach (var t in types)
         {
-            MovementTypePicker.SelectedIndex = 0;
-        }
-
-        if (PaymentMethodPicker.SelectedIndex < 0 && PaymentMethodPicker.ItemsSource.Count > 0)
-        {
-            PaymentMethodPicker.SelectedIndex = 0;
+            var bgColor = Services.PastelColorHelper.ForMovementType(t);
+            var icon = Services.PastelColorHelper.IconForMovementType(t);
+            var tile = new Border
+            {
+                StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 14 },
+                StrokeThickness = 0,
+                BackgroundColor = bgColor,
+                Padding = new Thickness(8, 14),
+                WidthRequest = tileWidth,
+                Margin = new Thickness(0, 0, 6, 6),
+                Content = new VerticalStackLayout
+                {
+                    Spacing = 6,
+                    HorizontalOptions = LayoutOptions.Center,
+                    Children =
+                    {
+                        new Label { Text = icon, FontSize = 28, HorizontalOptions = LayoutOptions.Center },
+                        new Label { Text = t, FontSize = 11, FontAttributes = FontAttributes.Bold,
+                                    HorizontalOptions = LayoutOptions.Center,
+                                    HorizontalTextAlignment = TextAlignment.Center,
+                                    TextColor = Color.FromArgb("#1A2E23") }
+                    }
+                }
+            };
+            var tap = new TapGestureRecognizer();
+            var captured = t;
+            var capturedIcon = icon;
+            tap.Tapped += (s, e) =>
+            {
+                _selectedMovementType = captured;
+                SelectedTypeLabel.Text = capturedIcon + " " + captured;
+                TypePickerOverlay.IsVisible = false;
+            };
+            tile.GestureRecognizers.Add(tap);
+            TypePickerFlexLayout.Children.Add(tile);
         }
     }
+
+    private void BuildPayPickerGrid(List<string> methods)
+    {
+        PayPickerFlexLayout.Children.Clear();
+        var tileWidth = (DeviceDisplay.MainDisplayInfo.Width / DeviceDisplay.MainDisplayInfo.Density - 48 - 36) / 3;
+        var payColors = new Dictionary<string, (string bg, string fg)>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["TC Black"]       = ("#1A2E23", "#FFFFFF"),
+            ["TC Rappi"]       = ("#FF6B35", "#FFFFFF"),
+            ["TD Bancolombia"] = ("#FFD700", "#1A2E23"),
+            ["Bancolombia"]    = ("#FFD700", "#1A2E23"),
+            ["TC Nu"]          = ("#7B2D8E", "#FFFFFF"),
+            ["Efectivo"]       = ("#B6E6BD", "#1A2E23"),
+            ["Transferencia"]  = ("#A8D8F0", "#1A2E23"),
+            ["Nequi"]          = ("#00C389", "#FFFFFF"),
+        };
+        foreach (var m in methods)
+        {
+            var (bg, fg) = payColors.TryGetValue(m, out var c) ? c : ("#A8D8F0", "#1A2E23");
+            var emoji = PaymentIconService.IconForPaymentMethod(m);
+            var tile = new Border
+            {
+                StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 14 },
+                StrokeThickness = 0,
+                BackgroundColor = Color.FromArgb(bg),
+                Padding = new Thickness(8, 14),
+                WidthRequest = tileWidth,
+                Margin = new Thickness(0, 0, 6, 6),
+                Content = new VerticalStackLayout
+                {
+                    Spacing = 6,
+                    HorizontalOptions = LayoutOptions.Center,
+                    Children =
+                    {
+                        new Label { Text = emoji, FontSize = 28, HorizontalOptions = LayoutOptions.Center },
+                        new Label { Text = m, FontSize = 11, FontAttributes = FontAttributes.Bold,
+                                    HorizontalOptions = LayoutOptions.Center,
+                                    HorizontalTextAlignment = TextAlignment.Center,
+                                    TextColor = Color.FromArgb(fg) }
+                    }
+                }
+            };
+            var tap = new TapGestureRecognizer();
+            var captured = m;
+            var capturedEmoji = emoji;
+            tap.Tapped += (s, e) =>
+            {
+                _selectedPaymentMethod = captured;
+                SelectedPayLabel.Text = capturedEmoji + " " + captured;
+                PayPickerOverlay.IsVisible = false;
+            };
+            tile.GestureRecognizers.Add(tap);
+            PayPickerFlexLayout.Children.Add(tile);
+        }
+    }
+
+    private void OnTypePickerTapped(object? sender, TappedEventArgs e) => TypePickerOverlay.IsVisible = true;
+    private void OnPayPickerTapped(object? sender, TappedEventArgs e) => PayPickerOverlay.IsVisible = true;
+    private void OnCloseTypePicker(object? sender, EventArgs e) => TypePickerOverlay.IsVisible = false;
+    private void OnClosePayPicker(object? sender, EventArgs e) => PayPickerOverlay.IsVisible = false;
 
     private async Task LoadRecurringAsync()
     {
         var items = await _apiClient.GetRecurringExpensesAsync(CancellationToken.None);
-        RecurringCollection.ItemsSource = items;
+        var viewItems = items.Select(item => new RecurringViewItem(
+            item,
+            PastelColorHelper.ForMovementType(item.MovementType),
+            PastelColorHelper.IconForMovementType(item.MovementType)
+        )).ToList();
+        RecurringCollection.ItemsSource = viewItems;
         StatusLabel.Text = string.Empty;
     }
 
@@ -62,6 +163,7 @@ public partial class RecurringPage : ContentPage
         SaveButton.IsEnabled = false;
         var result = await _apiClient.SaveRecurringExpenseAsync(_editingId, request!, CancellationToken.None);
         SaveButton.IsEnabled = true;
+        FormOverlay.IsVisible = false;
         await StyledResultModalPage.ShowAsync(
             this,
             result.IsSuccess,
@@ -78,12 +180,28 @@ public partial class RecurringPage : ContentPage
         await LoadRecurringAsync();
     }
 
-    private async void OnDeleteClicked(object? sender, EventArgs e)
+    private void OnAddNewClicked(object? sender, EventArgs e)
     {
-        if (sender is not Button { CommandParameter: RecurringExpenseItem item })
-        {
+        ClearForm();
+        FormTitle.Text = "Nuevo gasto recurrente";
+        FormOverlay.IsVisible = true;
+    }
+
+    private void OnCancelForm(object? sender, EventArgs e)
+    {
+        FormOverlay.IsVisible = false;
+        ClearForm();
+    }
+
+    private async void OnDeleteTapped(object? sender, TappedEventArgs e)
+    {
+        RecurringExpenseItem item;
+        if (e.Parameter is RecurringViewItem view)
+            item = view.Item;
+        else if (e.Parameter is RecurringExpenseItem direct)
+            item = direct;
+        else
             return;
-        }
 
         var confirm = await DisplayAlert("Eliminar", $"¿Eliminar '{item.Description}'?", "Sí", "No");
         if (!confirm)
@@ -100,28 +218,30 @@ public partial class RecurringPage : ContentPage
         await LoadRecurringAsync();
     }
 
-    private void OnEditClicked(object? sender, EventArgs e)
+    private void OnEditTapped(object? sender, TappedEventArgs e)
     {
-        if (sender is not Button { CommandParameter: RecurringExpenseItem item })
-        {
+        RecurringExpenseItem item;
+        if (e.Parameter is RecurringViewItem view)
+            item = view.Item;
+        else if (e.Parameter is RecurringExpenseItem direct)
+            item = direct;
+        else
             return;
-        }
 
         _editingId = item.Id;
+        FormTitle.Text = "Editar recurrente";
         DescriptionEntry.Text = item.Description;
         AmountEntry.Text = item.Amount.ToString("0.##");
-        MovementTypePicker.SelectedItem = item.MovementType;
-        PaymentMethodPicker.SelectedItem = item.PaymentMethod;
+        _selectedMovementType = item.MovementType;
+        SelectedTypeLabel.Text = Services.PastelColorHelper.IconForMovementType(item.MovementType) + " " + item.MovementType;
+        _selectedPaymentMethod = item.PaymentMethod;
+        SelectedPayLabel.Text = PaymentIconService.IconForPaymentMethod(item.PaymentMethod) + " " + item.PaymentMethod;
         DayEntry.Text = item.DayOfMonth.ToString();
         _selectedStartDate = item.StartDate;
         UpdateStartDateSelectorLabel();
         IsActiveCheck.IsChecked = item.IsActive;
         StatusLabel.Text = string.Empty;
-    }
-
-    private void OnClearClicked(object? sender, EventArgs e)
-    {
-        ClearForm();
+        FormOverlay.IsVisible = true;
     }
 
     private void ClearForm()
@@ -130,7 +250,11 @@ public partial class RecurringPage : ContentPage
         DescriptionEntry.Text = string.Empty;
         AmountEntry.Text = string.Empty;
         DayEntry.Text = "1";
-        _selectedStartDate = DateOnly.FromDateTime(DateTime.Today);
+        _selectedMovementType = null;
+        _selectedPaymentMethod = null;
+        SelectedTypeLabel.Text = "Seleccionar";
+        SelectedPayLabel.Text = "Seleccionar";
+        _selectedStartDate = new(DateTime.Today.Year, DateTime.Today.Month, 1);
         UpdateStartDateSelectorLabel();
         IsActiveCheck.IsChecked = true;
         StatusLabel.Text = string.Empty;
@@ -167,7 +291,13 @@ public partial class RecurringPage : ContentPage
             return false;
         }
 
-        if (MovementTypePicker.SelectedItem is null || PaymentMethodPicker.SelectedItem is null)
+        var maxDay = DateTime.DaysInMonth(_selectedStartDate.Year, _selectedStartDate.Month);
+        var normalizedDay = Math.Min(day, maxDay);
+        var normalizedStartDate = new DateOnly(_selectedStartDate.Year, _selectedStartDate.Month, normalizedDay);
+        _selectedStartDate = normalizedStartDate;
+        UpdateStartDateSelectorLabel();
+
+        if (string.IsNullOrEmpty(_selectedMovementType) || string.IsNullOrEmpty(_selectedPaymentMethod))
         {
             errorMessage = "Debes elegir tipo y medio de pago.";
             return false;
@@ -176,10 +306,10 @@ public partial class RecurringPage : ContentPage
         request = new RecurringExpenseUpsertRequest(
             description,
             amount,
-            MovementTypePicker.SelectedItem.ToString()!,
-            PaymentMethodPicker.SelectedItem.ToString()!,
+            _selectedMovementType,
+            _selectedPaymentMethod,
             day,
-            _selectedStartDate,
+            normalizedStartDate,
             IsActiveCheck.IsChecked);
 
         return true;
@@ -205,5 +335,17 @@ public partial class RecurringPage : ContentPage
     private void UpdateStartDateSelectorLabel()
     {
         StartDateSelectorLabel.Text = _selectedStartDate.ToString("dd/MM/yyyy", CultureInfo.GetCultureInfo("es-CO"));
+    }
+
+    private sealed record RecurringViewItem(RecurringExpenseItem Item, Color IconColor, string Icon)
+    {
+        public string Id => Item.Id;
+        public string Description => Item.Description;
+        public decimal Amount => Item.Amount;
+        public string MovementType => Item.MovementType;
+        public string PaymentMethod => Item.PaymentMethod;
+        public int DayOfMonth => Item.DayOfMonth;
+        public DateOnly StartDate => Item.StartDate;
+        public bool IsActive => Item.IsActive;
     }
 }

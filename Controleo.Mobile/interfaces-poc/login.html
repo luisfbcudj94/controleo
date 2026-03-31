@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Controleo — Iniciar sesión</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .login-wrapper {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 40px 20px 20px;
+    }
+    .brand-card {
+      background: linear-gradient(135deg, var(--primary), var(--tertiary));
+      border-radius: 24px;
+      padding: 40px 24px;
+      text-align: center;
+      color: #fff;
+      margin-bottom: 32px;
+      box-shadow: 0 4px 20px rgba(45,106,79,0.3);
+    }
+    .brand-card .emoji { font-size: 48px; margin-bottom: 8px; }
+    .brand-card h1 { font-size: 32px; margin-bottom: 4px; }
+    .brand-card p { font-size: 15px; opacity: 0.9; }
+    .login-form .input-group { margin-bottom: 14px; }
+    .login-form .input-group label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--app-hint);
+      margin-bottom: 4px;
+    }
+    .login-link {
+      text-align: center;
+      font-size: 14px;
+      color: var(--app-hint);
+      margin-top: 16px;
+    }
+    .login-link a {
+      color: var(--primary);
+      text-decoration: none;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="login-wrapper">
+    <div class="brand-card">
+      <div class="emoji">🌿</div>
+      <h1>Controleo</h1>
+      <p>Tu espacio personal de finanzas</p>
+    </div>
+
+    <form class="login-form" onsubmit="return false;">
+      <div class="input-group">
+        <label>Correo electrónico</label>
+        <input type="email" class="input" placeholder="usuario@correo.com" value="juan@correo.com">
+      </div>
+      <div class="input-group">
+        <label>Contraseña</label>
+        <input type="password" class="input" placeholder="••••••••" value="password123">
+      </div>
+      <button class="btn btn-primary btn-full" style="margin-top: 8px;">Iniciar sesión</button>
+    </form>
+
+    <div class="login-link">
+      ¿No tienes cuenta? <a href="#">Regístrate</a>
+    </div>
+  </div>
+
+  <!-- NO tab bar on login page -->
+
+</body>
+</html>

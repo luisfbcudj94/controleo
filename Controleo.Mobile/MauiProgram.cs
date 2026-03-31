@@ -14,16 +14,22 @@ public static class MauiProgram
 			{
 				fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
 				fonts.AddFont("OpenSans-Semibold.ttf", "OpenSansSemibold");
+			})
+			.ConfigureMauiHandlers(handlers =>
+			{
+#if ANDROID
+				handlers.AddHandler<TabbedPage, Controleo.Mobile.Platforms.Android.CustomTabbedPageHandler>();
+#endif
 			});
 
 		var apiBaseUrl = Environment.GetEnvironmentVariable("CONTROLEO_API_BASE_URL");
 		if (string.IsNullOrWhiteSpace(apiBaseUrl))
 		{
-		#if DEBUG
+#if DEBUG
 			apiBaseUrl = "http://10.0.2.2:5051/";
-		#else
+#else
 			apiBaseUrl = "https://controleo-api.azurewebsites.net/";
-		#endif
+#endif
 		}
 
 		if (!apiBaseUrl.EndsWith('/'))

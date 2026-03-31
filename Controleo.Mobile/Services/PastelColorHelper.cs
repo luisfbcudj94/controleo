@@ -33,7 +33,7 @@ public static class PastelColorHelper
         ("#F2C6A0", "Melocotón"),
     ];
 
-    /// <summary>10 emoji icons the user can pick from.</summary>
+    /// <summary>20 emoji icons the user can pick from.</summary>
     public static readonly (string Emoji, string Label)[] AvailableIcons =
     [
         ("🛒", "Compras"),
@@ -48,6 +48,14 @@ public static class PastelColorHelper
         ("🔨", "Obra"),
         ("🍕", "Comida"),
         ("🚗", "Transporte"),
+        ("🏥", "Salud"),
+        ("🎓", "Educacion"),
+        ("🎬", "Entretenimiento"),
+        ("🐾", "Mascotas"),
+        ("👕", "Ropa"),
+        ("🛠️", "Mantenimiento"),
+        ("🎁", "Regalos"),
+        ("📚", "Libros"),
     ];
 
     private static IReadOnlyList<MovementTypeConfig> _cachedConfigs = [];

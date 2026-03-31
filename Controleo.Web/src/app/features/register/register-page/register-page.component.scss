@@ -17,15 +17,15 @@
 }
 
 .f-card {
-	background: var(--s1);
-	border: 1px solid var(--b1);
+	background: #FFFFFF;
+	border: 1px solid #DCE5DF;
 	border-radius: var(--rx);
 	overflow: hidden;
 }
 
 .f-card-header {
 	padding: 0.8rem 1rem;
-	border-bottom: 1px solid var(--b1);
+	border-bottom: 1px solid #DCE5DF;
 	display: flex;
 	align-items: center;
 	gap: 0.65rem;
@@ -114,7 +114,7 @@
 	width: 100%;
 	border: none;
 	background: transparent;
-	color: var(--text);
+	color: #1B4332;
 	font-family: 'Syne', sans-serif;
 	font-size: 2.2rem;
 	font-weight: 800;
@@ -124,15 +124,15 @@
 .ah-under {
 	height: 2px;
 	border-radius: 99px;
-	background: var(--accent);
+	background: #2D6A4F;
 	opacity: 0.3;
 }
 
 .preview-card {
 	position: sticky;
 	top: 0;
-	background: var(--s1);
-	border: 1px solid var(--b1);
+	background: #FFFFFF;
+	border: 1px solid #DCE5DF;
 	border-radius: var(--rx);
 	padding: 1rem;
 }
@@ -150,6 +150,7 @@
 	font-family: 'Syne', sans-serif;
 	font-size: 2.15rem;
 	font-weight: 800;
+	color: #1B4332;
 }
 
 .pc-row {
@@ -158,7 +159,7 @@
 	align-items: center;
 	gap: 0.6rem;
 	padding: 0.58rem 0;
-	border-bottom: 1px solid var(--b1);
+	border-bottom: 1px solid #DCE5DF;
 }
 
 .pc-row:last-child {
@@ -181,8 +182,8 @@
 	margin-top: 0.95rem;
 	border: none;
 	border-radius: var(--r);
-	background: var(--teal);
-	color: #080808;
+	background: #2D6A4F;
+	color: #FFFFFF;
 	font-family: 'Syne', sans-serif;
 	font-weight: 800;
 	padding: 0.9rem;

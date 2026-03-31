@@ -8,8 +8,8 @@
 .sidebar {
 	width: var(--sidebar);
 	min-height: 100dvh;
-	background: var(--s1);
-	border-right: 1px solid var(--b1);
+	background: #FFFFFF;
+	border-right: 1px solid #DCE5DF;
 	display: flex;
 	flex-direction: column;
 	flex-shrink: 0;
@@ -17,7 +17,7 @@
 
 .sb-brand {
 	padding: 1.7rem 1.4rem 1.4rem;
-	border-bottom: 1px solid var(--b1);
+	border-bottom: 1px solid #DCE5DF;
 }
 
 .sb-logo {
@@ -28,7 +28,7 @@
 }
 
 .sb-logo span {
-	color: var(--accent);
+	color: #2D6A4F;
 }
 
 .sb-tagline {
@@ -77,9 +77,9 @@
 }
 
 .nav-btn.active {
-	background: var(--ac2);
-	color: var(--accent);
-	border-color: rgba(200, 245, 90, 0.2);
+	background: #D8F3DC;
+	color: #2D6A4F;
+	border-color: rgba(45, 106, 79, 0.2);
 }
 
 .nb-icon {
@@ -88,7 +88,7 @@
 }
 
 .sb-bottom {
-	border-top: 1px solid var(--b1);
+	border-top: 1px solid #DCE5DF;
 	padding: 0.9rem 0.75rem 1rem;
 }
 
@@ -106,11 +106,11 @@
 	aspect-ratio: 1 / 1;
 	flex-shrink: 0;
 	border-radius: 50%;
-	background: var(--ac2);
-	border: 1px solid rgba(200, 245, 90, 0.3);
+	background: #D8F3DC;
+	border: 1px solid rgba(45, 106, 79, 0.3);
 	display: grid;
 	place-items: center;
-	color: var(--accent);
+	color: #2D6A4F;
 	font-size: 0.68rem;
 	font-weight: 700;
 	font-family: 'Syne', sans-serif;
@@ -136,7 +136,8 @@
 
 .topbar {
 	height: 4rem;
-	border-bottom: 1px solid var(--b1);
+	background: #FFFFFF;
+	border-bottom: 1px solid #DCE5DF;
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
@@ -208,13 +209,13 @@
 }
 
 .switch-track.on {
-	background: var(--ac2);
-	border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+	background: #D8F3DC;
+	border-color: rgba(45, 106, 79, 0.45);
 }
 
 .switch-track.on .switch-thumb {
 	transform: translateX(0.85rem);
-	background: var(--accent);
+	background: #2D6A4F;
 }
 
 .month-sel {
@@ -261,8 +262,8 @@
 
 .tb-btn.primary {
 	border-color: transparent;
-	color: #080808;
-	background: var(--accent);
+	color: #FFFFFF;
+	background: #2D6A4F;
 	font-family: 'Syne', sans-serif;
 	font-weight: 700;
 }
@@ -305,7 +306,7 @@
 		width: 100%;
 		min-height: auto;
 		border-right: none;
-		border-bottom: 1px solid var(--b1);
+		border-bottom: 1px solid #DCE5DF;
 	}
 
 	.sb-brand {

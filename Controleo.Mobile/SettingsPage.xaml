@@ -10,6 +10,11 @@
             <ScrollView>
                 <VerticalStackLayout Padding="16" Spacing="14">
 
+                    <!-- Page Title -->
+                    <Label Text="Configuración" FontSize="28" FontAttributes="Bold"
+                           FontFamily="OpenSansSemibold" TextColor="{StaticResource AppText}"
+                           Margin="0,0,0,4" />
+
                     <!-- Expense Sections -->
                     <Border Padding="16" StrokeShape="RoundRectangle 18" StrokeThickness="0"
                             BackgroundColor="{StaticResource White}">
@@ -38,8 +43,8 @@
                                                 BackgroundColor="{StaticResource AppSurface2}" Stroke="{StaticResource AppBorder}"
                                                 HeightRequest="48">
                                             <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="6">
-                                                <Label Text="{Binding .}" VerticalOptions="Center"
-                                                       VerticalTextAlignment="Center" LineBreakMode="TailTruncation" />
+                                                <Label Text="{Binding ., Converter={StaticResource MovementIconConverter}}" VerticalOptions="Center"
+                                                       VerticalTextAlignment="Center" LineBreakMode="TailTruncation" FontSize="15" />
                                                 <Border Grid.Column="1" StrokeShape="RoundRectangle 14"
                                                         BackgroundColor="{StaticResource AccentLight}" StrokeThickness="0"
                                                         WidthRequest="28" HeightRequest="28" Padding="0">
@@ -94,8 +99,8 @@
                                                 BackgroundColor="{StaticResource AppSurface2}" Stroke="{StaticResource AppBorder}"
                                                 HeightRequest="48">
                                             <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="6">
-                                                <Label Text="{Binding .}" VerticalOptions="Center"
-                                                       VerticalTextAlignment="Center" LineBreakMode="TailTruncation" />
+                                                <Label Text="{Binding ., Converter={StaticResource PaymentIconConverter}}" VerticalOptions="Center"
+                                                       VerticalTextAlignment="Center" LineBreakMode="TailTruncation" FontSize="15" />
                                                 <Border Grid.Column="1" StrokeShape="RoundRectangle 14"
                                                         BackgroundColor="{StaticResource AccentLight}" StrokeThickness="0"
                                                         WidthRequest="28" HeightRequest="28" Padding="0">
@@ -128,12 +133,13 @@
                         <Border.Shadow>
                             <Shadow Brush="Black" Offset="0,1" Radius="4" Opacity="0.05" />
                         </Border.Shadow>
-                        <Grid ColumnDefinitions="*,Auto" VerticalOptions="Center">
-                            <Label Text="Sesión" FontAttributes="Bold" FontSize="17" VerticalOptions="Center" />
-                            <Button Grid.Column="1" Text="Cerrar sesión" HeightRequest="40" CornerRadius="12"
-                                    BackgroundColor="{StaticResource ActionDelete}" TextColor="White" FontSize="13"
+                        <VerticalStackLayout Spacing="12">
+                            <Label Text="Sesión" FontAttributes="Bold" FontSize="17" />
+                            <Button Text="Cerrar sesión" HeightRequest="48" CornerRadius="14"
+                                    BackgroundColor="{StaticResource ActionDelete}" TextColor="White"
+                                    FontSize="16" FontAttributes="Bold"
                                     Clicked="OnLogoutClicked" />
-                        </Grid>
+                        </VerticalStackLayout>
                     </Border>
 
                 </VerticalStackLayout>
@@ -160,8 +166,8 @@
                         <VerticalStackLayout x:Name="EditIconSection" IsVisible="False" Spacing="6">
                             <Label Text="Icono" FontSize="12" TextColor="{StaticResource AppHint}" />
                             <Grid x:Name="EditIconGrid" ColumnSpacing="6" RowSpacing="6" />
-                            <Label Text="Color" FontSize="12" TextColor="{StaticResource AppHint}" Margin="0,6,0,0" />
-                            <ScrollView Orientation="Horizontal" HorizontalScrollBarVisibility="Never" HeightRequest="52">
+                            <Label x:Name="EditColorLabel" Text="Color" FontSize="12" TextColor="{StaticResource AppHint}" Margin="0,6,0,0" />
+                            <ScrollView x:Name="EditColorScroll" Orientation="Horizontal" HorizontalScrollBarVisibility="Never" HeightRequest="52">
                                 <HorizontalStackLayout x:Name="EditColorRow" Spacing="8" />
                             </ScrollView>
                         </VerticalStackLayout>
@@ -196,8 +202,8 @@
                         <VerticalStackLayout x:Name="AddIconSection" IsVisible="False" Spacing="6">
                             <Label Text="Icono" FontSize="12" TextColor="{StaticResource AppHint}" />
                             <Grid x:Name="AddIconGrid" ColumnSpacing="6" RowSpacing="6" />
-                            <Label Text="Color" FontSize="12" TextColor="{StaticResource AppHint}" Margin="0,6,0,0" />
-                            <ScrollView Orientation="Horizontal" HorizontalScrollBarVisibility="Never" HeightRequest="52">
+                            <Label x:Name="AddColorLabel" Text="Color" FontSize="12" TextColor="{StaticResource AppHint}" Margin="0,6,0,0" />
+                            <ScrollView x:Name="AddColorScroll" Orientation="Horizontal" HorizontalScrollBarVisibility="Never" HeightRequest="52">
                                 <HorizontalStackLayout x:Name="AddColorRow" Spacing="8" />
                             </ScrollView>
                         </VerticalStackLayout>

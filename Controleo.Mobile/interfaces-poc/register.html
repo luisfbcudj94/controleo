@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Controleo — Registrar gasto</title>
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .amount-card {
+      background: var(--pastel-mint);
+      border-radius: var(--radius);
+      padding: 28px 16px;
+      margin-bottom: 16px;
+      text-align: center;
+    }
+    .amount-card .prefix {
+      font-size: 30px;
+      font-weight: 700;
+      color: var(--gray-400);
+      vertical-align: middle;
+    }
+    .amount-card input {
+      font-size: 48px;
+      font-weight: 700;
+      color: var(--primary-dark);
+      border: none;
+      background: transparent;
+      outline: none;
+      width: 200px;
+      text-align: center;
+    }
+    .amount-card input::placeholder { color: var(--gray-300); }
+
+    .section-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--app-hint);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+      margin-top: 4px;
+    }
+
+    .picker-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    .picker-item {
+      border-radius: 14px;
+      padding: 10px 4px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      position: relative;
+      opacity: 0.7;
+    }
+    .picker-item:hover { transform: scale(1.05); opacity: 1; }
+    .picker-item:active { transform: scale(0.92); }
+    .picker-item.selected {
+      transform: scale(1.1);
+      opacity: 1;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+      z-index: 2;
+    }
+    .picker-item.selected::after {
+      content: '✓';
+      position: absolute;
+      top: -4px;
+      right: -4px;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: var(--primary);
+      color: white;
+      font-size: 11px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    }
+    .picker-emoji { font-size: 26px; }
+    .picker-label { font-size: 10px; font-weight: 600; line-height: 1.2; }
+
+    .pay-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    .pay-item {
+      border-radius: 14px;
+      padding: 12px 4px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      position: relative;
+      opacity: 0.7;
+    }
+    .pay-item:hover { transform: scale(1.05); opacity: 1; }
+    .pay-item:active { transform: scale(0.92); }
+    .pay-item.selected {
+      transform: scale(1.1);
+      opacity: 1;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+      z-index: 2;
+    }
+    .pay-item.selected::after {
+      content: '✓';
+      position: absolute;
+      top: -4px;
+      right: -4px;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: var(--primary);
+      color: white;
+      font-size: 11px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    }
+    .pay-emoji { font-size: 24px; }
+    .pay-label { font-size: 9px; font-weight: 600; line-height: 1.2; }
+
+    .desc-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    .desc-row .icon-box {
+      width: 40px; height: 40px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      flex-shrink: 0;
+    }
+
+    .title-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    .title-row .badge {
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 700;
+      background: var(--primary);
+      color: white;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="phone-frame">
+    <!-- Title -->
+    <div class="title-row">
+      <h1 class="page-title" style="margin-bottom:0;">Registrar gasto</h1>
+      <span class="badge">Mar 2026</span>
+    </div>
+
+    <!-- Amount Card -->
+    <div class="amount-card">
+      <span class="prefix">$</span>
+      <input type="text" value="" placeholder="0">
+      <div style="margin-top:6px;font-size:11px;color:var(--gray-600);">Ingresa el valor del gasto</div>
+    </div>
+
+    <!-- Description -->
+    <div class="desc-row">
+      <div class="icon-box" style="background:var(--pastel-lavender);">✏️</div>
+      <input class="input" placeholder="¿En qué gastaste?" style="flex:1;">
+    </div>
+
+    <!-- Movement Type - Grid -->
+    <div class="section-label">¿En qué categoría?</div>
+    <div class="picker-grid" id="typeGrid">
+      <div class="picker-item selected" style="background:#B6E6BD;" onclick="selectType(this)"><span class="picker-emoji">🛒</span><span class="picker-label">Básicos</span></div>
+      <div class="picker-item" style="background:#A8D8F0;" onclick="selectType(this)"><span class="picker-emoji">🏠</span><span class="picker-label">Hogar</span></div>
+      <div class="picker-item" style="background:#F8C4B4;" onclick="selectType(this)"><span class="picker-emoji">🎉</span><span class="picker-label">Salidas</span></div>
+      <div class="picker-item" style="background:#C5B3E6;" onclick="selectType(this)"><span class="picker-emoji">⚡</span><span class="picker-label">Imprevistos</span></div>
+      <div class="picker-item" style="background:#F9E07F;" onclick="selectType(this)"><span class="picker-emoji">📱</span><span class="picker-label">Suscripciones</span></div>
+      <div class="picker-item" style="background:#F0B5D0;" onclick="selectType(this)"><span class="picker-emoji">🧘</span><span class="picker-label">Bienestar</span></div>
+      <div class="picker-item" style="background:#7ECEC1;" onclick="selectType(this)"><span class="picker-emoji">✈️</span><span class="picker-label">Viajes</span></div>
+      <div class="picker-item" style="background:#9DB8D4;" onclick="selectType(this)"><span class="picker-emoji">💳</span><span class="picker-label">Deudas</span></div>
+      <div class="picker-item" style="background:#E6C88C;" onclick="selectType(this)"><span class="picker-emoji">🏦</span><span class="picker-label">Préstamo</span></div>
+      <div class="picker-item" style="background:#8CC5B2;" onclick="selectType(this)"><span class="picker-emoji">🔨</span><span class="picker-label">Obra</span></div>
+    </div>
+
+    <!-- Payment Method - Grid -->
+    <div class="section-label">¿Cómo pagaste?</div>
+    <div class="pay-grid" id="payGrid">
+      <div class="pay-item selected" style="background:#1A2E23;color:white;" onclick="selectPay(this)"><span class="pay-emoji">🖤</span><span class="pay-label">TC Black</span></div>
+      <div class="pay-item" style="background:#FF6B35;color:white;" onclick="selectPay(this)"><span class="pay-emoji">🧡</span><span class="pay-label">TC Rappi</span></div>
+      <div class="pay-item" style="background:#FFD700;" onclick="selectPay(this)"><span class="pay-emoji">🏦</span><span class="pay-label">Bancolombia</span></div>
+      <div class="pay-item" style="background:#7B2D8E;color:white;" onclick="selectPay(this)"><span class="pay-emoji">💜</span><span class="pay-label">TC Nu</span></div>
+      <div class="pay-item" style="background:#B6E6BD;" onclick="selectPay(this)"><span class="pay-emoji">💵</span><span class="pay-label">Efectivo</span></div>
+      <div class="pay-item" style="background:#A8D8F0;" onclick="selectPay(this)"><span class="pay-emoji">🔄</span><span class="pay-label">Transferencia</span></div>
+      <div class="pay-item" style="background:#00C389;color:white;" onclick="selectPay(this)"><span class="pay-emoji">📲</span><span class="pay-label">Nequi</span></div>
+    </div>
+
+    <!-- Save -->
+    <button class="btn btn-primary btn-full" style="margin-bottom:10px;font-size:18px;padding:16px;">
+      💾 Guardar gasto
+    </button>
+    <button class="btn btn-secondary btn-full" onclick="window.location='expenses.html'">
+      Ver lista de gastos
+    </button>
+  </div>
+
+  <script>
+    function selectType(el) {
+      document.querySelectorAll('#typeGrid .picker-item').forEach(i => i.classList.remove('selected'));
+      el.classList.add('selected');
+    }
+    function selectPay(el) {
+      document.querySelectorAll('#payGrid .pay-item').forEach(i => i.classList.remove('selected'));
+      el.classList.add('selected');
+    }
+  </script>
+
+  <!-- Tab Bar -->
+  <nav class="tab-bar">
+    <a href="register.html" class="active">🏠<span>Registro</span></a>
+    <a href="expenses.html">📄<span>Gastos</span></a>
+    <a href="dashboard.html">📊<span>Dashboard</span></a>
+    <a href="budgets.html">💰<span>Presupuestos</span></a>
+    <a href="recurring.html">🔁<span>Recurrentes</span></a>
+    <a href="settings.html">⚙️<span>Config</span></a>
+  </nav>
+
+</body>
+</html>

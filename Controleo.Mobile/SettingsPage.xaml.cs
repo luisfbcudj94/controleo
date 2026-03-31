@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Globalization;
 using Controleo.Mobile.Models;
 using Controleo.Mobile.Services;
 
@@ -18,10 +19,14 @@ public partial class SettingsPage : ContentPage
     private string? _editSelectedColor;
     private bool _isAddingMovement; // true = movement, false = payment
     private bool _isRefreshing;
+    private string _editSelectedPaymentIcon = "💳";
+    private string _addSelectedPaymentIcon = "💳";
 
     public SettingsPage(ExpenseApiClient apiClient, AuthService authService)
     {
         InitializeComponent();
+        Resources.Add("MovementIconConverter", new MovementIconConverter());
+        Resources.Add("PaymentIconConverter", new PaymentIconConverter());
         _apiClient = apiClient;
         _authService = authService;
         MovementCollection.ItemsSource = _movementTypes;
@@ -77,6 +82,8 @@ public partial class SettingsPage : ContentPage
         AddModalEntry.Text = string.Empty;
         AddModalEntry.Placeholder = "Nombre de la sección";
         AddIconSection.IsVisible = true;
+        AddColorLabel.IsVisible = true;
+        AddColorScroll.IsVisible = true;
         PopulateAddIconGrid("📋");
         PopulateColorRow(AddColorRow, PastelColorHelper.GetAvailableColors(_configs), null,
             hex => { _addSelectedColor = hex; RebuildAddColorRow(); });
@@ -87,10 +94,14 @@ public partial class SettingsPage : ContentPage
     private void OnAddPaymentTapped(object? sender, EventArgs e)
     {
         _isAddingMovement = false;
+        _addSelectedPaymentIcon = "💳";
         AddModalTitleLabel.Text = "Nuevo medio de pago";
         AddModalEntry.Text = string.Empty;
         AddModalEntry.Placeholder = "Nombre del medio";
-        AddIconSection.IsVisible = false;
+        AddIconSection.IsVisible = true;
+        AddColorLabel.IsVisible = false;
+        AddColorScroll.IsVisible = false;
+        PopulateAddPaymentIconGrid(_addSelectedPaymentIcon);
         AddOverlay.IsVisible = true;
         AddModalEntry.Focus();
     }
@@ -143,6 +154,7 @@ public partial class SettingsPage : ContentPage
             }
 
             _paymentMethods.Add(name);
+            PaymentIconService.SetIconForPaymentMethod(name, _addSelectedPaymentIcon);
             await SaveCatalogsAsync();
         }
     }
@@ -163,6 +175,8 @@ public partial class SettingsPage : ContentPage
         _editSelectedIcon = cfg?.Icon ?? PastelColorHelper.IconForMovementType(value);
         _editSelectedColor = cfg?.Color;
         EditIconSection.IsVisible = true;
+        EditColorLabel.IsVisible = true;
+        EditColorScroll.IsVisible = true;
         PopulateEditIconGrid(_editSelectedIcon);
         PopulateColorRow(EditColorRow, PastelColorHelper.GetAvailableColors(_configs, value), _editSelectedColor,
             hex => { _editSelectedColor = hex; RebuildEditColorRow(); });
@@ -175,10 +189,14 @@ public partial class SettingsPage : ContentPage
         if (e.Parameter is not string value) return;
         _isEditingMovement = false;
         _editingMovementWillPickIconColor = false;
+        _editSelectedPaymentIcon = PaymentIconService.IconForPaymentMethod(value);
         _editingOriginalValue = value;
         EditModalTitleLabel.Text = "Editar medio de pago";
         EditModalEntry.Text = value;
-        EditIconSection.IsVisible = false;
+        EditIconSection.IsVisible = true;
+        EditColorLabel.IsVisible = false;
+        EditColorScroll.IsVisible = false;
+        PopulateEditPaymentIconGrid(_editSelectedPaymentIcon);
         EditOverlay.IsVisible = true;
     }
 
@@ -235,6 +253,7 @@ public partial class SettingsPage : ContentPage
         var confirmed = await StyledConfirmModalPage.ConfirmAsync(this, "Eliminar medio", $"¿Eliminar '{value}'?");
         if (!confirmed) return;
         _paymentMethods.Remove(value);
+        PaymentIconService.RemovePaymentMethod(value);
         await SaveCatalogsAsync();
     }
 
@@ -292,6 +311,7 @@ public partial class SettingsPage : ContentPage
         }
         else
         {
+            var originalPaymentName = _editingOriginalValue;
             if (_paymentMethods.Any(item =>
                     !string.Equals(item, _editingOriginalValue, StringComparison.OrdinalIgnoreCase) &&
                     string.Equals(item, edited, StringComparison.OrdinalIgnoreCase)))
@@ -301,6 +321,13 @@ public partial class SettingsPage : ContentPage
             }
 
             ReplaceItem(_paymentMethods, _editingOriginalValue, edited);
+
+            if (!string.IsNullOrWhiteSpace(originalPaymentName))
+            {
+                PaymentIconService.RenamePaymentMethod(originalPaymentName, edited);
+            }
+
+            PaymentIconService.SetIconForPaymentMethod(edited, _editSelectedPaymentIcon);
         }
 
         EditOverlay.IsVisible = false;
@@ -312,12 +339,26 @@ public partial class SettingsPage : ContentPage
 
     private void PopulateEditIconGrid(string? selectedIcon)
     {
-        PopulateIconGrid(EditIconGrid, selectedIcon, emoji => { _editSelectedIcon = emoji; PopulateEditIconGrid(emoji); });
+        PopulateIconGrid(EditIconGrid, PastelColorHelper.AvailableIcons, selectedIcon,
+            emoji => { _editSelectedIcon = emoji; PopulateEditIconGrid(emoji); });
     }
 
     private void PopulateAddIconGrid(string? selectedIcon)
     {
-        PopulateIconGrid(AddIconGrid, selectedIcon, emoji => { _addSelectedIcon = emoji; PopulateAddIconGrid(emoji); });
+        PopulateIconGrid(AddIconGrid, PastelColorHelper.AvailableIcons, selectedIcon,
+            emoji => { _addSelectedIcon = emoji; PopulateAddIconGrid(emoji); });
+    }
+
+    private void PopulateEditPaymentIconGrid(string? selectedIcon)
+    {
+        PopulateIconGrid(EditIconGrid, PaymentIconService.AvailableIcons, selectedIcon,
+            emoji => { _editSelectedPaymentIcon = emoji; PopulateEditPaymentIconGrid(emoji); });
+    }
+
+    private void PopulateAddPaymentIconGrid(string? selectedIcon)
+    {
+        PopulateIconGrid(AddIconGrid, PaymentIconService.AvailableIcons, selectedIcon,
+            emoji => { _addSelectedPaymentIcon = emoji; PopulateAddPaymentIconGrid(emoji); });
     }
 
     private void RebuildEditColorRow()
@@ -332,22 +373,26 @@ public partial class SettingsPage : ContentPage
             hex => { _addSelectedColor = hex; RebuildAddColorRow(); });
     }
 
-    private static void PopulateIconGrid(Grid grid, string? selectedIcon, Action<string> onSelected)
+    private static void PopulateIconGrid(
+        Grid grid,
+        IReadOnlyList<(string Emoji, string Label)> iconSource,
+        string? selectedIcon,
+        Action<string> onSelected)
     {
         grid.Children.Clear();
         grid.RowDefinitions.Clear();
         grid.ColumnDefinitions.Clear();
 
-        var icons = PastelColorHelper.AvailableIcons;
+        var icons = iconSource;
         var cols = 6;
-        var rows = (int)Math.Ceiling(icons.Length / (double)cols);
+        var rows = (int)Math.Ceiling(icons.Count / (double)cols);
 
         for (var c = 0; c < cols; c++)
             grid.ColumnDefinitions.Add(new ColumnDefinition(GridLength.Star));
         for (var r = 0; r < rows; r++)
             grid.RowDefinitions.Add(new RowDefinition(GridLength.Auto));
 
-        for (var i = 0; i < icons.Length; i++)
+        for (var i = 0; i < icons.Count; i++)
         {
             var (emoji, _) = icons[i];
             var isSelected = string.Equals(emoji, selectedIcon);
@@ -468,4 +513,29 @@ public partial class SettingsPage : ContentPage
     }
 
     private void SetLoading(bool isLoading) => LoadingOverlay.IsVisible = isLoading;
+
+    private sealed class MovementIconConverter : IValueConverter
+    {
+        public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+        {
+            if (value is string name && !string.IsNullOrWhiteSpace(name))
+                return PastelColorHelper.IconForMovementType(name) + " " + name;
+            return value?.ToString() ?? "";
+        }
+        public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) => throw new NotSupportedException();
+    }
+
+    private sealed class PaymentIconConverter : IValueConverter
+    {
+        public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+        {
+            if (value is string name && !string.IsNullOrWhiteSpace(name))
+            {
+                var emoji = PaymentIconService.IconForPaymentMethod(name);
+                return emoji + " " + name;
+            }
+            return value?.ToString() ?? "";
+        }
+        public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) => throw new NotSupportedException();
+    }
 }

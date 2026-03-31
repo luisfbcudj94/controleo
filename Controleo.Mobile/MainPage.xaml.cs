@@ -12,11 +12,28 @@ public partial class MainPage : ContentPage
 
 	private readonly ExpenseApiClient _apiClient;
 	private readonly MonthContextService _monthContext;
+	private readonly List<MovementTypeConfig> _movementTypeConfigs = [];
+	private readonly Dictionary<string, Border> _movementTiles = new(StringComparer.OrdinalIgnoreCase);
+	private readonly Dictionary<string, Border> _paymentTiles = new(StringComparer.OrdinalIgnoreCase);
+	private readonly Dictionary<string, Border> _addCatalogIconTiles = new(StringComparer.Ordinal);
 	private bool _isRefreshing;
 	private bool _isFormattingAmount;
+	private bool _isAnimatingCatalogSelection;
+	private bool _isAnimatingAddIconSelection;
+	private double _lastGridLayoutWidth;
+	private AddCatalogMode _addCatalogMode;
+	private string? _selectedMovementType;
+	private string? _selectedPaymentMethod;
+	private string? _selectedAddCatalogIcon;
 	private DateOnly _selectedExpenseDate = DateOnly.FromDateTime(DateTime.Today);
 	private DateOnly _minExpenseDate;
 	private DateOnly _maxExpenseDate;
+
+	private enum AddCatalogMode
+	{
+		MovementType,
+		PaymentMethod,
+	}
 
 	public MainPage(ExpenseApiClient apiClient, MonthContextService monthContext)
 	{
@@ -27,7 +44,6 @@ public partial class MainPage : ContentPage
 		_monthContext.MonthOptionsChanged += OnMonthOptionsChanged;
 		HeaderMonthBadgeLabel.Text = _monthContext.SelectedMonth.ToString("MMM yyyy", CultureInfo.InvariantCulture);
 		ApplyDateBoundsForSelectedMonth();
-		UpdateDateSelectorLabel();
 	}
 
 	protected override async void OnAppearing()
@@ -35,6 +51,31 @@ public partial class MainPage : ContentPage
 		base.OnAppearing();
 		await RefreshMonthOptionsAsync();
 		await LoadCatalogsAsync();
+	}
+
+	protected override void OnSizeAllocated(double width, double height)
+	{
+		base.OnSizeAllocated(width, height);
+		if (width <= 0)
+		{
+			return;
+		}
+
+		if (Math.Abs(width - _lastGridLayoutWidth) < 8)
+		{
+			return;
+		}
+
+		_lastGridLayoutWidth = width;
+		if (MovementTypePicker.ItemsSource is IEnumerable<string> movements)
+		{
+			BuildMovementTypeGrid(movements.ToList());
+		}
+
+		if (PaymentMethodPicker.ItemsSource is IEnumerable<string> methods)
+		{
+			BuildPaymentMethodGrid(methods.ToList());
+		}
 	}
 
 	private async Task RefreshMonthOptionsAsync()
@@ -56,12 +97,14 @@ public partial class MainPage : ContentPage
 		{
 			_isRefreshing = true;
 			SetLoading(true);
-			StatusLabel.Text = "Cargando catálogos...";
-			var selectedMovement = MovementTypePicker.SelectedItem?.ToString();
-			var selectedPayment = PaymentMethodPicker.SelectedItem?.ToString();
 
 			var catalog = await _apiClient.GetCatalogsAsync(CancellationToken.None);
 			PastelColorHelper.SetConfigs(catalog.MovementTypeConfigs);
+			_movementTypeConfigs.Clear();
+			if (catalog.MovementTypeConfigs is not null)
+			{
+				_movementTypeConfigs.AddRange(catalog.MovementTypeConfigs);
+			}
 
 			var movements = catalog.MovementTypes.ToList();
 			var payments = catalog.PaymentMethods.ToList();
@@ -69,29 +112,13 @@ public partial class MainPage : ContentPage
 			MovementTypePicker.ItemsSource = movements;
 			PaymentMethodPicker.ItemsSource = payments;
 
-			if (!string.IsNullOrWhiteSpace(selectedMovement) && movements.Contains(selectedMovement))
-			{
-				MovementTypePicker.SelectedItem = selectedMovement;
-				MovementTypeSelectorLabel.Text = selectedMovement;
-			}
-			else if (movements.Count > 0)
-			{
-				MovementTypePicker.SelectedIndex = 0;
-				MovementTypeSelectorLabel.Text = movements[0];
-			}
+			_selectedMovementType = movements.Count > 0 ? movements[0] : null;
+			_selectedPaymentMethod = payments.Count > 0 ? payments[0] : null;
+			MovementTypePicker.SelectedItem = _selectedMovementType;
+			PaymentMethodPicker.SelectedItem = _selectedPaymentMethod;
 
-			if (!string.IsNullOrWhiteSpace(selectedPayment) && payments.Contains(selectedPayment))
-			{
-				PaymentMethodPicker.SelectedItem = selectedPayment;
-				PaymentMethodSelectorLabel.Text = selectedPayment;
-			}
-			else if (payments.Count > 0)
-			{
-				PaymentMethodPicker.SelectedIndex = 0;
-				PaymentMethodSelectorLabel.Text = payments[0];
-			}
-
-			StatusLabel.Text = "Listo para registrar.";
+			BuildMovementTypeGrid(movements);
+			BuildPaymentMethodGrid(payments);
 		}
 		finally
 		{
@@ -117,14 +144,13 @@ public partial class MainPage : ContentPage
 
 		SaveButton.IsEnabled = false;
 		SetLoading(true);
-		StatusLabel.Text = "Guardando...";
 
 		var request = new ExpenseEntryRequest(
 			_selectedExpenseDate,
 			DescriptionField.Text!.Trim(),
 			amount,
-			MovementTypePicker.SelectedItem!.ToString()!,
-			PaymentMethodPicker.SelectedItem!.ToString()!);
+			_selectedMovementType!,
+			_selectedPaymentMethod!);
 
 		var result = await _apiClient.SaveExpenseAsync(request, CancellationToken.None);
 		await StyledResultModalPage.ShowAsync(
@@ -197,13 +223,13 @@ public partial class MainPage : ContentPage
 			return false;
 		}
 
-		if (MovementTypePicker.SelectedItem is null)
+		if (string.IsNullOrWhiteSpace(_selectedMovementType))
 		{
 			errorMessage = "Selecciona un tipo de movimiento.";
 			return false;
 		}
 
-		if (PaymentMethodPicker.SelectedItem is null)
+		if (string.IsNullOrWhiteSpace(_selectedPaymentMethod))
 		{
 			errorMessage = "Selecciona un medio de pago.";
 			return false;
@@ -255,71 +281,591 @@ public partial class MainPage : ContentPage
 
 		if (_selectedExpenseDate < _minExpenseDate || _selectedExpenseDate > _maxExpenseDate)
 		{
-			_selectedExpenseDate = _minExpenseDate;
+			_selectedExpenseDate = DateOnly.FromDateTime(DateTime.Today);
+			if (_selectedExpenseDate < _minExpenseDate || _selectedExpenseDate > _maxExpenseDate)
+				_selectedExpenseDate = _maxExpenseDate;
 		}
-
-		UpdateDateSelectorLabel();
 	}
 
-	private async void OnDateSelectorTapped(object? sender, TappedEventArgs e)
+	private void BuildMovementTypeGrid(List<string> types)
 	{
-		var selectedDate = await CalendarDateModalPage.PickAsync(
-			this,
-			"Fecha del gasto",
-			_selectedExpenseDate,
-			_minExpenseDate,
-			_maxExpenseDate);
+		MovementTypeGrid.Children.Clear();
+		_movementTiles.Clear();
+		var tileSide = CalculateRegisterTileSide(GetRegisterViewportWidth());
 
-		if (selectedDate is null)
+		var addTile = BuildAddTile("➕", Color.FromArgb("#EFF3F1"));
+		addTile.WidthRequest = tileSide;
+		addTile.HeightRequest = tileSide;
+		addTile.Margin = new Thickness(5, 5, 5, 10);
+		var addTap = new TapGestureRecognizer();
+		addTap.Tapped += async (_, _) => await OnAddMovementTypeFromRegisterAsync();
+		addTile.GestureRecognizers.Add(addTap);
+		MovementTypeGrid.Children.Add(addTile);
+
+		foreach (var type in types)
 		{
-			return;
-		}
+			var icon = PastelColorHelper.IconForMovementType(type);
+			var color = PastelColorHelper.ForMovementType(type);
+			var isSelected = string.Equals(type, _selectedMovementType, StringComparison.OrdinalIgnoreCase);
 
-		_selectedExpenseDate = selectedDate.Value;
-		UpdateDateSelectorLabel();
+			var border = new Border
+			{
+				StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = new CornerRadius(14) },
+				BackgroundColor = color,
+				StrokeThickness = 0,
+				WidthRequest = tileSide,
+				HeightRequest = tileSide,
+				Margin = new Thickness(5, 5, 5, 10),
+				AnchorX = 0.5,
+				AnchorY = 0.5,
+				Opacity = isSelected ? 1.0 : 0.58,
+				Scale = isSelected ? 1.1 : 0.95,
+			};
+			ApplyRegisterTileLook(border, isSelected, isPaymentTile: false);
+
+			var stack = new VerticalStackLayout
+			{
+				Spacing = 2,
+				HorizontalOptions = LayoutOptions.Center,
+				VerticalOptions = LayoutOptions.Center,
+				Children =
+				{
+					new Label
+					{
+						Text = icon,
+						FontSize = 22,
+						HorizontalTextAlignment = TextAlignment.Center,
+						HorizontalOptions = LayoutOptions.Center,
+					},
+					new Label
+					{
+						Text = ShortLabel(type, 12),
+						FontSize = 8,
+						FontAttributes = FontAttributes.Bold,
+						HorizontalTextAlignment = TextAlignment.Center,
+						HorizontalOptions = LayoutOptions.Center,
+						TextColor = Color.FromArgb("#1A2E23"),
+					}
+				}
+			};
+
+			border.Content = stack;
+
+			var capturedType = type;
+			var tap = new TapGestureRecognizer();
+			tap.Tapped += async (_, _) =>
+			{
+				if (_isAnimatingCatalogSelection)
+				{
+					return;
+				}
+
+				_selectedMovementType = capturedType;
+				MovementTypePicker.SelectedItem = capturedType;
+				await AnimateRegisterSelectionAsync(_movementTiles, capturedType, isPaymentTiles: false);
+			};
+			border.GestureRecognizers.Add(tap);
+			_movementTiles[capturedType] = border;
+
+			MovementTypeGrid.Children.Add(border);
+		}
 	}
 
-	private void UpdateDateSelectorLabel()
+	private void BuildPaymentMethodGrid(List<string> methods)
 	{
-		DateSelectorLabel.Text = _selectedExpenseDate.ToString("dd/MM/yyyy", CultureInfo.GetCultureInfo("es-CO"));
+		PaymentMethodGrid.Children.Clear();
+		_paymentTiles.Clear();
+		var tileSide = CalculateRegisterTileSide(GetRegisterViewportWidth());
+
+		var addTile = BuildAddTile("➕", Color.FromArgb("#EFF3F1"));
+		addTile.WidthRequest = tileSide;
+		addTile.HeightRequest = tileSide;
+		addTile.Margin = new Thickness(5, 5, 5, 10);
+		var addTap = new TapGestureRecognizer();
+		addTap.Tapped += async (_, _) => await OnAddPaymentMethodFromRegisterAsync();
+		addTile.GestureRecognizers.Add(addTap);
+		PaymentMethodGrid.Children.Add(addTile);
+
+		foreach (var method in methods)
+		{
+			var isSelected = string.Equals(method, _selectedPaymentMethod, StringComparison.OrdinalIgnoreCase);
+
+			var border = new Border
+			{
+				StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = new CornerRadius(14) },
+				BackgroundColor = Color.FromArgb("#EFF3F1"),
+				StrokeThickness = 0,
+				WidthRequest = tileSide,
+				HeightRequest = tileSide,
+				Margin = new Thickness(5, 5, 5, 10),
+				AnchorX = 0.5,
+				AnchorY = 0.5,
+				Opacity = isSelected ? 1.0 : 0.58,
+				Scale = isSelected ? 1.1 : 0.95,
+			};
+			ApplyRegisterTileLook(border, isSelected, isPaymentTile: true);
+
+			var icon = PaymentIconService.IconForPaymentMethod(method);
+			var stack = new VerticalStackLayout
+			{
+				Spacing = 2,
+				HorizontalOptions = LayoutOptions.Center,
+				VerticalOptions = LayoutOptions.Center,
+				Children =
+				{
+					new Label
+					{
+						Text = icon,
+						FontSize = 21,
+						HorizontalTextAlignment = TextAlignment.Center,
+						HorizontalOptions = LayoutOptions.Center,
+						TextColor = isSelected ? Colors.White : Color.FromArgb("#1A2E23"),
+					},
+					new Label
+					{
+						Text = ShortLabel(method, 12),
+						FontSize = 8,
+						FontAttributes = FontAttributes.Bold,
+						HorizontalTextAlignment = TextAlignment.Center,
+						HorizontalOptions = LayoutOptions.Center,
+						TextColor = isSelected ? Colors.White : Color.FromArgb("#1A2E23"),
+					}
+				}
+			};
+
+			border.Content = stack;
+
+			var capturedMethod = method;
+			var tap = new TapGestureRecognizer();
+			tap.Tapped += async (_, _) =>
+			{
+				if (_isAnimatingCatalogSelection)
+				{
+					return;
+				}
+
+				_selectedPaymentMethod = capturedMethod;
+				PaymentMethodPicker.SelectedItem = capturedMethod;
+				await AnimateRegisterSelectionAsync(_paymentTiles, capturedMethod, isPaymentTiles: true);
+			};
+			border.GestureRecognizers.Add(tap);
+			_paymentTiles[capturedMethod] = border;
+
+			PaymentMethodGrid.Children.Add(border);
+		}
 	}
 
-	private async void OnMovementTypeSelectorTapped(object? sender, TappedEventArgs e)
+	private Border BuildAddTile(string icon, Color backgroundColor)
 	{
-		var options = MovementTypePicker.ItemsSource?.Cast<string>().ToList() ?? [];
-		if (options.Count == 0)
+		var tile = new Border
 		{
-			return;
-		}
+			StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = new CornerRadius(14) },
+			BackgroundColor = backgroundColor,
+			StrokeThickness = 0,
+			WidthRequest = 72,
+			HeightRequest = 72,
+			Margin = new Thickness(4, 4, 4, 8),
+			AnchorX = 0.5,
+			AnchorY = 0.5,
+		};
 
-		var current = MovementTypePicker.SelectedItem?.ToString();
-		var selected = await StyledSelectorModalPage.PickAsync(this, "Selecciona tipo", options, current);
-		if (string.IsNullOrWhiteSpace(selected))
+		tile.Content = new VerticalStackLayout
 		{
-			return;
-		}
+			HorizontalOptions = LayoutOptions.Center,
+			VerticalOptions = LayoutOptions.Center,
+			Spacing = 2,
+			Children =
+			{
+				new Label
+				{
+					Text = icon,
+					FontSize = 28,
+					HorizontalTextAlignment = TextAlignment.Center,
+					HorizontalOptions = LayoutOptions.Center,
+					TextColor = Color.FromArgb("#1A2E23"),
+				},
+				new Label
+				{
+					Text = "Agregar",
+					FontSize = 9,
+					FontAttributes = FontAttributes.Bold,
+					HorizontalTextAlignment = TextAlignment.Center,
+					HorizontalOptions = LayoutOptions.Center,
+					TextColor = Color.FromArgb("#1A2E23"),
+				}
+			}
+		};
 
-		MovementTypePicker.SelectedItem = selected;
-		MovementTypeSelectorLabel.Text = selected;
+		return tile;
 	}
 
-	private async void OnPaymentMethodSelectorTapped(object? sender, TappedEventArgs e)
+	private async Task OnAddMovementTypeFromRegisterAsync()
 	{
-		var options = PaymentMethodPicker.ItemsSource?.Cast<string>().ToList() ?? [];
-		if (options.Count == 0)
+		OpenAddCatalogModal(AddCatalogMode.MovementType);
+		await Task.CompletedTask;
+	}
+
+	private async Task OnAddPaymentMethodFromRegisterAsync()
+	{
+		OpenAddCatalogModal(AddCatalogMode.PaymentMethod);
+		await Task.CompletedTask;
+	}
+
+	private void OpenAddCatalogModal(AddCatalogMode mode)
+	{
+		_addCatalogMode = mode;
+		AddCatalogTitleLabel.Text = mode == AddCatalogMode.MovementType ? "Nueva categoría" : "Nuevo método de pago";
+		AddCatalogNameEntry.Placeholder = mode == AddCatalogMode.MovementType ? "Ej: Mascotas" : "Ej: Daviplata";
+		AddCatalogNameEntry.Text = string.Empty;
+		_selectedAddCatalogIcon = mode == AddCatalogMode.MovementType
+			? PastelColorHelper.AvailableIcons[0].Emoji
+			: PaymentIconService.AvailableIcons[0].Emoji;
+
+		var sourceIcons = mode == AddCatalogMode.MovementType
+			? PastelColorHelper.AvailableIcons
+			: PaymentIconService.AvailableIcons;
+		BuildAddCatalogIconGrid(sourceIcons);
+
+		AddCatalogOverlay.IsVisible = true;
+		MainThread.BeginInvokeOnMainThread(() => AddCatalogNameEntry.Focus());
+	}
+
+	private void BuildAddCatalogIconGrid(IReadOnlyList<(string Emoji, string Label)> icons)
+	{
+		AddCatalogIconGrid.Children.Clear();
+		_addCatalogIconTiles.Clear();
+		var tileSide = CalculateSquareTileSide(AddCatalogIconGrid.Width, 5, 8, 20);
+		foreach (var option in icons)
+		{
+			var isSelected = string.Equals(option.Emoji, _selectedAddCatalogIcon, StringComparison.Ordinal);
+			var tile = new Border
+			{
+				StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = new CornerRadius(14) },
+				BackgroundColor = isSelected ? Color.FromArgb("#2D6A4F") : Color.FromArgb("#EFF3F1"),
+				StrokeThickness = 0,
+				WidthRequest = tileSide,
+				HeightRequest = tileSide,
+				Margin = new Thickness(4, 4, 4, 8),
+				AnchorX = 0.5,
+				AnchorY = 0.5,
+				Opacity = isSelected ? 1.0 : 0.6,
+				Scale = isSelected ? 1.12 : 0.95,
+			};
+
+			var iconLabel = new Label
+			{
+				Text = option.Emoji,
+				FontSize = 28,
+				HorizontalTextAlignment = TextAlignment.Center,
+				VerticalTextAlignment = TextAlignment.Center,
+				HorizontalOptions = LayoutOptions.Center,
+				VerticalOptions = LayoutOptions.Center,
+				TextColor = isSelected ? Colors.White : Color.FromArgb("#1A2E23"),
+			};
+			tile.Content = iconLabel;
+			tile.Shadow = isSelected
+				? new Shadow { Brush = Colors.Black, Offset = new Point(0, 3), Radius = 10, Opacity = 0.2f }
+				: null;
+
+			var emoji = option.Emoji;
+			var tap = new TapGestureRecognizer();
+			tap.Tapped += async (_, _) =>
+			{
+				if (_isAnimatingAddIconSelection)
+				{
+					return;
+				}
+
+				_selectedAddCatalogIcon = emoji;
+				await AnimateAddCatalogIconSelectionAsync(emoji);
+			};
+			tile.GestureRecognizers.Add(tap);
+			_addCatalogIconTiles[emoji] = tile;
+
+			AddCatalogIconGrid.Children.Add(tile);
+		}
+	}
+
+	private async void OnAddCatalogConfirmClicked(object? sender, EventArgs e)
+	{
+		var name = AddCatalogNameEntry.Text?.Trim() ?? string.Empty;
+		if (string.IsNullOrWhiteSpace(name))
+		{
+			await StyledResultModalPage.ShowAsync(this, false, "Dato faltante", "Debes escribir un nombre.");
+			return;
+		}
+
+		var selectedIcon = _selectedAddCatalogIcon;
+		if (string.IsNullOrWhiteSpace(selectedIcon))
+		{
+			selectedIcon = _addCatalogMode == AddCatalogMode.MovementType
+				? PastelColorHelper.AvailableIcons[0].Emoji
+				: PaymentIconService.AvailableIcons[0].Emoji;
+		}
+
+		if (_addCatalogMode == AddCatalogMode.MovementType)
+		{
+			var currentMovements = (MovementTypePicker.ItemsSource?.Cast<string>().ToList() ?? []);
+			if (currentMovements.Any(item => string.Equals(item, name, StringComparison.OrdinalIgnoreCase)))
+			{
+				await StyledResultModalPage.ShowAsync(this, false, "Duplicado", "Esa categoría ya existe.");
+				return;
+			}
+
+			var availableColors = PastelColorHelper.GetAvailableColors(_movementTypeConfigs);
+			if (availableColors.Count == 0)
+			{
+				await StyledResultModalPage.ShowAsync(this, false, "Sin colores", "No hay más colores disponibles para categorías.");
+				return;
+			}
+
+			currentMovements.Add(name);
+			_movementTypeConfigs.Add(new MovementTypeConfig(name, selectedIcon, availableColors[0].Hex));
+			var saved = await SaveCatalogsFromRegisterAsync(currentMovements, PaymentMethodPicker.ItemsSource?.Cast<string>().ToList() ?? []);
+			if (saved)
+			{
+				CloseAddCatalogModal();
+			}
+		}
+		else
+		{
+			var currentPayments = (PaymentMethodPicker.ItemsSource?.Cast<string>().ToList() ?? []);
+			if (currentPayments.Any(item => string.Equals(item, name, StringComparison.OrdinalIgnoreCase)))
+			{
+				await StyledResultModalPage.ShowAsync(this, false, "Duplicado", "Ese medio de pago ya existe.");
+				return;
+			}
+
+			currentPayments.Add(name);
+			PaymentIconService.SetIconForPaymentMethod(name, selectedIcon);
+			var saved = await SaveCatalogsFromRegisterAsync(MovementTypePicker.ItemsSource?.Cast<string>().ToList() ?? [], currentPayments);
+			if (saved)
+			{
+				CloseAddCatalogModal();
+			}
+		}
+	}
+
+	private void OnAddCatalogCancelClicked(object? sender, EventArgs e)
+	{
+		CloseAddCatalogModal();
+	}
+
+	private void CloseAddCatalogModal()
+	{
+		_selectedAddCatalogIcon = null;
+		AddCatalogNameEntry.Text = string.Empty;
+		AddCatalogOverlay.IsVisible = false;
+	}
+
+	private void ApplyRegisterTileLook(Border tile, bool isSelected, bool isPaymentTile)
+	{
+		tile.Shadow = isSelected
+			? new Shadow { Brush = Colors.Black, Offset = new Point(0, 4), Radius = 12, Opacity = 0.2f }
+			: null;
+
+		if (!isPaymentTile)
 		{
 			return;
 		}
 
-		var current = PaymentMethodPicker.SelectedItem?.ToString();
-		var selected = await StyledSelectorModalPage.PickAsync(this, "Selecciona medio de pago", options, current);
-		if (string.IsNullOrWhiteSpace(selected))
+		tile.BackgroundColor = isSelected ? Color.FromArgb("#2D6A4F") : Color.FromArgb("#EFF3F1");
+		if (tile.Content is VerticalStackLayout paymentStack)
+		{
+			foreach (var label in paymentStack.Children.OfType<Label>())
+			{
+				label.TextColor = isSelected ? Colors.White : Color.FromArgb("#1A2E23");
+			}
+		}
+	}
+
+	private async Task AnimateRegisterSelectionAsync(
+		Dictionary<string, Border> tileMap,
+		string selectedKey,
+		bool isPaymentTiles)
+	{
+		if (_isAnimatingCatalogSelection)
 		{
 			return;
 		}
 
-		PaymentMethodPicker.SelectedItem = selected;
-		PaymentMethodSelectorLabel.Text = selected;
+		_isAnimatingCatalogSelection = true;
+		try
+		{
+			var animationTasks = new List<Task>(tileMap.Count * 2);
+			foreach (var (key, tile) in tileMap)
+			{
+				var isSelected = string.Equals(key, selectedKey, StringComparison.OrdinalIgnoreCase);
+				ApplyRegisterTileLook(tile, isSelected, isPaymentTiles);
+				tile.AnchorX = 0.5;
+				tile.AnchorY = 0.5;
+
+				if (isSelected)
+				{
+					animationTasks.Add(tile.ScaleTo(1.2, 105, Easing.CubicOut));
+					animationTasks.Add(tile.FadeTo(1.0, 105, Easing.CubicOut));
+				}
+				else
+				{
+					animationTasks.Add(tile.ScaleTo(0.92, 100, Easing.CubicOut));
+					animationTasks.Add(tile.FadeTo(0.52, 100, Easing.CubicOut));
+				}
+			}
+
+			await Task.WhenAll(animationTasks);
+
+			if (tileMap.TryGetValue(selectedKey, out var selectedTile))
+			{
+				await selectedTile.ScaleTo(1.1, 120, Easing.CubicInOut);
+			}
+		}
+		catch
+		{
+			// Ignore animation races during fast taps.
+		}
+		finally
+		{
+			_isAnimatingCatalogSelection = false;
+		}
+	}
+
+	private async Task AnimateAddCatalogIconSelectionAsync(string selectedEmoji)
+	{
+		if (_isAnimatingAddIconSelection)
+		{
+			return;
+		}
+
+		_isAnimatingAddIconSelection = true;
+		try
+		{
+			var animationTasks = new List<Task>(_addCatalogIconTiles.Count * 2);
+			foreach (var (emoji, tile) in _addCatalogIconTiles)
+			{
+				var isSelected = string.Equals(emoji, selectedEmoji, StringComparison.Ordinal);
+				tile.BackgroundColor = isSelected ? Color.FromArgb("#2D6A4F") : Color.FromArgb("#EFF3F1");
+				tile.Shadow = isSelected
+					? new Shadow { Brush = Colors.Black, Offset = new Point(0, 3), Radius = 10, Opacity = 0.2f }
+					: null;
+
+				if (tile.Content is Label iconLabel)
+				{
+					iconLabel.TextColor = isSelected ? Colors.White : Color.FromArgb("#1A2E23");
+				}
+
+				tile.AnchorX = 0.5;
+				tile.AnchorY = 0.5;
+
+				if (isSelected)
+				{
+					animationTasks.Add(tile.ScaleTo(1.22, 105, Easing.CubicOut));
+					animationTasks.Add(tile.FadeTo(1.0, 105, Easing.CubicOut));
+				}
+				else
+				{
+					animationTasks.Add(tile.ScaleTo(0.92, 100, Easing.CubicOut));
+					animationTasks.Add(tile.FadeTo(0.55, 100, Easing.CubicOut));
+				}
+			}
+
+			await Task.WhenAll(animationTasks);
+
+			if (_addCatalogIconTiles.TryGetValue(selectedEmoji, out var selectedTile))
+			{
+				await selectedTile.ScaleTo(1.12, 120, Easing.CubicInOut);
+			}
+		}
+		catch
+		{
+			// Ignore animation races during fast taps.
+		}
+		finally
+		{
+			_isAnimatingAddIconSelection = false;
+		}
+	}
+
+	private double CalculateSquareTileSide(double targetGridWidth, int columns, double spacing, double horizontalOuterPadding = 0)
+	{
+		var pageWidth = Width > 0 ? Width : DeviceDisplay.MainDisplayInfo.Width / DeviceDisplay.MainDisplayInfo.Density;
+		var availableWidth = targetGridWidth > 0 ? targetGridWidth : Math.Max(300d, pageWidth - 46d);
+		availableWidth = Math.Max(220d, availableWidth - horizontalOuterPadding);
+		var totalSpacing = spacing * Math.Max(0, columns - 1);
+		var side = Math.Floor((availableWidth - totalSpacing) / columns);
+		return Math.Max(56d, side);
+	}
+
+	private double CalculateRegisterTileSide(double targetGridWidth)
+	{
+		var baseSide = CalculateSquareTileSide(targetGridWidth, 4, 12, 20);
+		return Math.Max(56d, baseSide - 8d);
+	}
+
+	private double GetRegisterViewportWidth()
+	{
+		var pageWidth = Width > 0 ? Width : DeviceDisplay.MainDisplayInfo.Width / DeviceDisplay.MainDisplayInfo.Density;
+		return Math.Max(260d, pageWidth - 40d);
+	}
+
+	private static string ShortLabel(string text, int maxLen)
+	{
+		if (string.IsNullOrWhiteSpace(text))
+		{
+			return string.Empty;
+		}
+
+		return text.Length > maxLen ? text[..maxLen] + "…" : text;
+	}
+
+	private async Task<bool> SaveCatalogsFromRegisterAsync(List<string> movementTypes, List<string> paymentMethods)
+	{
+		if (movementTypes.Count == 0 || paymentMethods.Count == 0)
+		{
+			await StyledResultModalPage.ShowAsync(this, false, "No se pudo guardar", "Debe existir al menos una categoría y un medio de pago.");
+			return false;
+		}
+
+		SetLoading(true);
+		try
+		{
+			var request = new UpdateCatalogsRequest(movementTypes, paymentMethods, _movementTypeConfigs.ToList());
+			var result = await _apiClient.UpdateCatalogsAsync(request, CancellationToken.None);
+			if (!result.IsSuccess)
+			{
+				await StyledResultModalPage.ShowAsync(this, false, "Error", result.Message);
+				return false;
+			}
+
+			MovementTypePicker.ItemsSource = movementTypes;
+			PaymentMethodPicker.ItemsSource = paymentMethods;
+			if (!string.IsNullOrWhiteSpace(_selectedMovementType) && movementTypes.Contains(_selectedMovementType))
+			{
+				MovementTypePicker.SelectedItem = _selectedMovementType;
+			}
+			else
+			{
+				_selectedMovementType = movementTypes[0];
+				MovementTypePicker.SelectedItem = _selectedMovementType;
+			}
+
+			if (!string.IsNullOrWhiteSpace(_selectedPaymentMethod) && paymentMethods.Contains(_selectedPaymentMethod))
+			{
+				PaymentMethodPicker.SelectedItem = _selectedPaymentMethod;
+			}
+			else
+			{
+				_selectedPaymentMethod = paymentMethods[0];
+				PaymentMethodPicker.SelectedItem = _selectedPaymentMethod;
+			}
+
+			BuildMovementTypeGrid(movementTypes);
+			BuildPaymentMethodGrid(paymentMethods);
+			return true;
+		}
+		finally
+		{
+			SetLoading(false);
+		}
 	}
 
 	private void OnAmountFieldTextChanged(object? sender, TextChangedEventArgs e)

@@ -2,7 +2,7 @@ param(
     [string]$Subscription = "Azure subscription 1",
     [string]$ResourceGroup = "projects",
     [string]$FunctionAppName = "controleo-api",
-    [string]$ProjectPath = ".\Controleo.Api\Controleo.Api.csproj",
+    [string]$ProjectPath = ".\Controleo.Backend\Controleo.Api\Controleo.Api.csproj",
     [string]$Configuration = "Release",
     [string]$CosmosAccountName = "controleocosmos262c4",
     [string]$CosmosDatabaseName = "controleo",
