@@ -241,13 +241,44 @@ public partial class MainPage : ContentPage
 	private async void OnGoToExpensesClicked(object? sender, EventArgs e)
 	{
 		var rootPage = Application.Current?.Windows.FirstOrDefault()?.Page;
-		if (rootPage is TabbedPage tabbedPage && tabbedPage.Children.Count > 1)
+		if (TryNavigateToExpensesTab(rootPage))
 		{
-			tabbedPage.CurrentPage = tabbedPage.Children[1];
 			return;
 		}
 
 		await DisplayAlert("Navegación", "No fue posible abrir la lista de gastos.", "OK");
+	}
+
+	private static bool TryNavigateToExpensesTab(Page? rootPage)
+	{
+		var tabbedPage = rootPage switch
+		{
+			TabbedPage tabs => tabs,
+			FlyoutPage flyout when flyout.Detail is TabbedPage tabs => tabs,
+			_ => null
+		};
+
+		if (tabbedPage is null)
+		{
+			return false;
+		}
+
+		var expensesTab = tabbedPage.Children
+			.OfType<NavigationPage>()
+			.FirstOrDefault(page => string.Equals(page.Title, "Gastos", StringComparison.OrdinalIgnoreCase));
+
+		if (expensesTab is null && tabbedPage.Children.Count > 1)
+		{
+			expensesTab = tabbedPage.Children[1] as NavigationPage;
+		}
+
+		if (expensesTab is null)
+		{
+			return false;
+		}
+
+		tabbedPage.CurrentPage = expensesTab;
+		return true;
 	}
 
 	private void OnMonthChanged(object? sender, DateOnly month)

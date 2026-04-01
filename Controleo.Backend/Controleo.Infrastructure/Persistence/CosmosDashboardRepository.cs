@@ -10,4 +10,15 @@ public sealed class CosmosDashboardRepository(ICatalogRepository catalogRepo, IB
         var all = catalog.MovementTypes.Concat(bMap.Keys).Concat(eMap.Keys).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
         return all.Select(c => { var exp = eMap.TryGetValue(c, out var ev) ? ev : 0m; var bud = bMap.TryGetValue(c, out var bv) ? bv : 0m; return new DashboardCategoryItem(c, exp, bud, bud - exp); }).OrderByDescending(d => d.ExpenseTotal).ToArray();
     }
+
+    public async Task<IReadOnlyList<DashboardPaymentMethodItem>> GetDashboardByPaymentMethodAsync(string userId, string mk, CancellationToken ct)
+    {
+        var expenses = await expenseRepo.GetExpensesAsync(userId, mk, ct);
+        return expenses
+            .Where(e => !string.IsNullOrWhiteSpace(e.PaymentMethod))
+            .GroupBy(e => e.PaymentMethod.Trim(), StringComparer.OrdinalIgnoreCase)
+            .Select(g => new DashboardPaymentMethodItem(g.Key, g.Sum(e => e.Amount)))
+            .OrderByDescending(item => item.ExpenseTotal)
+            .ToArray();
+    }
 }

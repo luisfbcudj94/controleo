@@ -3,4 +3,5 @@ namespace Controleo.Application.Interfaces;
 public interface IDashboardService
 {
     Task<IReadOnlyList<DashboardCategoryItem>> GetDashboardByCategoryAsync(string userId, string monthKey, CancellationToken ct);
+    Task<IReadOnlyList<DashboardPaymentMethodItem>> GetDashboardByPaymentMethodAsync(string userId, string monthKey, CancellationToken ct);
 }

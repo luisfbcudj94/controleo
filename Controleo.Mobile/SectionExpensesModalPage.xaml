@@ -3,7 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:model="clr-namespace:Controleo.Mobile.Models"
              x:Class="Controleo.Mobile.SectionExpensesModalPage"
-             Title="Detalle sección"
+             Title="Detalle movimientos"
              BackgroundColor="{StaticResource AppBg}">
 
     <Grid Padding="16" RowSpacing="10" RowDefinitions="Auto,Auto,Auto,*">
@@ -47,7 +47,7 @@
         <!-- Expense List -->
         <CollectionView Grid.Row="3" x:Name="ExpensesBySectionCollection" SelectionMode="None">
             <CollectionView.EmptyView>
-                <Label Text="No hay gastos registrados en esta sección." HorizontalOptions="Center"
+                <Label Text="No hay gastos registrados para este filtro." HorizontalOptions="Center"
                        VerticalOptions="Center" TextColor="{StaticResource AppHint}" />
             </CollectionView.EmptyView>
             <CollectionView.ItemTemplate>

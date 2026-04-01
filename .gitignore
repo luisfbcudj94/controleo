@@ -41,6 +41,7 @@ secrets/
 # Local settings overrides
 **/appsettings.Local.json
 **/appsettings.*.Local.json
+**/local.settings.json
 
 # OS metadata
 .DS_Store

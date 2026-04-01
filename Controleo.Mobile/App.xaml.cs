@@ -5,6 +5,10 @@ namespace Controleo.Mobile;
 public partial class App : Application
 {
 	private readonly IServiceProvider _serviceProvider;
+	private FlyoutPage? _mainFlyout;
+	private TabbedPage? _mainTabs;
+	private NavigationPage? _lastContentTab;
+	private bool _isNavigatingFromMenu;
 
 	public App(IServiceProvider serviceProvider)
 	{
@@ -26,10 +30,9 @@ public partial class App : Application
 	{
 		var registerPage = _serviceProvider.GetRequiredService<MainPage>();
 		var expensesPage = _serviceProvider.GetRequiredService<ExpensesPage>();
-		var recurringPage = _serviceProvider.GetRequiredService<RecurringPage>();
 		var dashboardPage = _serviceProvider.GetRequiredService<DashboardPage>();
-		var budgetsPage = _serviceProvider.GetRequiredService<BudgetsPage>();
-		var settingsPage = _serviceProvider.GetRequiredService<SettingsPage>();
+
+		var menuLauncherPage = CreateTabPage(CreateMenuLauncherPage(), "Menú", "tab_menu.svg");
 
 		var tabs = new TabbedPage
 		{
@@ -38,9 +41,95 @@ public partial class App : Application
 				CreateTabPage(registerPage, "Registro", "tab_home.svg"),
 				CreateTabPage(expensesPage, "Gastos", "tab_expenses.svg"),
 				CreateTabPage(dashboardPage, "Dashboard", "tab_dashboard.svg"),
-				CreateTabPage(budgetsPage, "Presupuestos", "tab_budgets.svg"),
-				CreateTabPage(recurringPage, "Recurrentes", "tab_recurring.svg"),
-				CreateTabPage(settingsPage, "Config", "tab_settings.svg")
+				menuLauncherPage
+			}
+		};
+
+		var sideMenuPage = new SideMenuPage();
+		var flyout = new FlyoutPage
+		{
+			Flyout = sideMenuPage,
+			Detail = tabs,
+			FlyoutLayoutBehavior = FlyoutLayoutBehavior.Popover,
+			IsPresented = false
+		};
+
+		_mainFlyout = flyout;
+		_mainTabs = tabs;
+		_lastContentTab = tabs.Children
+			.OfType<NavigationPage>()
+			.FirstOrDefault(page => page != menuLauncherPage);
+
+		void OpenFlyoutAndRestoreTab()
+		{
+			if (_mainFlyout is not null)
+			{
+				_mainFlyout.IsPresented = true;
+			}
+
+			var fallbackTab = _lastContentTab
+				?? tabs.Children.OfType<NavigationPage>().FirstOrDefault(page => page != menuLauncherPage);
+			if (fallbackTab is not null)
+			{
+				tabs.Dispatcher.Dispatch(() => tabs.CurrentPage = fallbackTab);
+			}
+		}
+
+		tabs.CurrentPageChanged += (_, __) =>
+		{
+			if (tabs.CurrentPage == menuLauncherPage)
+			{
+				OpenFlyoutAndRestoreTab();
+				return;
+			}
+
+			if (tabs.CurrentPage is NavigationPage currentTab && currentTab != menuLauncherPage)
+			{
+				_lastContentTab = currentTab;
+			}
+		};
+
+		flyout.PropertyChanged += (_, e) =>
+		{
+			if (e.PropertyName != nameof(FlyoutPage.IsPresented))
+			{
+				return;
+			}
+
+			if (!flyout.IsPresented && tabs.CurrentPage == menuLauncherPage)
+			{
+				var fallbackTab = _lastContentTab
+					?? tabs.Children.OfType<NavigationPage>().FirstOrDefault(page => page != menuLauncherPage);
+				if (fallbackTab is not null)
+				{
+					tabs.Dispatcher.Dispatch(() => tabs.CurrentPage = fallbackTab);
+				}
+			}
+		};
+
+		sideMenuPage.DestinationSelected += async (_, destination) =>
+		{
+			if (_isNavigatingFromMenu)
+			{
+				return;
+			}
+
+			_isNavigatingFromMenu = true;
+			try
+			{
+				if (_mainFlyout is not null)
+				{
+					_mainFlyout.IsPresented = false;
+				}
+
+				// Let the flyout close animation and tab restore settle
+				await Task.Delay(250);
+
+				await NavigateFromSideMenuAsync(destination);
+			}
+			finally
+			{
+				_isNavigatingFromMenu = false;
 			}
 		};
 
@@ -55,7 +144,57 @@ public partial class App : Application
 
 		if (Current?.Windows.FirstOrDefault() is { } activeWindow)
 		{
-			activeWindow.Page = tabs;
+			activeWindow.Page = flyout;
+		}
+	}
+
+	private async Task NavigateFromSideMenuAsync(SideMenuDestination destination)
+	{
+		try
+		{
+			var apiClient = _serviceProvider.GetRequiredService<Services.ExpenseApiClient>();
+			var authService = _serviceProvider.GetRequiredService<Services.AuthService>();
+			var monthContext = _serviceProvider.GetRequiredService<Services.MonthContextService>();
+
+			Page destinationPage = destination switch
+			{
+				SideMenuDestination.Profile => new ProfilePage(authService),
+				SideMenuDestination.Budgets => new BudgetsPage(apiClient, monthContext),
+				SideMenuDestination.PaymentMethods => new SettingsPage(apiClient, authService, SettingsSectionMode.PaymentOnly),
+				SideMenuDestination.MovementTypes => new SettingsPage(apiClient, authService, SettingsSectionMode.MovementOnly),
+				SideMenuDestination.Recurring => new RecurringPage(apiClient),
+				_ => new ProfilePage(authService)
+			};
+
+			// Use modal navigation — completely independent of tab stacks, no orphan/crash risk
+			var modalNav = new NavigationPage(destinationPage);
+			NavigationPage.SetHasNavigationBar(destinationPage, true);
+			destinationPage.Title = destination switch
+			{
+				SideMenuDestination.Profile => "Perfil",
+				SideMenuDestination.Budgets => "Presupuestos",
+				SideMenuDestination.PaymentMethods => "Medios de pago",
+				SideMenuDestination.MovementTypes => "Tipos de gasto",
+				SideMenuDestination.Recurring => "Gastos recurrentes",
+				_ => ""
+			};
+
+			// Add close button so the user can dismiss the modal
+			destinationPage.ToolbarItems.Add(new ToolbarItem
+			{
+				Text = "✕",
+				Command = new Command(async () => await modalNav.Navigation.PopModalAsync())
+			});
+
+			var currentPage = _mainTabs?.CurrentPage ?? _mainFlyout?.Detail;
+			if (currentPage is not null)
+			{
+				await currentPage.Navigation.PushModalAsync(modalNav);
+			}
+		}
+		catch (Exception ex)
+		{
+			System.Diagnostics.Debug.WriteLine($"[SideMenu] Navigation error: {ex.Message}");
 		}
 	}
 
@@ -74,6 +213,29 @@ public partial class App : Application
 		{
 			Title = title,
 			IconImageSource = icon
+		};
+	}
+
+	private static ContentPage CreateMenuLauncherPage()
+	{
+		return new ContentPage
+		{
+			BackgroundColor = GetColor("AppBg", "#F4F7F5"),
+			Content = new Grid
+			{
+				Children =
+				{
+					new Label
+					{
+						Text = "Abre el menú lateral para ver opciones.",
+						TextColor = GetColor("AppHint", "#7A9183"),
+						HorizontalOptions = LayoutOptions.Center,
+						VerticalOptions = LayoutOptions.Center,
+						HorizontalTextAlignment = TextAlignment.Center,
+						Margin = new Thickness(24)
+					}
+				}
+			}
 		};
 	}
 
@@ -111,7 +273,12 @@ public partial class App : Application
 		Current.Resources["PrimaryDark"] = Color.FromArgb("#1B4332");
 		Current.Resources["PrimaryDarkText"] = Color.FromArgb("#FFFFFF");
 
-		if (Current.Windows.FirstOrDefault()?.Page is TabbedPage tabs)
+		var rootPage = Current.Windows.FirstOrDefault()?.Page;
+		if (rootPage is FlyoutPage flyout && flyout.Detail is TabbedPage flyoutTabs)
+		{
+			ApplyTabColors(flyoutTabs);
+		}
+		else if (rootPage is TabbedPage tabs)
 		{
 			ApplyTabColors(tabs);
 		}

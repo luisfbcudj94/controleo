@@ -13,10 +13,11 @@ public sealed class CosmosExpenseRepository(CosmosContainerProvider p, ICatalogR
         var data = await CosmosHelper.QueryAsync<ExpenseDocument>(p.Expenses, new QueryDefinition("SELECT * FROM c WHERE c.monthKey = @mk AND c.userId = @uid").WithParameter("@mk", mk).WithParameter("@uid", userId), ct);
         return data.Select(MapExpense).Where(e => e is not null).Cast<ExpenseItem>().OrderByDescending(e => e.Date).ThenByDescending(e => e.UpdatedAt).ToArray();
     }
-    public async Task<PagedExpenseResult> GetExpensesPageAsync(string userId, string mk, int pn, int ps, string? mt, string? st, CancellationToken ct)
+    public async Task<PagedExpenseResult> GetExpensesPageAsync(string userId, string mk, int pn, int ps, string? mt, string? pm, string? st, CancellationToken ct)
     {
         var all = await GetExpensesAsync(userId, mk, ct); IReadOnlyList<ExpenseItem> data = all;
         if (!string.IsNullOrWhiteSpace(mt)) data = data.Where(e => string.Equals(e.MovementType, mt.Trim(), StringComparison.OrdinalIgnoreCase)).ToArray();
+        if (!string.IsNullOrWhiteSpace(pm)) data = data.Where(e => string.Equals(e.PaymentMethod, pm.Trim(), StringComparison.OrdinalIgnoreCase)).ToArray();
         if (!string.IsNullOrWhiteSpace(st)) data = data.Where(e => e.Description.Contains(st.Trim(), StringComparison.OrdinalIgnoreCase)).ToArray();
         var total = data.Count; var tp = total == 0 ? 1 : (int)Math.Ceiling(total / (double)ps); var sp = Math.Min(Math.Max(pn, 1), tp); var items = data.Skip((sp - 1) * ps).Take(ps).ToArray();
         return new PagedExpenseResult(items, sp, ps, total, data.Sum(e => e.Amount), tp, sp > 1, sp < tp);

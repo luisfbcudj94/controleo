@@ -10,22 +10,31 @@ public partial class SectionExpensesModalPage : ContentPage
 
     private readonly ExpenseApiClient _apiClient;
     private readonly string _monthKey;
-    private readonly string _movementType;
+    private readonly string _detailTitle;
+    private readonly string? _movementType;
+    private readonly string? _paymentMethod;
     private readonly ObservableCollection<ExpenseItem> _items = [];
     private bool _isRefreshing;
     private bool _isPageSizeSyncing;
     private int _pageNumber = 1;
     private int _pageSize = 5;
 
-    public SectionExpensesModalPage(ExpenseApiClient apiClient, string monthKey, string movementType)
+    public SectionExpensesModalPage(
+        ExpenseApiClient apiClient,
+        string monthKey,
+        string detailTitle,
+        string? movementType = null,
+        string? paymentMethod = null)
     {
         InitializeComponent();
 
         _apiClient = apiClient;
         _monthKey = monthKey;
-        _movementType = movementType;
+        _detailTitle = detailTitle;
+        _movementType = string.IsNullOrWhiteSpace(movementType) ? null : movementType.Trim();
+        _paymentMethod = string.IsNullOrWhiteSpace(paymentMethod) ? null : paymentMethod.Trim();
 
-        SectionTitleLabel.Text = movementType;
+        SectionTitleLabel.Text = detailTitle;
         ExpensesBySectionCollection.ItemsSource = _items;
 
         PageSizePicker.ItemsSource = AllowedPageSizes.Select(item => item.ToString()).ToList();
@@ -56,6 +65,7 @@ public partial class SectionExpensesModalPage : ContentPage
                 _pageNumber,
                 _pageSize,
                 _movementType,
+                _paymentMethod,
                 searchTerm: null,
                 CancellationToken.None);
 
@@ -67,7 +77,7 @@ public partial class SectionExpensesModalPage : ContentPage
                 _items.Add(item);
             }
 
-            SummaryLabel.Text = $"{page.TotalCount} gasto(s) · Total: ${page.TotalAmount:N0}";
+            SummaryLabel.Text = $"{_detailTitle} · {page.TotalCount} gasto(s) · Total: ${page.TotalAmount:N0}";
             PaginationStatusLabel.Text = $"Página {page.PageNumber}/{page.TotalPages}";
             PrevPageButton.IsEnabled = page.HasPreviousPage;
             NextPageButton.IsEnabled = page.HasNextPage;

@@ -25,11 +25,7 @@ public static class MauiProgram
 		var apiBaseUrl = Environment.GetEnvironmentVariable("CONTROLEO_API_BASE_URL");
 		if (string.IsNullOrWhiteSpace(apiBaseUrl))
 		{
-#if DEBUG
-			apiBaseUrl = "http://10.0.2.2:5051/";
-#else
 			apiBaseUrl = "https://controleo-api.azurewebsites.net/";
-#endif
 		}
 
 		if (!apiBaseUrl.EndsWith('/'))

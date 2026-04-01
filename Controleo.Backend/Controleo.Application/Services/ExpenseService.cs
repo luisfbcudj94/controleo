@@ -14,7 +14,7 @@ public sealed class ExpenseService(IExpenseRepository expenseRepo, ICatalogRepos
         return await expenseRepo.SaveAsync(userId, r.Description, r.Amount, r.Date, r.MovementType, r.PaymentMethod, ct);
     }
     public Task<IReadOnlyList<ExpenseItem>> GetExpensesAsync(string userId, string mk, CancellationToken ct) => expenseRepo.GetExpensesAsync(userId, mk, ct);
-    public Task<PagedExpenseResult> GetExpensesPageAsync(string userId, string mk, int pn, int ps, string? mt, string? st, CancellationToken ct) => expenseRepo.GetExpensesPageAsync(userId, mk, pn, ps, mt, st, ct);
+    public Task<PagedExpenseResult> GetExpensesPageAsync(string userId, string mk, int pn, int ps, string? mt, string? pm, string? st, CancellationToken ct) => expenseRepo.GetExpensesPageAsync(userId, mk, pn, ps, mt, pm, st, ct);
     public Task<IReadOnlyList<string>> GetAvailableMonthsAsync(string userId, CancellationToken ct) => expenseRepo.GetAvailableMonthKeysAsync(userId, ct);
     public async Task<OperationResult> UpdateExpenseAsync(string userId, string id, ExpenseEntryRequest r, CancellationToken ct)
     {

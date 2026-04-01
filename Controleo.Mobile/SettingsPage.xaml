@@ -11,12 +11,12 @@
                 <VerticalStackLayout Padding="16" Spacing="14">
 
                     <!-- Page Title -->
-                    <Label Text="Configuración" FontSize="28" FontAttributes="Bold"
+                          <Label x:Name="PageTitleLabel" Text="Configuración" FontSize="28" FontAttributes="Bold"
                            FontFamily="OpenSansSemibold" TextColor="{StaticResource AppText}"
                            Margin="0,0,0,4" />
 
                     <!-- Expense Sections -->
-                    <Border Padding="16" StrokeShape="RoundRectangle 18" StrokeThickness="0"
+                          <Border x:Name="MovementSectionCard" Padding="16" StrokeShape="RoundRectangle 18" StrokeThickness="0"
                             BackgroundColor="{StaticResource White}">
                         <Border.Shadow>
                             <Shadow Brush="Black" Offset="0,1" Radius="6" Opacity="0.06" />
@@ -72,7 +72,7 @@
                     </Border>
 
                     <!-- Payment Methods -->
-                    <Border Padding="16" StrokeShape="RoundRectangle 18" StrokeThickness="0"
+                        <Border x:Name="PaymentSectionCard" Padding="16" StrokeShape="RoundRectangle 18" StrokeThickness="0"
                             BackgroundColor="{StaticResource White}">
                         <Border.Shadow>
                             <Shadow Brush="Black" Offset="0,1" Radius="6" Opacity="0.06" />
@@ -128,7 +128,7 @@
                     </Border>
 
                     <!-- Session / Logout -->
-                    <Border Padding="16" StrokeShape="RoundRectangle 18" StrokeThickness="0"
+                        <Border x:Name="SessionSectionCard" Padding="16" StrokeShape="RoundRectangle 18" StrokeThickness="0"
                             BackgroundColor="{StaticResource White}">
                         <Border.Shadow>
                             <Shadow Brush="Black" Offset="0,1" Radius="4" Opacity="0.05" />

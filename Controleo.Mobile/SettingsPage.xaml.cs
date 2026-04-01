@@ -5,10 +5,19 @@ using Controleo.Mobile.Services;
 
 namespace Controleo.Mobile;
 
+public enum SettingsSectionMode
+{
+    All,
+    MovementOnly,
+    PaymentOnly
+}
+
 public partial class SettingsPage : ContentPage
 {
     private readonly ExpenseApiClient _apiClient;
     private readonly AuthService _authService;
+    private readonly SettingsSectionMode _sectionMode;
+    private readonly bool _showSessionActions;
     private readonly ObservableCollection<string> _movementTypes = [];
     private readonly ObservableCollection<string> _paymentMethods = [];
     private readonly List<MovementTypeConfig> _configs = [];
@@ -23,15 +32,29 @@ public partial class SettingsPage : ContentPage
     private string _addSelectedPaymentIcon = "💳";
 
     public SettingsPage(ExpenseApiClient apiClient, AuthService authService)
+        : this(apiClient, authService, SettingsSectionMode.All, showSessionActions: true)
+    {
+    }
+
+    public SettingsPage(
+        ExpenseApiClient apiClient,
+        AuthService authService,
+        SettingsSectionMode sectionMode,
+        bool showSessionActions = false)
     {
         InitializeComponent();
         Resources.Add("MovementIconConverter", new MovementIconConverter());
         Resources.Add("PaymentIconConverter", new PaymentIconConverter());
         _apiClient = apiClient;
         _authService = authService;
+        _sectionMode = sectionMode;
+        _showSessionActions = showSessionActions;
         MovementCollection.ItemsSource = _movementTypes;
         PaymentCollection.ItemsSource = _paymentMethods;
+        ApplySectionMode();
     }
+
+    public SettingsSectionMode SectionMode => _sectionMode;
 
     protected override async void OnAppearing()
     {
@@ -66,6 +89,35 @@ public partial class SettingsPage : ContentPage
             SettingsRefreshView.IsRefreshing = false;
             SetLoading(false);
         }
+    }
+
+    private void ApplySectionMode()
+    {
+        switch (_sectionMode)
+        {
+            case SettingsSectionMode.MovementOnly:
+                Title = "Tipos de gasto";
+                PageTitleLabel.Text = "Tipos de gasto";
+                MovementSectionCard.IsVisible = true;
+                PaymentSectionCard.IsVisible = false;
+                break;
+
+            case SettingsSectionMode.PaymentOnly:
+                Title = "Medios de pago";
+                PageTitleLabel.Text = "Medios de pago";
+                MovementSectionCard.IsVisible = false;
+                PaymentSectionCard.IsVisible = true;
+                break;
+
+            default:
+                Title = "Configuración";
+                PageTitleLabel.Text = "Configuración";
+                MovementSectionCard.IsVisible = true;
+                PaymentSectionCard.IsVisible = true;
+                break;
+        }
+
+        SessionSectionCard.IsVisible = _showSessionActions;
     }
 
     // ── Add flows via modal ──

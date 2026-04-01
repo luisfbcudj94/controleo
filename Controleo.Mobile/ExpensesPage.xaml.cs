@@ -22,6 +22,8 @@ public partial class ExpensesPage : ContentPage
     private int _pageNumber = 1;
     private int _pageSize = 5;
     private string _searchTerm = string.Empty;
+    private string? _selectedMovementTypeFilter;
+    private string? _selectedPaymentMethodFilter;
     private DateOnly _editSelectedDate = DateOnly.FromDateTime(DateTime.Today);
 
     public ExpensesPage(ExpenseApiClient apiClient, MonthContextService monthContext)
@@ -40,6 +42,7 @@ public partial class ExpensesPage : ContentPage
         _isPageSizeSyncing = false;
         PageSizeSelectorLabel.Text = _pageSize.ToString();
         MoneyFormatHelper.Attach(EditAmountEntry);
+        UpdateFilterUi();
     }
 
     protected override async void OnAppearing()
@@ -85,7 +88,8 @@ public partial class ExpensesPage : ContentPage
                 _monthContext.SelectedMonthKey,
                 _pageNumber,
                 _pageSize,
-                movementType: null,
+                movementType: _selectedMovementTypeFilter,
+                paymentMethod: _selectedPaymentMethodFilter,
                 searchTerm: _searchTerm,
                 CancellationToken.None);
 
@@ -391,6 +395,44 @@ public partial class ExpensesPage : ContentPage
         await LoadDataAsync();
     }
 
+    private async void OnOpenFiltersClicked(object? sender, EventArgs e)
+    {
+        if (_catalog.MovementTypes.Count == 0 && _catalog.PaymentMethods.Count == 0)
+        {
+            _catalog = await _apiClient.GetCatalogsAsync(CancellationToken.None);
+        }
+
+        var selection = await ExpensesFiltersModalPage.PickAsync(
+            this,
+            _catalog.MovementTypes,
+            _catalog.PaymentMethods,
+            _selectedMovementTypeFilter,
+            _selectedPaymentMethodFilter);
+
+        if (selection is null)
+        {
+            return;
+        }
+
+        var newMovementType = NormalizeFilterValue(selection.MovementType);
+        var newPaymentMethod = NormalizeFilterValue(selection.PaymentMethod);
+
+        var changed = !string.Equals(_selectedMovementTypeFilter, newMovementType, StringComparison.OrdinalIgnoreCase)
+            || !string.Equals(_selectedPaymentMethodFilter, newPaymentMethod, StringComparison.OrdinalIgnoreCase);
+
+        _selectedMovementTypeFilter = newMovementType;
+        _selectedPaymentMethodFilter = newPaymentMethod;
+        UpdateFilterUi();
+
+        if (!changed)
+        {
+            return;
+        }
+
+        _pageNumber = 1;
+        await LoadDataAsync();
+    }
+
     private async void OnSearchTextChanged(object? sender, TextChangedEventArgs e)
     {
         _searchTerm = e.NewTextValue?.Trim() ?? string.Empty;
@@ -418,6 +460,29 @@ public partial class ExpensesPage : ContentPage
     private void UpdateEditDateSelectorLabel()
     {
         EditDateSelectorLabel.Text = _editSelectedDate.ToString("dd/MM/yyyy", CultureInfo.GetCultureInfo("es-CO"));
+    }
+
+    private void UpdateFilterUi()
+    {
+        var filters = new List<string>();
+        if (!string.IsNullOrWhiteSpace(_selectedMovementTypeFilter))
+        {
+            filters.Add($"Seccion: {_selectedMovementTypeFilter}");
+        }
+
+        if (!string.IsNullOrWhiteSpace(_selectedPaymentMethodFilter))
+        {
+            filters.Add($"Medio: {_selectedPaymentMethodFilter}");
+        }
+
+        FilterSummaryBorder.IsVisible = filters.Count > 0;
+        FilterSummaryLabel.Text = filters.Count == 0 ? string.Empty : string.Join(" | ", filters);
+        FilterButton.Text = filters.Count == 0 ? "Filtrar" : $"Filtrar ({filters.Count})";
+    }
+
+    private static string? NormalizeFilterValue(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     }
 
     internal sealed record ExpenseViewItem(ExpenseItem Item, Color CardColor, string Icon)

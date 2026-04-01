@@ -14,6 +14,7 @@ public sealed class ExpenseApiClient(HttpClient httpClient, AuthService authServ
 
     private readonly ConcurrentDictionary<string, CacheEntry<IReadOnlyList<ExpenseItem>>> _expensesCache = new();
     private readonly ConcurrentDictionary<string, CacheEntry<IReadOnlyList<DashboardCategoryItem>>> _dashboardCache = new();
+    private readonly ConcurrentDictionary<string, CacheEntry<IReadOnlyList<DashboardPaymentMethodItem>>> _dashboardByPaymentMethodCache = new();
     private readonly ConcurrentDictionary<string, CacheEntry<IReadOnlyList<BudgetItem>>> _budgetsCache = new();
     private CacheEntry<IReadOnlyList<string>>? _monthsCache;
 
@@ -90,6 +91,7 @@ public sealed class ExpenseApiClient(HttpClient httpClient, AuthService authServ
         int pageNumber,
         int pageSize,
         string? movementType,
+        string? paymentMethod,
         string? searchTerm,
         CancellationToken cancellationToken)
     {
@@ -98,6 +100,9 @@ public sealed class ExpenseApiClient(HttpClient httpClient, AuthService authServ
         var movementSegment = string.IsNullOrWhiteSpace(movementType)
             ? string.Empty
             : $"&movementType={Uri.EscapeDataString(movementType)}";
+        var paymentMethodSegment = string.IsNullOrWhiteSpace(paymentMethod)
+            ? string.Empty
+            : $"&paymentMethod={Uri.EscapeDataString(paymentMethod)}";
         var searchSegment = string.IsNullOrWhiteSpace(searchTerm)
             ? string.Empty
             : $"&searchTerm={Uri.EscapeDataString(searchTerm)}";
@@ -110,7 +115,7 @@ public sealed class ExpenseApiClient(HttpClient httpClient, AuthService authServ
             }
 
             var data = await httpClient.GetFromJsonAsync<PagedExpenseResult>(
-                $"api/expenses/paged?month={Uri.EscapeDataString(monthKey)}&pageNumber={resolvedPageNumber}&pageSize={resolvedPageSize}{movementSegment}{searchSegment}",
+                $"api/expenses/paged?month={Uri.EscapeDataString(monthKey)}&pageNumber={resolvedPageNumber}&pageSize={resolvedPageSize}{movementSegment}{paymentMethodSegment}{searchSegment}",
                 cancellationToken);
 
             return data ?? new PagedExpenseResult([], 1, resolvedPageSize, 0, 0m, 1, false, false);
@@ -162,6 +167,7 @@ public sealed class ExpenseApiClient(HttpClient httpClient, AuthService authServ
                 var result = await response.Content.ReadFromJsonAsync<SaveExpenseResult>(cancellationToken: cancellationToken);
                 _expensesCache.TryRemove(request.Date.ToString("yyyy-MM"), out _);
                 _dashboardCache.TryRemove(request.Date.ToString("yyyy-MM"), out _);
+                _dashboardByPaymentMethodCache.TryRemove(request.Date.ToString("yyyy-MM"), out _);
                 _monthsCache = null;
                 return result ?? new SaveExpenseResult(false, "Respuesta inválida del servidor.", 0);
             }
@@ -191,6 +197,7 @@ public sealed class ExpenseApiClient(HttpClient httpClient, AuthService authServ
                 var result = await response.Content.ReadFromJsonAsync<OperationResult>(cancellationToken: cancellationToken);
                 _expensesCache.Clear();
                 _dashboardCache.Clear();
+                _dashboardByPaymentMethodCache.Clear();
                 _monthsCache = null;
                 return result ?? new OperationResult(false, "Respuesta inválida del servidor.");
             }
@@ -219,6 +226,7 @@ public sealed class ExpenseApiClient(HttpClient httpClient, AuthService authServ
                 var result = await response.Content.ReadFromJsonAsync<OperationResult>(cancellationToken: cancellationToken);
                 _expensesCache.Clear();
                 _dashboardCache.Clear();
+                _dashboardByPaymentMethodCache.Clear();
                 _monthsCache = null;
                 return result ?? new OperationResult(true, "Gasto eliminado correctamente.");
             }
@@ -249,6 +257,31 @@ public sealed class ExpenseApiClient(HttpClient httpClient, AuthService authServ
             var data = await httpClient.GetFromJsonAsync<List<DashboardCategoryItem>>($"api/dashboard/by-category?month={Uri.EscapeDataString(monthKey)}", cancellationToken);
             var result = (IReadOnlyList<DashboardCategoryItem>)(data ?? []);
             _dashboardCache[monthKey] = new CacheEntry<IReadOnlyList<DashboardCategoryItem>>(DateTimeOffset.UtcNow, result);
+            return result;
+        }
+        catch
+        {
+            return [];
+        }
+    }
+
+    public async Task<IReadOnlyList<DashboardPaymentMethodItem>> GetDashboardByPaymentMethodAsync(string monthKey, CancellationToken cancellationToken)
+    {
+        if (TryGetCache(_dashboardByPaymentMethodCache, monthKey, out var cachedData))
+        {
+            return cachedData;
+        }
+
+        try
+        {
+            if (!await EnsureAuthenticatedAsync(cancellationToken))
+            {
+                return [];
+            }
+
+            var data = await httpClient.GetFromJsonAsync<List<DashboardPaymentMethodItem>>($"api/dashboard/by-payment-method?month={Uri.EscapeDataString(monthKey)}", cancellationToken);
+            var result = (IReadOnlyList<DashboardPaymentMethodItem>)(data ?? []);
+            _dashboardByPaymentMethodCache[monthKey] = new CacheEntry<IReadOnlyList<DashboardPaymentMethodItem>>(DateTimeOffset.UtcNow, result);
             return result;
         }
         catch
@@ -299,6 +332,7 @@ public sealed class ExpenseApiClient(HttpClient httpClient, AuthService authServ
                 var result = await response.Content.ReadFromJsonAsync<OperationResult>(cancellationToken: cancellationToken);
                 _budgetsCache.Clear();
                 _dashboardCache.Clear();
+                _dashboardByPaymentMethodCache.Clear();
                 return result ?? new OperationResult(true, "Presupuesto guardado correctamente.");
             }
 
@@ -326,6 +360,7 @@ public sealed class ExpenseApiClient(HttpClient httpClient, AuthService authServ
                 var result = await response.Content.ReadFromJsonAsync<OperationResult>(cancellationToken: cancellationToken);
                 _budgetsCache.Clear();
                 _dashboardCache.Clear();
+                _dashboardByPaymentMethodCache.Clear();
                 return result ?? new OperationResult(true, "Presupuesto eliminado correctamente.");
             }
 

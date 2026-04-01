@@ -5,7 +5,7 @@
              Title="Gastos"
              BackgroundColor="{StaticResource AppBg}">
 
-    <Grid RowDefinitions="Auto,Auto,Auto,*" Padding="16" RowSpacing="10">
+    <Grid RowDefinitions="Auto,Auto,Auto,Auto,*" Padding="16" RowSpacing="10">
 
         <!-- Month Selector -->
         <Border Grid.Row="0" StrokeShape="RoundRectangle 16" Padding="8" StrokeThickness="0"
@@ -36,15 +36,25 @@
         <!-- Search -->
         <Border Grid.Row="1" StrokeShape="RoundRectangle 14" BackgroundColor="{StaticResource White}"
                 Stroke="{StaticResource AppBorder}" Padding="12,8">
-            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+            <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="8">
                 <Label Text="🔍" VerticalOptions="Center" />
                 <Entry Grid.Column="1" Placeholder="Buscar gasto..." ClearButtonVisibility="WhileEditing"
                        BackgroundColor="Transparent" TextChanged="OnSearchTextChanged" />
+                <Button Grid.Column="2" x:Name="FilterButton" Text="Filtrar" HeightRequest="34" CornerRadius="10"
+                        Padding="12,0" BackgroundColor="{StaticResource AppSurface2}" TextColor="{StaticResource AppText}"
+                        FontSize="12" Clicked="OnOpenFiltersClicked" />
             </Grid>
         </Border>
 
+        <!-- Active Filters -->
+        <Border Grid.Row="2" x:Name="FilterSummaryBorder" IsVisible="False"
+                StrokeShape="RoundRectangle 12" StrokeThickness="0"
+                BackgroundColor="{StaticResource AppSurface2}" Padding="12,8">
+            <Label x:Name="FilterSummaryLabel" FontSize="11" TextColor="{StaticResource AppHint}" />
+        </Border>
+
         <!-- Pagination -->
-        <Border Grid.Row="2" Padding="12" StrokeShape="RoundRectangle 16" StrokeThickness="0"
+        <Border Grid.Row="3" Padding="12" StrokeShape="RoundRectangle 16" StrokeThickness="0"
                 BackgroundColor="{StaticResource White}">
             <Border.Shadow>
                 <Shadow Brush="Black" Offset="0,1" Radius="4" Opacity="0.05" />
@@ -80,7 +90,7 @@
         <Picker x:Name="PageSizePicker" IsVisible="False" SelectedIndexChanged="OnPageSizeChanged" />
 
         <!-- Expense List -->
-        <RefreshView Grid.Row="3" x:Name="ExpensesRefreshView" Refreshing="OnRefreshing" Margin="0,4,0,0">
+        <RefreshView Grid.Row="4" x:Name="ExpensesRefreshView" Refreshing="OnRefreshing" Margin="0,4,0,0">
             <CollectionView x:Name="ExpensesCollection" SelectionMode="None">
                 <CollectionView.EmptyView>
                     <Label Text="Aún no hay gastos registrados." HorizontalOptions="Center" VerticalOptions="Center"
@@ -88,38 +98,39 @@
                 </CollectionView.EmptyView>
                 <CollectionView.ItemTemplate>
                     <DataTemplate>
-                        <Border Padding="16" Margin="0,0,0,10" StrokeShape="RoundRectangle 16" StrokeThickness="0"
+                        <Border Padding="10" Margin="0,0,0,6" StrokeShape="RoundRectangle 14" StrokeThickness="0"
                                 BackgroundColor="{Binding CardColor}">
                             <Border.Shadow>
                                 <Shadow Brush="Black" Offset="0,1" Radius="4" Opacity="0.05" />
                             </Border.Shadow>
-                            <VerticalStackLayout Spacing="6">
+                            <VerticalStackLayout Spacing="3">
                                 <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
-                                    <Label Text="{Binding Icon}" FontSize="20" VerticalOptions="Center" />
-                                    <Label Grid.Column="1" Text="{Binding Description}" FontAttributes="Bold" FontSize="16" VerticalOptions="Center" />
+                                    <Label Text="{Binding Icon}" FontSize="18" VerticalOptions="Center" />
+                                    <Label Grid.Column="1" Text="{Binding Description}" FontAttributes="Bold" FontSize="14"
+                                           MaxLines="1" LineBreakMode="TailTruncation" VerticalOptions="Center" />
                                     <Label Grid.Column="2" Text="{Binding Amount, StringFormat='${0:N0}'}"
-                                           FontAttributes="Bold" FontSize="17" TextColor="{StaticResource PrimaryDark}" />
+                                           FontAttributes="Bold" FontSize="15" TextColor="{StaticResource PrimaryDark}" />
                                 </Grid>
-                                <Label Text="{Binding Date, StringFormat='Fecha: {0:yyyy-MM-dd}'}" FontSize="12"
+                                <Label Text="{Binding Date, StringFormat='Fecha: {0:yyyy-MM-dd}'}" FontSize="11"
                                        TextColor="{StaticResource AppHint}" />
                                 <Grid ColumnDefinitions="*,*">
-                                    <Label Text="{Binding MovementType, StringFormat='Sección: {0}'}" FontSize="12"
+                                    <Label Text="{Binding MovementType, StringFormat='Sección: {0}'}" FontSize="11"
                                            TextColor="{StaticResource Gray600}" />
-                                    <Label Grid.Column="1" Text="{Binding PaymentMethod, StringFormat='Medio: {0}'}" FontSize="12"
+                                    <Label Grid.Column="1" Text="{Binding PaymentMethod, StringFormat='Medio: {0}'}" FontSize="11"
                                            TextColor="{StaticResource Gray600}" HorizontalTextAlignment="End" />
                                 </Grid>
-                                <HorizontalStackLayout Spacing="6" Margin="0,4,0,0">
+                                <HorizontalStackLayout Spacing="6" Margin="0,2,0,0">
                                     <Border StrokeShape="RoundRectangle 16" BackgroundColor="{StaticResource AccentLight}"
-                                            StrokeThickness="0" WidthRequest="32" HeightRequest="32" Padding="0">
-                                        <Label Text="✏️" FontSize="14" HorizontalOptions="Center" VerticalOptions="Center"
+                                            StrokeThickness="0" WidthRequest="28" HeightRequest="28" Padding="0">
+                                        <Label Text="✏️" FontSize="12" HorizontalOptions="Center" VerticalOptions="Center"
                                                HorizontalTextAlignment="Center" VerticalTextAlignment="Center" />
                                         <Border.GestureRecognizers>
                                             <TapGestureRecognizer CommandParameter="{Binding .}" Tapped="OnEditExpenseTapped" />
                                         </Border.GestureRecognizers>
                                     </Border>
                                     <Border StrokeShape="RoundRectangle 16" BackgroundColor="#FFE0E0"
-                                            StrokeThickness="0" WidthRequest="32" HeightRequest="32" Padding="0">
-                                        <Label Text="🗑️" FontSize="14" HorizontalOptions="Center" VerticalOptions="Center"
+                                            StrokeThickness="0" WidthRequest="28" HeightRequest="28" Padding="0">
+                                        <Label Text="🗑️" FontSize="12" HorizontalOptions="Center" VerticalOptions="Center"
                                                HorizontalTextAlignment="Center" VerticalTextAlignment="Center" />
                                         <Border.GestureRecognizers>
                                             <TapGestureRecognizer CommandParameter="{Binding .}" Tapped="OnDeleteExpenseTapped" />
@@ -134,7 +145,7 @@
         </RefreshView>
 
         <!-- Edit Modal Overlay -->
-        <Grid x:Name="EditPanel" Grid.RowSpan="4" IsVisible="False" ZIndex="20"
+          <Grid x:Name="EditPanel" Grid.RowSpan="5" IsVisible="False" ZIndex="20"
               BackgroundColor="#44000000" InputTransparent="False" Margin="-16">
             <ScrollView VerticalOptions="Center" Margin="24">
                 <Border Padding="18" StrokeShape="RoundRectangle 20"
@@ -173,7 +184,7 @@
         </Grid>
 
         <!-- Loading -->
-        <Grid x:Name="LoadingOverlay" Grid.RowSpan="4" IsVisible="False"
+          <Grid x:Name="LoadingOverlay" Grid.RowSpan="5" IsVisible="False"
               BackgroundColor="#33000000" InputTransparent="False" Margin="-16">
             <ActivityIndicator IsRunning="True" WidthRequest="48" HeightRequest="48"
                                Color="{StaticResource Tertiary}" HorizontalOptions="Center" VerticalOptions="Center" />

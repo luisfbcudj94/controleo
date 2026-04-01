@@ -82,9 +82,10 @@ public sealed class ExpenseApiFunctions
         var pn = q.TryGetValue("pageNumber", out var pnr) && int.TryParse(pnr, out var ppn) ? Math.Max(ppn, 1) : 1;
         var ps = q.TryGetValue("pageSize", out var psr) && int.TryParse(psr, out var pps) ? FunctionHelpers.NormalizePageSize(pps) : 5;
         var mt = q.TryGetValue("movementType", out var mtr) ? mtr : null;
+        var pm = q.TryGetValue("paymentMethod", out var pmr) ? pmr : null;
         var st = q.TryGetValue("searchTerm", out var str) ? str : null;
 
-        return await FunctionHelpers.JsonAsync(req, HttpStatusCode.OK, await _expenseService.GetExpensesPageAsync(user!.UserId, mk, pn, ps, mt, st, ct), ct);
+        return await FunctionHelpers.JsonAsync(req, HttpStatusCode.OK, await _expenseService.GetExpensesPageAsync(user!.UserId, mk, pn, ps, mt, pm, st, ct), ct);
     }
 
     [Function("GetExpenseMonths")]
@@ -179,6 +180,16 @@ public sealed class ExpenseApiFunctions
         if (!FunctionHelpers.TryResolveMonth(q.TryGetValue("month", out var m) ? m : null, out var mk))
             return await FunctionHelpers.JsonAsync(req, HttpStatusCode.BadRequest, new OperationResult(false, "Mes inválido."), ct);
         return await FunctionHelpers.JsonAsync(req, HttpStatusCode.OK, await _dashboardService.GetDashboardByCategoryAsync(user!.UserId, mk, ct), ct);
+    }
+
+    [Function("GetDashboardByPaymentMethod")]
+    public async Task<HttpResponseData> GetDashboardByPaymentMethodAsync([HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "dashboard/by-payment-method")] HttpRequestData req, CancellationToken ct)
+    {
+        var (user, err) = await AuthAsync(req, ct); if (err is not null) return err;
+        var q = FunctionHelpers.ParseQuery(req);
+        if (!FunctionHelpers.TryResolveMonth(q.TryGetValue("month", out var m) ? m : null, out var mk))
+            return await FunctionHelpers.JsonAsync(req, HttpStatusCode.BadRequest, new OperationResult(false, "Mes inválido."), ct);
+        return await FunctionHelpers.JsonAsync(req, HttpStatusCode.OK, await _dashboardService.GetDashboardByPaymentMethodAsync(user!.UserId, mk, ct), ct);
     }
 
     // ── Recurring ──

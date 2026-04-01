@@ -6,14 +6,43 @@ namespace Controleo.Mobile;
 
 public partial class DashboardPage : ContentPage
 {
+    private enum DashboardMode
+    {
+        Category,
+        PaymentMethod
+    }
+
+    private static readonly string[] PaymentMethodCardPalette =
+    [
+        "#DDEEE4",
+        "#DFEAF7",
+        "#F8E5D8",
+        "#E8E0F4",
+        "#F7E1E7",
+        "#E3F1EC"
+    ];
+
+    private static readonly string[] PaymentMethodProgressPalette =
+    [
+        "#2D6A4F",
+        "#3A8FBF",
+        "#D4765A",
+        "#7B5EA7",
+        "#C0608F",
+        "#3A9E8E"
+    ];
+
     private readonly ExpenseApiClient _apiClient;
     private readonly MonthContextService _monthContext;
-    private readonly ObservableCollection<DashboardCategoryViewItem> _items = [];
+    private readonly ObservableCollection<DashboardListViewItem> _items = [];
     private readonly ObservableCollection<DonutLegendItem> _donutLegendItems = [];
     private bool _isRefreshing;
     private bool _isOpeningDetail;
     private bool _isMonthPickerSyncing;
     private bool _isActive;
+    private DashboardMode _selectedMode = DashboardMode.Category;
+    private IReadOnlyList<DashboardCategoryItem> _categoryData = [];
+    private IReadOnlyList<DashboardPaymentMethodItem> _paymentMethodData = [];
     private readonly BudgetRingDrawable _budgetRingDrawable = new();
     private readonly DistributionDonutDrawable _distributionDonutDrawable = new();
 
@@ -30,6 +59,7 @@ public partial class DashboardPage : ContentPage
         DonutLegendCollection.ItemsSource = _donutLegendItems;
         BudgetRingView.Drawable = _budgetRingDrawable;
         DistributionDonutView.Drawable = _distributionDonutDrawable;
+        UpdateModeButtons();
     }
 
     protected override async void OnAppearing()
@@ -65,19 +95,148 @@ public partial class DashboardPage : ContentPage
         SetLoading(true);
         try
         {
-            // Ensure we have latest configs for colors/icons
-            var catalog = await _apiClient.GetCatalogsAsync(CancellationToken.None);
+            var catalogTask = _apiClient.GetCatalogsAsync(CancellationToken.None);
+            var categoryTask = _apiClient.GetDashboardByCategoryAsync(_monthContext.SelectedMonthKey, CancellationToken.None);
+            var paymentTask = _apiClient.GetDashboardByPaymentMethodAsync(_monthContext.SelectedMonthKey, CancellationToken.None);
+
+            await Task.WhenAll(catalogTask, categoryTask, paymentTask);
+
+            var catalog = catalogTask.Result;
             Services.PastelColorHelper.SetConfigs(catalog.MovementTypeConfigs);
 
-            var data = await _apiClient.GetDashboardByCategoryAsync(_monthContext.SelectedMonthKey, CancellationToken.None);
+            _categoryData = categoryTask.Result;
+            _paymentMethodData = paymentTask.Result;
 
-            var orderedData = data
+            RenderBudgetSummary(_categoryData);
+            ApplyModePresentation();
+        }
+        finally
+        {
+            _isRefreshing = false;
+            DashboardRefreshView.IsRefreshing = false;
+            SetLoading(false);
+        }
+    }
+
+    private void RenderBudgetSummary(IReadOnlyList<DashboardCategoryItem> data)
+    {
+        var totalBudget = data.Sum(item => item.BudgetTotal);
+        var spentFromBudget = data.Where(item => item.BudgetTotal > 0).Sum(item => item.ExpenseTotal);
+        var availableBudget = totalBudget - spentFromBudget;
+        var budgetProgress = totalBudget <= 0 ? 0d : (double)Math.Min(1m, spentFromBudget / totalBudget);
+
+        RingPercentLabel.Text = $"{budgetProgress * 100:0}%";
+        _budgetRingDrawable.Progress = budgetProgress;
+        _budgetRingDrawable.TrackColor = Color.FromArgb("#DCE5DF");
+        _budgetRingDrawable.ProgressColor = Color.FromArgb("#2D6A4F");
+        BudgetRingView.Invalidate();
+
+        BudgetSummaryLabel.Text = $"{FormatCompactCurrency(spentFromBudget)} / {FormatCompactCurrency(totalBudget)}";
+        AvailableSummaryLabel.Text = $"${availableBudget:N0}";
+        TotalBudgetSummaryLabel.Text = $"${totalBudget:N0}";
+        SpentSummaryLabel.Text = $"${spentFromBudget:N0}";
+    }
+
+    private void ApplyModePresentation()
+    {
+        UpdateModeButtons();
+        RenderDistribution();
+        RenderList();
+    }
+
+    private void RenderDistribution()
+    {
+        _donutLegendItems.Clear();
+
+        if (_selectedMode == DashboardMode.Category)
+        {
+            DistributionCenterLabel.Text = "Por tipo";
+            SectionListTitleLabel.Text = "CATEGORIAS";
+
+            var distribution = _categoryData
+                .Where(item => item.ExpenseTotal > 0)
+                .OrderByDescending(item => item.ExpenseTotal)
+                .ToList();
+
+            var total = distribution.Sum(item => item.ExpenseTotal);
+            _distributionDonutDrawable.Segments = distribution
+                .Select(item => new DistributionDonutDrawable.Segment(
+                    Services.PastelColorHelper.ForMovementType(item.MovementType),
+                    total <= 0 ? 0 : (double)(item.ExpenseTotal / total)))
+                .ToList();
+
+            if (total <= 0)
+            {
+                DistributionSummaryLabel.Text = "Anade gastos para ver la distribucion";
+                DistributionSummaryLabel.TextColor = Color.FromArgb("#E5534B");
+            }
+            else
+            {
+                DistributionSummaryLabel.Text = "100% por categoria";
+                DistributionSummaryLabel.TextColor = Color.FromArgb("#1A2E23");
+
+                foreach (var item in distribution)
+                {
+                    var pct = Math.Round((item.ExpenseTotal / total) * 100m);
+                    _donutLegendItems.Add(new DonutLegendItem(
+                        $"{item.MovementType} {pct:0}%",
+                        Services.PastelColorHelper.ForMovementType(item.MovementType)));
+                }
+            }
+
+            DistributionDonutView.Invalidate();
+            return;
+        }
+
+        DistributionCenterLabel.Text = "Por medio";
+        SectionListTitleLabel.Text = "MEDIOS DE PAGO";
+
+        var paymentDistribution = _paymentMethodData
+            .Where(item => item.ExpenseTotal > 0)
+            .OrderByDescending(item => item.ExpenseTotal)
+            .ToList();
+
+        var paymentTotal = paymentDistribution.Sum(item => item.ExpenseTotal);
+        _distributionDonutDrawable.Segments = paymentDistribution
+            .Select(item => new DistributionDonutDrawable.Segment(
+                ProgressColorForPaymentMethod(item.PaymentMethod),
+                paymentTotal <= 0 ? 0 : (double)(item.ExpenseTotal / paymentTotal)))
+            .ToList();
+
+        if (paymentTotal <= 0)
+        {
+            DistributionSummaryLabel.Text = "Anade gastos para ver la distribucion";
+            DistributionSummaryLabel.TextColor = Color.FromArgb("#E5534B");
+        }
+        else
+        {
+            DistributionSummaryLabel.Text = "100% por medio de pago";
+            DistributionSummaryLabel.TextColor = Color.FromArgb("#1A2E23");
+
+            foreach (var item in paymentDistribution)
+            {
+                var pct = Math.Round((item.ExpenseTotal / paymentTotal) * 100m);
+                _donutLegendItems.Add(new DonutLegendItem(
+                    $"{item.PaymentMethod} {pct:0}%",
+                    ProgressColorForPaymentMethod(item.PaymentMethod)));
+            }
+        }
+
+        DistributionDonutView.Invalidate();
+    }
+
+    private void RenderList()
+    {
+        _items.Clear();
+
+        if (_selectedMode == DashboardMode.Category)
+        {
+            var orderedData = _categoryData
                 .OrderBy(item => item.BudgetTotal <= 0 ? 1 : 0)
                 .ThenByDescending(item => item.BudgetTotal)
                 .ThenByDescending(item => item.ExpenseTotal)
                 .ToList();
 
-            _items.Clear();
             foreach (var row in orderedData)
             {
                 var hasBudget = row.BudgetTotal > 0;
@@ -85,73 +244,43 @@ public partial class DashboardPage : ContentPage
                     ? (double)Math.Clamp(row.ExpenseTotal / row.BudgetTotal, 0m, 1m)
                     : (row.ExpenseTotal > 0 ? 1d : 0d);
 
-                var balanceText = hasBudget
+                var subtitle = hasBudget
                     ? $"Presupuesto: ${row.BudgetTotal:N0} · Saldo: ${row.Balance:N0}"
                     : "Sin presupuesto asignado";
 
-                _items.Add(new DashboardCategoryViewItem(
+                _items.Add(new DashboardListViewItem(
+                    row.MovementType,
                     row.MovementType,
                     row.ExpenseTotal,
                     progress,
                     hasBudget ? ProgressColorForType(row.MovementType) : Color.FromArgb("#E5534B"),
-                    balanceText,
+                    subtitle,
                     Services.PastelColorHelper.ForMovementType(row.MovementType),
                     Services.PastelColorHelper.IconForMovementType(row.MovementType)));
             }
 
-            var totalBudget = data.Sum(item => item.BudgetTotal);
-            var spentFromBudget = data.Where(item => item.BudgetTotal > 0).Sum(item => item.ExpenseTotal);
-            var availableBudget = totalBudget - spentFromBudget;
-            var totalExpenses = data.Sum(item => item.ExpenseTotal);
-            var budgetProgress = totalBudget <= 0 ? 0d : (double)Math.Min(1m, spentFromBudget / totalBudget);
-            RingPercentLabel.Text = $"{budgetProgress * 100:0}%";
-            _budgetRingDrawable.Progress = budgetProgress;
-            _budgetRingDrawable.TrackColor = Color.FromArgb("#DCE5DF");
-            _budgetRingDrawable.ProgressColor = Color.FromArgb("#2D6A4F");
-            BudgetRingView.Invalidate();
-
-            BudgetSummaryLabel.Text = $"{FormatCompactCurrency(spentFromBudget)} / {FormatCompactCurrency(totalBudget)}";
-            DistributionSummaryLabel.Text = "100% de gastos";
-            DistributionSummaryLabel.TextColor = Color.FromArgb("#1A2E23");
-            AvailableSummaryLabel.Text = $"${availableBudget:N0}";
-            TotalBudgetSummaryLabel.Text = $"${totalBudget:N0}";
-            SpentSummaryLabel.Text = $"${spentFromBudget:N0}";
-
-            var distributionByExpense = data
-                .Where(item => item.ExpenseTotal > 0)
-                .OrderByDescending(item => item.ExpenseTotal)
-                .ToList();
-            var totalForDistribution = distributionByExpense.Sum(item => item.ExpenseTotal);
-
-            _distributionDonutDrawable.Segments = distributionByExpense
-                .Select(item => new DistributionDonutDrawable.Segment(
-                    ProgressColorForType(item.MovementType),
-                    totalForDistribution <= 0 ? 0 : (double)(item.ExpenseTotal / totalForDistribution)))
-                .ToList();
-            DistributionDonutView.Invalidate();
-
-            _donutLegendItems.Clear();
-            if (totalForDistribution <= 0)
-            {
-                DistributionSummaryLabel.Text = "Añade gastos para ver la distribución";
-                DistributionSummaryLabel.TextColor = Color.FromArgb("#E5534B");
-            }
-            else
-            {
-                foreach (var item in distributionByExpense)
-                {
-                    var pct = Math.Round((item.ExpenseTotal / totalForDistribution) * 100m);
-                    _donutLegendItems.Add(new DonutLegendItem(
-                        $"{item.MovementType} {pct:0}%",
-                        ProgressColorForType(item.MovementType)));
-                }
-            }
+            return;
         }
-        finally
+
+        var paymentData = _paymentMethodData
+            .OrderByDescending(item => item.ExpenseTotal)
+            .ToList();
+
+        var totalPayment = paymentData.Sum(item => item.ExpenseTotal);
+        foreach (var row in paymentData)
         {
-            _isRefreshing = false;
-            DashboardRefreshView.IsRefreshing = false;
-            SetLoading(false);
+            var ratio = totalPayment <= 0 ? 0d : (double)Math.Clamp(row.ExpenseTotal / totalPayment, 0m, 1m);
+            var share = totalPayment <= 0 ? 0m : (row.ExpenseTotal / totalPayment) * 100m;
+
+            _items.Add(new DashboardListViewItem(
+                row.PaymentMethod,
+                row.PaymentMethod,
+                row.ExpenseTotal,
+                ratio,
+                ProgressColorForPaymentMethod(row.PaymentMethod),
+                totalPayment <= 0 ? "Sin gastos en el periodo" : $"Participacion: {share:0.#}%",
+                CardColorForPaymentMethod(row.PaymentMethod),
+                IconForPaymentMethod(row.PaymentMethod)));
         }
     }
 
@@ -167,7 +296,7 @@ public partial class DashboardPage : ContentPage
             return;
         }
 
-        if (e.Parameter is not string movementType || string.IsNullOrWhiteSpace(movementType))
+        if (e.Parameter is not string selectedKey || string.IsNullOrWhiteSpace(selectedKey))
         {
             return;
         }
@@ -176,7 +305,12 @@ public partial class DashboardPage : ContentPage
         {
             _isOpeningDetail = true;
             SetLoading(true);
-            await Navigation.PushModalAsync(new NavigationPage(new SectionExpensesModalPage(_apiClient, _monthContext.SelectedMonthKey, movementType)));
+
+            var detailPage = _selectedMode == DashboardMode.Category
+                ? new SectionExpensesModalPage(_apiClient, _monthContext.SelectedMonthKey, selectedKey, movementType: selectedKey)
+                : new SectionExpensesModalPage(_apiClient, _monthContext.SelectedMonthKey, selectedKey, paymentMethod: selectedKey);
+
+            await Navigation.PushModalAsync(new NavigationPage(detailPage));
         }
         catch (Exception ex)
         {
@@ -256,6 +390,44 @@ public partial class DashboardPage : ContentPage
         LoadingOverlay.IsVisible = isLoading;
     }
 
+    private void OnCategoryModeClicked(object? sender, EventArgs e)
+    {
+        if (_selectedMode == DashboardMode.Category)
+        {
+            return;
+        }
+
+        _selectedMode = DashboardMode.Category;
+        ApplyModePresentation();
+    }
+
+    private void OnPaymentModeClicked(object? sender, EventArgs e)
+    {
+        if (_selectedMode == DashboardMode.PaymentMethod)
+        {
+            return;
+        }
+
+        _selectedMode = DashboardMode.PaymentMethod;
+        ApplyModePresentation();
+    }
+
+    private void UpdateModeButtons()
+    {
+        var activeBackground = Color.FromArgb("#2D6A4F");
+        var inactiveBackground = Color.FromArgb("#E8EFEA");
+        var activeText = Colors.White;
+        var inactiveText = Color.FromArgb("#1F2A24");
+
+        var categoryActive = _selectedMode == DashboardMode.Category;
+
+        CategoryModeButton.BackgroundColor = categoryActive ? activeBackground : inactiveBackground;
+        CategoryModeButton.TextColor = categoryActive ? activeText : inactiveText;
+
+        PaymentModeButton.BackgroundColor = categoryActive ? inactiveBackground : activeBackground;
+        PaymentModeButton.TextColor = categoryActive ? inactiveText : activeText;
+    }
+
     private static string FormatCompactCurrency(decimal value)
     {
         if (value >= 1_000_000m)
@@ -289,6 +461,59 @@ public partial class DashboardPage : ContentPage
         };
     }
 
+    private static Color CardColorForPaymentMethod(string paymentMethod)
+    {
+        return Color.FromArgb(PaymentMethodCardPalette[StableIndexFor(paymentMethod, PaymentMethodCardPalette.Length)]);
+    }
+
+    private static Color ProgressColorForPaymentMethod(string paymentMethod)
+    {
+        return Color.FromArgb(PaymentMethodProgressPalette[StableIndexFor(paymentMethod, PaymentMethodProgressPalette.Length)]);
+    }
+
+    private static int StableIndexFor(string key, int length)
+    {
+        if (length <= 0 || string.IsNullOrWhiteSpace(key))
+        {
+            return 0;
+        }
+
+        uint hash = 2166136261;
+        foreach (var ch in key.Trim().ToLowerInvariant())
+        {
+            hash ^= ch;
+            hash *= 16777619;
+        }
+
+        return (int)(hash % (uint)length);
+    }
+
+    private static string IconForPaymentMethod(string paymentMethod)
+    {
+        var normalized = paymentMethod.Trim().ToLowerInvariant();
+        if (normalized.Contains("efectivo", StringComparison.Ordinal))
+        {
+            return "💵";
+        }
+
+        if (normalized.Contains("nequi", StringComparison.Ordinal) || normalized.Contains("transfer", StringComparison.Ordinal))
+        {
+            return "📲";
+        }
+
+        if (normalized.StartsWith("td", StringComparison.Ordinal) || normalized.Contains("deb", StringComparison.Ordinal))
+        {
+            return "🏦";
+        }
+
+        if (normalized.StartsWith("tc", StringComparison.Ordinal) || normalized.Contains("cred", StringComparison.Ordinal))
+        {
+            return "💳";
+        }
+
+        return "💳";
+    }
+
     private async void OnMonthSelectorTapped(object? sender, EventArgs e)
     {
         var monthOptions = _monthContext.MonthOptions.ToList();
@@ -311,12 +536,13 @@ public partial class DashboardPage : ContentPage
         }
     }
 
-    private sealed record DashboardCategoryViewItem(
-        string MovementType,
-        decimal ExpenseTotal,
-        double ExpenseRatio,
+    private sealed record DashboardListViewItem(
+        string Key,
+        string Name,
+        decimal Amount,
+        double Ratio,
         Color ProgressColor,
-        string BudgetAndBalanceLabel,
+        string Subtitle,
         Color CardColor,
         string Icon);
 
