@@ -1,4 +1,5 @@
-﻿using Controleo.Mobile.Models;
+﻿using Controleo.Mobile.Interfaces;
+using Controleo.Mobile.Models;
 using Controleo.Mobile.Services;
 using System.Globalization;
 
@@ -10,8 +11,10 @@ public partial class MainPage : ContentPage
 	private const int MaxAllowedAmountDigits = 11;
 	private const int MaxDescriptionLength = 100;
 
-	private readonly ExpenseApiClient _apiClient;
-	private readonly MonthContextService _monthContext;
+	private readonly IExpenseApiClient _apiClient;
+	private readonly IMonthContextService _monthContext;
+	private readonly ICatalogColorService _colorService;
+	private readonly IPaymentIconService _paymentIconService;
 	private readonly List<MovementTypeConfig> _movementTypeConfigs = [];
 	private readonly Dictionary<string, Border> _movementTiles = new(StringComparer.OrdinalIgnoreCase);
 	private readonly Dictionary<string, Border> _paymentTiles = new(StringComparer.OrdinalIgnoreCase);
@@ -35,11 +38,13 @@ public partial class MainPage : ContentPage
 		PaymentMethod,
 	}
 
-	public MainPage(ExpenseApiClient apiClient, MonthContextService monthContext)
+	public MainPage(IExpenseApiClient apiClient, IMonthContextService monthContext, ICatalogColorService colorService, IPaymentIconService paymentIconService)
 	{
 		InitializeComponent();
 		_apiClient = apiClient;
 		_monthContext = monthContext;
+		_colorService = colorService;
+		_paymentIconService = paymentIconService;
 		_monthContext.MonthChanged += OnMonthChanged;
 		_monthContext.MonthOptionsChanged += OnMonthOptionsChanged;
 		HeaderMonthBadgeLabel.Text = _monthContext.SelectedMonth.ToString("MMM yyyy", CultureInfo.InvariantCulture);
@@ -99,7 +104,7 @@ public partial class MainPage : ContentPage
 			SetLoading(true);
 
 			var catalog = await _apiClient.GetCatalogsAsync(CancellationToken.None);
-			PastelColorHelper.SetConfigs(catalog.MovementTypeConfigs);
+			_colorService.SetConfigs(catalog.MovementTypeConfigs);
 			_movementTypeConfigs.Clear();
 			if (catalog.MovementTypeConfigs is not null)
 			{
@@ -335,8 +340,8 @@ public partial class MainPage : ContentPage
 
 		foreach (var type in types)
 		{
-			var icon = PastelColorHelper.IconForMovementType(type);
-			var color = PastelColorHelper.ForMovementType(type);
+			var icon = _colorService.IconForMovementType(type);
+			var color = _colorService.ForMovementType(type);
 			var isSelected = string.Equals(type, _selectedMovementType, StringComparison.OrdinalIgnoreCase);
 
 			var border = new Border
@@ -436,7 +441,7 @@ public partial class MainPage : ContentPage
 			};
 			ApplyRegisterTileLook(border, isSelected, isPaymentTile: true);
 
-			var icon = PaymentIconService.IconForPaymentMethod(method);
+			var icon = _paymentIconService.IconForPaymentMethod(method);
 			var stack = new VerticalStackLayout
 			{
 				Spacing = 2,
@@ -549,12 +554,12 @@ public partial class MainPage : ContentPage
 		AddCatalogNameEntry.Placeholder = mode == AddCatalogMode.MovementType ? "Ej: Mascotas" : "Ej: Daviplata";
 		AddCatalogNameEntry.Text = string.Empty;
 		_selectedAddCatalogIcon = mode == AddCatalogMode.MovementType
-			? PastelColorHelper.AvailableIcons[0].Emoji
-			: PaymentIconService.AvailableIcons[0].Emoji;
+			? _colorService.AvailableIcons[0].Emoji
+			: _paymentIconService.AvailableIcons[0].Emoji;
 
 		var sourceIcons = mode == AddCatalogMode.MovementType
-			? PastelColorHelper.AvailableIcons
-			: PaymentIconService.AvailableIcons;
+			? _colorService.AvailableIcons
+			: _paymentIconService.AvailableIcons;
 		BuildAddCatalogIconGrid(sourceIcons);
 
 		AddCatalogOverlay.IsVisible = true;
@@ -630,8 +635,8 @@ public partial class MainPage : ContentPage
 		if (string.IsNullOrWhiteSpace(selectedIcon))
 		{
 			selectedIcon = _addCatalogMode == AddCatalogMode.MovementType
-				? PastelColorHelper.AvailableIcons[0].Emoji
-				: PaymentIconService.AvailableIcons[0].Emoji;
+				? _colorService.AvailableIcons[0].Emoji
+				: _paymentIconService.AvailableIcons[0].Emoji;
 		}
 
 		if (_addCatalogMode == AddCatalogMode.MovementType)
@@ -643,7 +648,7 @@ public partial class MainPage : ContentPage
 				return;
 			}
 
-			var availableColors = PastelColorHelper.GetAvailableColors(_movementTypeConfigs);
+			var availableColors = _colorService.GetAvailableColors(_movementTypeConfigs);
 			if (availableColors.Count == 0)
 			{
 				await StyledResultModalPage.ShowAsync(this, false, "Sin colores", "No hay más colores disponibles para categorías.");
@@ -668,7 +673,7 @@ public partial class MainPage : ContentPage
 			}
 
 			currentPayments.Add(name);
-			PaymentIconService.SetIconForPaymentMethod(name, selectedIcon);
+			_paymentIconService.SetIconForPaymentMethod(name, selectedIcon);
 			var saved = await SaveCatalogsFromRegisterAsync(MovementTypePicker.ItemsSource?.Cast<string>().ToList() ?? [], currentPayments);
 			if (saved)
 			{

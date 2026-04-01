@@ -140,7 +140,7 @@ public sealed class IconColorPickerModalPage : ContentPage
         _gridContainer.RowDefinitions.Clear();
         _gridContainer.ColumnDefinitions.Clear();
 
-        var icons = PastelColorHelper.AvailableIcons;
+        var icons = PastelColorHelper.StaticAvailableIcons;
         var cols = 4;
         var rows = (int)Math.Ceiling(icons.Length / (double)cols);
 

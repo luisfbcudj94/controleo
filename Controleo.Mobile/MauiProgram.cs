@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
+using Controleo.Mobile.Interfaces;
 using Controleo.Mobile.Services;
 
 namespace Controleo.Mobile;
@@ -33,17 +34,22 @@ public static class MauiProgram
 			apiBaseUrl += "/";
 		}
 
+		// Core services — singleton, registered by interface
 		builder.Services.AddSingleton(new HttpClient { BaseAddress = new Uri(apiBaseUrl) });
-		builder.Services.AddSingleton<AuthService>();
-		builder.Services.AddSingleton<MonthContextService>();
-		builder.Services.AddSingleton<ExpenseApiClient>();
+		builder.Services.AddSingleton<IAuthService, AuthService>();
+		builder.Services.AddSingleton<IMonthContextService, MonthContextService>();
+		builder.Services.AddSingleton<ICatalogColorService, PastelColorHelper>();
+		builder.Services.AddSingleton<IPaymentIconService, PaymentIconService>();
+		builder.Services.AddSingleton<IExpenseApiClient, ExpenseApiClient>();
+
+		// Pages — transient to avoid reuse/parent bugs on re-navigation
 		builder.Services.AddSingleton<LoginPage>();
-		builder.Services.AddSingleton<MainPage>();
-		builder.Services.AddSingleton<ExpensesPage>();
-		builder.Services.AddSingleton<RecurringPage>();
-		builder.Services.AddSingleton<DashboardPage>();
-		builder.Services.AddSingleton<BudgetsPage>();
-		builder.Services.AddSingleton<SettingsPage>();
+		builder.Services.AddTransient<MainPage>();
+		builder.Services.AddTransient<ExpensesPage>();
+		builder.Services.AddTransient<RecurringPage>();
+		builder.Services.AddTransient<DashboardPage>();
+		builder.Services.AddTransient<BudgetsPage>();
+		builder.Services.AddTransient<SettingsPage>();
 
 #if DEBUG
 		builder.Logging.AddDebug();

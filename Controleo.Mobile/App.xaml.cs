@@ -152,17 +152,19 @@ public partial class App : Application
 	{
 		try
 		{
-			var apiClient = _serviceProvider.GetRequiredService<Services.ExpenseApiClient>();
-			var authService = _serviceProvider.GetRequiredService<Services.AuthService>();
-			var monthContext = _serviceProvider.GetRequiredService<Services.MonthContextService>();
+			var apiClient = _serviceProvider.GetRequiredService<Interfaces.IExpenseApiClient>();
+			var authService = _serviceProvider.GetRequiredService<Interfaces.IAuthService>();
+			var monthContext = _serviceProvider.GetRequiredService<Interfaces.IMonthContextService>();
+			var colorService = _serviceProvider.GetRequiredService<Interfaces.ICatalogColorService>();
+			var paymentIconService = _serviceProvider.GetRequiredService<Interfaces.IPaymentIconService>();
 
 			Page destinationPage = destination switch
 			{
 				SideMenuDestination.Profile => new ProfilePage(authService),
-				SideMenuDestination.Budgets => new BudgetsPage(apiClient, monthContext),
-				SideMenuDestination.PaymentMethods => new SettingsPage(apiClient, authService, SettingsSectionMode.PaymentOnly),
-				SideMenuDestination.MovementTypes => new SettingsPage(apiClient, authService, SettingsSectionMode.MovementOnly),
-				SideMenuDestination.Recurring => new RecurringPage(apiClient),
+				SideMenuDestination.Budgets => new BudgetsPage(apiClient, monthContext, colorService),
+				SideMenuDestination.PaymentMethods => new SettingsPage(apiClient, authService, colorService, paymentIconService, SettingsSectionMode.PaymentOnly),
+				SideMenuDestination.MovementTypes => new SettingsPage(apiClient, authService, colorService, paymentIconService, SettingsSectionMode.MovementOnly),
+				SideMenuDestination.Recurring => new RecurringPage(apiClient, colorService, paymentIconService),
 				_ => new ProfilePage(authService)
 			};
 

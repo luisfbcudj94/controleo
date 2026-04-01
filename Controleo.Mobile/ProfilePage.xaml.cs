@@ -1,12 +1,13 @@
+using Controleo.Mobile.Interfaces;
 using Controleo.Mobile.Services;
 
 namespace Controleo.Mobile;
 
 public partial class ProfilePage : ContentPage
 {
-    private readonly AuthService _authService;
+    private readonly IAuthService _authService;
 
-    public ProfilePage(AuthService authService)
+    public ProfilePage(IAuthService authService)
     {
         InitializeComponent();
         _authService = authService;

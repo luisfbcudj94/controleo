@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Collections.Generic;
 using System.Globalization;
+using Controleo.Mobile.Interfaces;
 using Controleo.Mobile.Models;
 using Controleo.Mobile.Services;
 
@@ -10,8 +11,9 @@ public partial class ExpensesPage : ContentPage
 {
     private static readonly int[] AllowedPageSizes = [5, 10, 20];
 
-    private readonly ExpenseApiClient _apiClient;
-    private readonly MonthContextService _monthContext;
+    private readonly IExpenseApiClient _apiClient;
+    private readonly IMonthContextService _monthContext;
+    private readonly ICatalogColorService _colorService;
     private readonly ObservableCollection<ExpenseViewItem> _expenses = [];
     private ExpenseCatalog _catalog = new([], []);
     private ExpenseItem? _selectedExpense;
@@ -26,11 +28,12 @@ public partial class ExpensesPage : ContentPage
     private string? _selectedPaymentMethodFilter;
     private DateOnly _editSelectedDate = DateOnly.FromDateTime(DateTime.Today);
 
-    public ExpensesPage(ExpenseApiClient apiClient, MonthContextService monthContext)
+    public ExpensesPage(IExpenseApiClient apiClient, IMonthContextService monthContext, ICatalogColorService colorService)
     {
         InitializeComponent();
         _apiClient = apiClient;
         _monthContext = monthContext;
+        _colorService = colorService;
         RefreshMonthPickerItems();
         _monthContext.MonthChanged += OnMonthChanged;
         _monthContext.MonthOptionsChanged += OnMonthOptionsChanged;
@@ -80,7 +83,7 @@ public partial class ExpensesPage : ContentPage
         try
         {
             _catalog = await _apiClient.GetCatalogsAsync(CancellationToken.None);
-            PastelColorHelper.SetConfigs(_catalog.MovementTypeConfigs);
+            _colorService.SetConfigs(_catalog.MovementTypeConfigs);
             EditMovementPicker.ItemsSource = _catalog.MovementTypes.ToList();
             EditPaymentPicker.ItemsSource = _catalog.PaymentMethods.ToList();
 
@@ -97,7 +100,7 @@ public partial class ExpensesPage : ContentPage
             _expenses.Clear();
             foreach (var item in page.Items)
             {
-                _expenses.Add(new ExpenseViewItem(item, Services.PastelColorHelper.ForMovementType(item.MovementType), Services.PastelColorHelper.IconForMovementType(item.MovementType)));
+                _expenses.Add(new ExpenseViewItem(item, _colorService.ForMovementType(item.MovementType), _colorService.IconForMovementType(item.MovementType)));
             }
 
             PaginationStatusLabel.Text = $"Página {page.PageNumber}/{page.TotalPages} · {page.TotalCount} registros";

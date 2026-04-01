@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.Globalization;
+using Controleo.Mobile.Interfaces;
 using Controleo.Mobile.Models;
 using Controleo.Mobile.Services;
 
@@ -7,15 +8,17 @@ namespace Controleo.Mobile;
 
 public partial class BudgetsPage : ContentPage
 {
-    private readonly ExpenseApiClient _apiClient;
+    private readonly IExpenseApiClient _apiClient;
+    private readonly ICatalogColorService _colorService;
     private readonly ObservableCollection<BudgetViewItem> _budgets = [];
     private bool _isRefreshing;
     private string? _editingMovementType;
 
-    public BudgetsPage(ExpenseApiClient apiClient, MonthContextService monthContext)
+    public BudgetsPage(IExpenseApiClient apiClient, IMonthContextService monthContext, ICatalogColorService colorService)
     {
         InitializeComponent();
         _apiClient = apiClient;
+        _colorService = colorService;
         BudgetsCollection.ItemsSource = _budgets;
         MoneyFormatHelper.Attach(EditBudgetAmountEntry);
     }
@@ -34,7 +37,7 @@ public partial class BudgetsPage : ContentPage
         try
         {
             var catalog = await _apiClient.GetCatalogsAsync(CancellationToken.None);
-            PastelColorHelper.SetConfigs(catalog.MovementTypeConfigs);
+            _colorService.SetConfigs(catalog.MovementTypeConfigs);
             var movementTypes = catalog.MovementTypes.ToList();
 
             var budgets = await _apiClient.GetBudgetsAsync(CancellationToken.None);
@@ -50,8 +53,8 @@ public partial class BudgetsPage : ContentPage
                     hasBudget ? budget!.Amount : 0m,
                     hasBudget ? budget!.UpdatedAt : (DateTimeOffset?)null,
                     hasBudget,
-                    PastelColorHelper.ForMovementType(mt),
-                    PastelColorHelper.IconForMovementType(mt));
+                    _colorService.ForMovementType(mt),
+                    _colorService.IconForMovementType(mt));
             })
             .OrderByDescending(b => b.HasBudget ? 1 : 0)
             .ThenByDescending(b => b.Amount)

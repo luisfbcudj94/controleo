@@ -1,3 +1,4 @@
+using Controleo.Mobile.Interfaces;
 using Controleo.Mobile.Models;
 
 namespace Controleo.Mobile.Services;
@@ -6,10 +7,10 @@ namespace Controleo.Mobile.Services;
 /// Maps movement types to colors/icons from user config or defaults.
 /// Provides selectable palettes for the Settings UI.
 /// </summary>
-public static class PastelColorHelper
+public sealed class PastelColorHelper : ICatalogColorService
 {
     /// <summary>20 distinct pastel colors for movement types.</summary>
-    public static readonly (string Hex, string Label)[] AvailableColors =
+    public static readonly (string Hex, string Label)[] StaticAvailableColors =
     [
         ("#B6E6BD", "Verde menta"),
         ("#A8D8F0", "Azul cielo"),
@@ -34,7 +35,7 @@ public static class PastelColorHelper
     ];
 
     /// <summary>20 emoji icons the user can pick from.</summary>
-    public static readonly (string Emoji, string Label)[] AvailableIcons =
+    public static readonly (string Emoji, string Label)[] StaticAvailableIcons =
     [
         ("🛒", "Compras"),
         ("🏠", "Hogar"),
@@ -58,27 +59,30 @@ public static class PastelColorHelper
         ("📚", "Libros"),
     ];
 
-    private static IReadOnlyList<MovementTypeConfig> _cachedConfigs = [];
+    (string Hex, string Label)[] ICatalogColorService.AvailableColors => StaticAvailableColors;
+    (string Emoji, string Label)[] ICatalogColorService.AvailableIcons => StaticAvailableIcons;
+
+    private IReadOnlyList<MovementTypeConfig> _cachedConfigs = [];
 
     /// <summary>Call after loading catalogs to update the in-memory config.</summary>
-    public static void SetConfigs(IReadOnlyList<MovementTypeConfig>? configs)
+    public void SetConfigs(IReadOnlyList<MovementTypeConfig>? configs)
     {
         _cachedConfigs = configs ?? [];
     }
 
     /// <summary>Returns user-defined or fallback Color for a movement type.</summary>
-    public static Color ForMovementType(string? movementType)
+    public Color ForMovementType(string? movementType)
     {
         var hex = HexForMovementType(movementType);
         return Color.FromArgb(hex);
     }
 
     /// <summary>Returns user-defined or fallback hex color.</summary>
-    public static string HexForMovementType(string? movementType)
+    public string HexForMovementType(string? movementType)
     {
         if (string.IsNullOrWhiteSpace(movementType))
         {
-            return AvailableColors[0].Hex;
+            return StaticAvailableColors[0].Hex;
         }
 
         var cfg = FindConfig(movementType);
@@ -89,11 +93,11 @@ public static class PastelColorHelper
 
         // Deterministic fallback
         var hash = (uint)movementType.Trim().ToLowerInvariant().GetHashCode();
-        return AvailableColors[hash % (uint)AvailableColors.Length].Hex;
+        return StaticAvailableColors[hash % (uint)StaticAvailableColors.Length].Hex;
     }
 
     /// <summary>Returns user-defined or fallback icon.</summary>
-    public static string IconForMovementType(string? movementType)
+    public string IconForMovementType(string? movementType)
     {
         if (string.IsNullOrWhiteSpace(movementType))
         {
@@ -125,7 +129,7 @@ public static class PastelColorHelper
     }
 
     /// <summary>Returns colors not yet used by any movement type in the current config.</summary>
-    public static List<(string Hex, string Label)> GetAvailableColors(IReadOnlyList<MovementTypeConfig>? currentConfigs, string? excludeName = null)
+    public List<(string Hex, string Label)> GetAvailableColors(IReadOnlyList<MovementTypeConfig>? currentConfigs, string? excludeName = null)
     {
         var usedColors = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var c in currentConfigs ?? [])
@@ -137,10 +141,10 @@ public static class PastelColorHelper
             }
         }
 
-        return AvailableColors.Where(ac => !usedColors.Contains(ac.Hex)).ToList();
+        return StaticAvailableColors.Where(ac => !usedColors.Contains(ac.Hex)).ToList();
     }
 
-    private static MovementTypeConfig? FindConfig(string movementType)
+    private MovementTypeConfig? FindConfig(string movementType)
     {
         return _cachedConfigs.FirstOrDefault(c =>
             string.Equals(c.Name, movementType.Trim(), StringComparison.OrdinalIgnoreCase));

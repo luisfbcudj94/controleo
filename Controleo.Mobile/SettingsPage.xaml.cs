@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.Globalization;
+using Controleo.Mobile.Interfaces;
 using Controleo.Mobile.Models;
 using Controleo.Mobile.Services;
 
@@ -14,8 +15,10 @@ public enum SettingsSectionMode
 
 public partial class SettingsPage : ContentPage
 {
-    private readonly ExpenseApiClient _apiClient;
-    private readonly AuthService _authService;
+    private readonly IExpenseApiClient _apiClient;
+    private readonly IAuthService _authService;
+    private readonly ICatalogColorService _colorService;
+    private readonly IPaymentIconService _paymentIconService;
     private readonly SettingsSectionMode _sectionMode;
     private readonly bool _showSessionActions;
     private readonly ObservableCollection<string> _movementTypes = [];
@@ -31,14 +34,16 @@ public partial class SettingsPage : ContentPage
     private string _editSelectedPaymentIcon = "💳";
     private string _addSelectedPaymentIcon = "💳";
 
-    public SettingsPage(ExpenseApiClient apiClient, AuthService authService)
-        : this(apiClient, authService, SettingsSectionMode.All, showSessionActions: true)
+    public SettingsPage(IExpenseApiClient apiClient, IAuthService authService, ICatalogColorService colorService, IPaymentIconService paymentIconService)
+        : this(apiClient, authService, colorService, paymentIconService, SettingsSectionMode.All, showSessionActions: true)
     {
     }
 
     public SettingsPage(
-        ExpenseApiClient apiClient,
-        AuthService authService,
+        IExpenseApiClient apiClient,
+        IAuthService authService,
+        ICatalogColorService colorService,
+        IPaymentIconService paymentIconService,
         SettingsSectionMode sectionMode,
         bool showSessionActions = false)
     {
@@ -47,6 +52,8 @@ public partial class SettingsPage : ContentPage
         Resources.Add("PaymentIconConverter", new PaymentIconConverter());
         _apiClient = apiClient;
         _authService = authService;
+        _colorService = colorService;
+        _paymentIconService = paymentIconService;
         _sectionMode = sectionMode;
         _showSessionActions = showSessionActions;
         MovementCollection.ItemsSource = _movementTypes;
@@ -73,7 +80,7 @@ public partial class SettingsPage : ContentPage
             _configs.Clear();
             if (catalog.MovementTypeConfigs is not null)
                 _configs.AddRange(catalog.MovementTypeConfigs);
-            PastelColorHelper.SetConfigs(_configs);
+            _colorService.SetConfigs(_configs);
 
             _movementTypes.Clear();
             foreach (var item in catalog.MovementTypes)
@@ -137,7 +144,7 @@ public partial class SettingsPage : ContentPage
         AddColorLabel.IsVisible = true;
         AddColorScroll.IsVisible = true;
         PopulateAddIconGrid("📋");
-        PopulateColorRow(AddColorRow, PastelColorHelper.GetAvailableColors(_configs), null,
+        PopulateColorRow(AddColorRow, _colorService.GetAvailableColors(_configs), null,
             hex => { _addSelectedColor = hex; RebuildAddColorRow(); });
         AddOverlay.IsVisible = true;
         AddModalEntry.Focus();
@@ -182,7 +189,7 @@ public partial class SettingsPage : ContentPage
                 return;
             }
 
-            var availableColors = PastelColorHelper.GetAvailableColors(_configs);
+            var availableColors = _colorService.GetAvailableColors(_configs);
             if (availableColors.Count == 0)
             {
                 await StyledResultModalPage.ShowAsync(this, false, "Sin colores", "No hay colores disponibles.");
@@ -206,7 +213,7 @@ public partial class SettingsPage : ContentPage
             }
 
             _paymentMethods.Add(name);
-            PaymentIconService.SetIconForPaymentMethod(name, _addSelectedPaymentIcon);
+            _paymentIconService.SetIconForPaymentMethod(name, _addSelectedPaymentIcon);
             await SaveCatalogsAsync();
         }
     }
@@ -224,13 +231,13 @@ public partial class SettingsPage : ContentPage
 
         // Find current icon or default
         var cfg = _configs.FirstOrDefault(c => string.Equals(c.Name, value, StringComparison.OrdinalIgnoreCase));
-        _editSelectedIcon = cfg?.Icon ?? PastelColorHelper.IconForMovementType(value);
+        _editSelectedIcon = cfg?.Icon ?? _colorService.IconForMovementType(value);
         _editSelectedColor = cfg?.Color;
         EditIconSection.IsVisible = true;
         EditColorLabel.IsVisible = true;
         EditColorScroll.IsVisible = true;
         PopulateEditIconGrid(_editSelectedIcon);
-        PopulateColorRow(EditColorRow, PastelColorHelper.GetAvailableColors(_configs, value), _editSelectedColor,
+        PopulateColorRow(EditColorRow, _colorService.GetAvailableColors(_configs, value), _editSelectedColor,
             hex => { _editSelectedColor = hex; RebuildEditColorRow(); });
 
         EditOverlay.IsVisible = true;
@@ -241,7 +248,7 @@ public partial class SettingsPage : ContentPage
         if (e.Parameter is not string value) return;
         _isEditingMovement = false;
         _editingMovementWillPickIconColor = false;
-        _editSelectedPaymentIcon = PaymentIconService.IconForPaymentMethod(value);
+        _editSelectedPaymentIcon = _paymentIconService.IconForPaymentMethod(value);
         _editingOriginalValue = value;
         EditModalTitleLabel.Text = "Editar medio de pago";
         EditModalEntry.Text = value;
@@ -305,7 +312,7 @@ public partial class SettingsPage : ContentPage
         var confirmed = await StyledConfirmModalPage.ConfirmAsync(this, "Eliminar medio", $"¿Eliminar '{value}'?");
         if (!confirmed) return;
         _paymentMethods.Remove(value);
-        PaymentIconService.RemovePaymentMethod(value);
+        _paymentIconService.RemovePaymentMethod(value);
         await SaveCatalogsAsync();
     }
 
@@ -376,10 +383,10 @@ public partial class SettingsPage : ContentPage
 
             if (!string.IsNullOrWhiteSpace(originalPaymentName))
             {
-                PaymentIconService.RenamePaymentMethod(originalPaymentName, edited);
+                _paymentIconService.RenamePaymentMethod(originalPaymentName, edited);
             }
 
-            PaymentIconService.SetIconForPaymentMethod(edited, _editSelectedPaymentIcon);
+            _paymentIconService.SetIconForPaymentMethod(edited, _editSelectedPaymentIcon);
         }
 
         EditOverlay.IsVisible = false;
@@ -391,37 +398,37 @@ public partial class SettingsPage : ContentPage
 
     private void PopulateEditIconGrid(string? selectedIcon)
     {
-        PopulateIconGrid(EditIconGrid, PastelColorHelper.AvailableIcons, selectedIcon,
+        PopulateIconGrid(EditIconGrid, _colorService.AvailableIcons, selectedIcon,
             emoji => { _editSelectedIcon = emoji; PopulateEditIconGrid(emoji); });
     }
 
     private void PopulateAddIconGrid(string? selectedIcon)
     {
-        PopulateIconGrid(AddIconGrid, PastelColorHelper.AvailableIcons, selectedIcon,
+        PopulateIconGrid(AddIconGrid, _colorService.AvailableIcons, selectedIcon,
             emoji => { _addSelectedIcon = emoji; PopulateAddIconGrid(emoji); });
     }
 
     private void PopulateEditPaymentIconGrid(string? selectedIcon)
     {
-        PopulateIconGrid(EditIconGrid, PaymentIconService.AvailableIcons, selectedIcon,
+        PopulateIconGrid(EditIconGrid, _paymentIconService.AvailableIcons, selectedIcon,
             emoji => { _editSelectedPaymentIcon = emoji; PopulateEditPaymentIconGrid(emoji); });
     }
 
     private void PopulateAddPaymentIconGrid(string? selectedIcon)
     {
-        PopulateIconGrid(AddIconGrid, PaymentIconService.AvailableIcons, selectedIcon,
+        PopulateIconGrid(AddIconGrid, _paymentIconService.AvailableIcons, selectedIcon,
             emoji => { _addSelectedPaymentIcon = emoji; PopulateAddPaymentIconGrid(emoji); });
     }
 
     private void RebuildEditColorRow()
     {
-        PopulateColorRow(EditColorRow, PastelColorHelper.GetAvailableColors(_configs, _editingOriginalValue), _editSelectedColor,
+        PopulateColorRow(EditColorRow, _colorService.GetAvailableColors(_configs, _editingOriginalValue), _editSelectedColor,
             hex => { _editSelectedColor = hex; RebuildEditColorRow(); });
     }
 
     private void RebuildAddColorRow()
     {
-        PopulateColorRow(AddColorRow, PastelColorHelper.GetAvailableColors(_configs), _addSelectedColor,
+        PopulateColorRow(AddColorRow, _colorService.GetAvailableColors(_configs), _addSelectedColor,
             hex => { _addSelectedColor = hex; RebuildAddColorRow(); });
     }
 
@@ -571,7 +578,9 @@ public partial class SettingsPage : ContentPage
         public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
         {
             if (value is string name && !string.IsNullOrWhiteSpace(name))
-                return PastelColorHelper.IconForMovementType(name) + " " + name;
+                return PastelColorHelper.StaticAvailableIcons
+                    .FirstOrDefault(i => string.Equals(i.Label, name, StringComparison.OrdinalIgnoreCase)).Emoji
+                    + " " + name;
             return value?.ToString() ?? "";
         }
         public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) => throw new NotSupportedException();
@@ -583,7 +592,8 @@ public partial class SettingsPage : ContentPage
         {
             if (value is string name && !string.IsNullOrWhiteSpace(name))
             {
-                var emoji = PaymentIconService.IconForPaymentMethod(name);
+                var svc = new PaymentIconService();
+                var emoji = svc.IconForPaymentMethod(name);
                 return emoji + " " + name;
             }
             return value?.ToString() ?? "";

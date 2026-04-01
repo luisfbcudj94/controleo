@@ -4,11 +4,12 @@ using System.Net.Http.Headers;
 using System.Globalization;
 using System.Text;
 using System.Text.Json;
+using Controleo.Mobile.Interfaces;
 using Controleo.Mobile.Models;
 
 namespace Controleo.Mobile.Services;
 
-public sealed class ExpenseApiClient(HttpClient httpClient, AuthService authService)
+public sealed class ExpenseApiClient(HttpClient httpClient, IAuthService authService) : IExpenseApiClient
 {
     private static readonly TimeSpan CacheTtl = TimeSpan.FromSeconds(20);
 

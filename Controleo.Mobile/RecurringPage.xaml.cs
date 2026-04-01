@@ -1,3 +1,4 @@
+using Controleo.Mobile.Interfaces;
 using Controleo.Mobile.Models;
 using Controleo.Mobile.Services;
 using System.Globalization;
@@ -6,16 +7,20 @@ namespace Controleo.Mobile;
 
 public partial class RecurringPage : ContentPage
 {
-    private readonly ExpenseApiClient _apiClient;
+    private readonly IExpenseApiClient _apiClient;
+    private readonly ICatalogColorService _colorService;
+    private readonly IPaymentIconService _paymentIconService;
     private string? _editingId;
     private DateOnly _selectedStartDate = new(DateTime.Today.Year, DateTime.Today.Month, 1);
     private string? _selectedMovementType;
     private string? _selectedPaymentMethod;
 
-    public RecurringPage(ExpenseApiClient apiClient)
+    public RecurringPage(IExpenseApiClient apiClient, ICatalogColorService colorService, IPaymentIconService paymentIconService)
     {
         InitializeComponent();
         _apiClient = apiClient;
+        _colorService = colorService;
+        _paymentIconService = paymentIconService;
         UpdateStartDateSelectorLabel();
         MoneyFormatHelper.Attach(AmountEntry);
     }
@@ -30,7 +35,7 @@ public partial class RecurringPage : ContentPage
     private async Task LoadCatalogsAsync()
     {
         var catalogs = await _apiClient.GetCatalogsAsync(CancellationToken.None);
-        Services.PastelColorHelper.SetConfigs(catalogs.MovementTypeConfigs);
+        _colorService.SetConfigs(catalogs.MovementTypeConfigs);
         BuildTypePickerGrid(catalogs.MovementTypes.ToList());
         BuildPayPickerGrid(catalogs.PaymentMethods.ToList());
     }
@@ -41,8 +46,8 @@ public partial class RecurringPage : ContentPage
         var tileWidth = (DeviceDisplay.MainDisplayInfo.Width / DeviceDisplay.MainDisplayInfo.Density - 48 - 36) / 3;
         foreach (var t in types)
         {
-            var bgColor = Services.PastelColorHelper.ForMovementType(t);
-            var icon = Services.PastelColorHelper.IconForMovementType(t);
+            var bgColor = _colorService.ForMovementType(t);
+            var icon = _colorService.IconForMovementType(t);
             var tile = new Border
             {
                 StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 14 },
@@ -97,7 +102,7 @@ public partial class RecurringPage : ContentPage
         foreach (var m in methods)
         {
             var (bg, fg) = payColors.TryGetValue(m, out var c) ? c : ("#A8D8F0", "#1A2E23");
-            var emoji = PaymentIconService.IconForPaymentMethod(m);
+            var emoji = _paymentIconService.IconForPaymentMethod(m);
             var tile = new Border
             {
                 StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 14 },
@@ -144,8 +149,8 @@ public partial class RecurringPage : ContentPage
         var items = await _apiClient.GetRecurringExpensesAsync(CancellationToken.None);
         var viewItems = items.Select(item => new RecurringViewItem(
             item,
-            PastelColorHelper.ForMovementType(item.MovementType),
-            PastelColorHelper.IconForMovementType(item.MovementType)
+            _colorService.ForMovementType(item.MovementType),
+            _colorService.IconForMovementType(item.MovementType)
         )).ToList();
         RecurringCollection.ItemsSource = viewItems;
         StatusLabel.Text = string.Empty;
@@ -233,9 +238,9 @@ public partial class RecurringPage : ContentPage
         DescriptionEntry.Text = item.Description;
         AmountEntry.Text = item.Amount.ToString("0.##");
         _selectedMovementType = item.MovementType;
-        SelectedTypeLabel.Text = Services.PastelColorHelper.IconForMovementType(item.MovementType) + " " + item.MovementType;
+        SelectedTypeLabel.Text = _colorService.IconForMovementType(item.MovementType) + " " + item.MovementType;
         _selectedPaymentMethod = item.PaymentMethod;
-        SelectedPayLabel.Text = PaymentIconService.IconForPaymentMethod(item.PaymentMethod) + " " + item.PaymentMethod;
+        SelectedPayLabel.Text = _paymentIconService.IconForPaymentMethod(item.PaymentMethod) + " " + item.PaymentMethod;
         DayEntry.Text = item.DayOfMonth.ToString();
         _selectedStartDate = item.StartDate;
         UpdateStartDateSelectorLabel();

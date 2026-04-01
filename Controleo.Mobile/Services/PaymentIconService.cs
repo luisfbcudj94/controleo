@@ -1,13 +1,14 @@
 using System.Text.Json;
+using Controleo.Mobile.Interfaces;
 using Microsoft.Maui.Storage;
 
 namespace Controleo.Mobile.Services;
 
-public static class PaymentIconService
+public sealed class PaymentIconService : IPaymentIconService
 {
     private const string PreferencesKey = "controleo_payment_icons";
 
-    public static readonly (string Emoji, string Label)[] AvailableIcons =
+    public static readonly (string Emoji, string Label)[] StaticAvailableIcons =
     [
         ("💵", "Efectivo"),
         ("💳", "Tarjeta"),
@@ -31,10 +32,12 @@ public static class PaymentIconService
         ("🤝", "Prestado"),
     ];
 
+    (string Emoji, string Label)[] IPaymentIconService.AvailableIcons => StaticAvailableIcons;
+
     private static readonly object SyncRoot = new();
     private static Dictionary<string, string>? _cache;
 
-    public static string IconForPaymentMethod(string? paymentMethod)
+    public string IconForPaymentMethod(string? paymentMethod)
     {
         if (string.IsNullOrWhiteSpace(paymentMethod))
         {
@@ -54,7 +57,7 @@ public static class PaymentIconService
         return fallback;
     }
 
-    public static void SetIconForPaymentMethod(string paymentMethod, string icon)
+    public void SetIconForPaymentMethod(string paymentMethod, string icon)
     {
         if (string.IsNullOrWhiteSpace(paymentMethod) || string.IsNullOrWhiteSpace(icon))
         {
@@ -66,7 +69,7 @@ public static class PaymentIconService
         SaveMap(map);
     }
 
-    public static void RemovePaymentMethod(string paymentMethod)
+    public void RemovePaymentMethod(string paymentMethod)
     {
         if (string.IsNullOrWhiteSpace(paymentMethod))
         {
@@ -78,7 +81,7 @@ public static class PaymentIconService
         SaveMap(map);
     }
 
-    public static void RenamePaymentMethod(string oldName, string newName)
+    public void RenamePaymentMethod(string oldName, string newName)
     {
         if (string.IsNullOrWhiteSpace(oldName) || string.IsNullOrWhiteSpace(newName))
         {
@@ -162,7 +165,7 @@ public static class PaymentIconService
             "tc nu" => "💜",
             "td bancolombia" => "🏦",
             "bancolombia" => "🏦",
-            _ => AvailableIcons[(int)((uint)normalized.GetHashCode() % (uint)AvailableIcons.Length)].Emoji,
+            _ => StaticAvailableIcons[(int)((uint)normalized.GetHashCode() % (uint)StaticAvailableIcons.Length)].Emoji,
         };
     }
 }

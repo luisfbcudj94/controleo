@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using Controleo.Mobile.Interfaces;
 using Controleo.Mobile.Models;
 using Controleo.Mobile.Services;
 
@@ -32,8 +33,9 @@ public partial class DashboardPage : ContentPage
         "#3A9E8E"
     ];
 
-    private readonly ExpenseApiClient _apiClient;
-    private readonly MonthContextService _monthContext;
+    private readonly IExpenseApiClient _apiClient;
+    private readonly IMonthContextService _monthContext;
+    private readonly ICatalogColorService _colorService;
     private readonly ObservableCollection<DashboardListViewItem> _items = [];
     private readonly ObservableCollection<DonutLegendItem> _donutLegendItems = [];
     private bool _isRefreshing;
@@ -46,11 +48,12 @@ public partial class DashboardPage : ContentPage
     private readonly BudgetRingDrawable _budgetRingDrawable = new();
     private readonly DistributionDonutDrawable _distributionDonutDrawable = new();
 
-    public DashboardPage(ExpenseApiClient apiClient, MonthContextService monthContext)
+    public DashboardPage(IExpenseApiClient apiClient, IMonthContextService monthContext, ICatalogColorService colorService)
     {
         InitializeComponent();
         _apiClient = apiClient;
         _monthContext = monthContext;
+        _colorService = colorService;
         RefreshMonthPickerItems();
         _monthContext.MonthChanged += OnMonthChanged;
         _monthContext.MonthOptionsChanged += OnMonthOptionsChanged;
@@ -102,7 +105,7 @@ public partial class DashboardPage : ContentPage
             await Task.WhenAll(catalogTask, categoryTask, paymentTask);
 
             var catalog = catalogTask.Result;
-            Services.PastelColorHelper.SetConfigs(catalog.MovementTypeConfigs);
+            _colorService.SetConfigs(catalog.MovementTypeConfigs);
 
             _categoryData = categoryTask.Result;
             _paymentMethodData = paymentTask.Result;
@@ -161,7 +164,7 @@ public partial class DashboardPage : ContentPage
             var total = distribution.Sum(item => item.ExpenseTotal);
             _distributionDonutDrawable.Segments = distribution
                 .Select(item => new DistributionDonutDrawable.Segment(
-                    Services.PastelColorHelper.ForMovementType(item.MovementType),
+                    _colorService.ForMovementType(item.MovementType),
                     total <= 0 ? 0 : (double)(item.ExpenseTotal / total)))
                 .ToList();
 
@@ -180,7 +183,7 @@ public partial class DashboardPage : ContentPage
                     var pct = Math.Round((item.ExpenseTotal / total) * 100m);
                     _donutLegendItems.Add(new DonutLegendItem(
                         $"{item.MovementType} {pct:0}%",
-                        Services.PastelColorHelper.ForMovementType(item.MovementType)));
+                        _colorService.ForMovementType(item.MovementType)));
                 }
             }
 
@@ -255,8 +258,8 @@ public partial class DashboardPage : ContentPage
                     progress,
                     hasBudget ? ProgressColorForType(row.MovementType) : Color.FromArgb("#E5534B"),
                     subtitle,
-                    Services.PastelColorHelper.ForMovementType(row.MovementType),
-                    Services.PastelColorHelper.IconForMovementType(row.MovementType)));
+                    _colorService.ForMovementType(row.MovementType),
+                    _colorService.IconForMovementType(row.MovementType)));
             }
 
             return;

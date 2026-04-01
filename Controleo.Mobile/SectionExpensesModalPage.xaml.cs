@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using Controleo.Mobile.Interfaces;
 using Controleo.Mobile.Models;
 using Controleo.Mobile.Services;
 
@@ -8,7 +9,7 @@ public partial class SectionExpensesModalPage : ContentPage
 {
     private static readonly int[] AllowedPageSizes = [5, 10, 20];
 
-    private readonly ExpenseApiClient _apiClient;
+    private readonly IExpenseApiClient _apiClient;
     private readonly string _monthKey;
     private readonly string _detailTitle;
     private readonly string? _movementType;
@@ -20,7 +21,7 @@ public partial class SectionExpensesModalPage : ContentPage
     private int _pageSize = 5;
 
     public SectionExpensesModalPage(
-        ExpenseApiClient apiClient,
+        IExpenseApiClient apiClient,
         string monthKey,
         string detailTitle,
         string? movementType = null,

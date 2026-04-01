@@ -1,8 +1,9 @@
 using System.Globalization;
+using Controleo.Mobile.Interfaces;
 
 namespace Controleo.Mobile.Services;
 
-public sealed class MonthContextService
+public sealed class MonthContextService : IMonthContextService
 {
     private readonly List<MonthOption> _monthOptions;
     private DateOnly _selectedMonth;

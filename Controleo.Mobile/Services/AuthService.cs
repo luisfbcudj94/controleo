@@ -1,11 +1,12 @@
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
+using Controleo.Mobile.Interfaces;
 using Microsoft.Maui.Storage;
 
 namespace Controleo.Mobile.Services;
 
-public sealed class AuthService(HttpClient httpClient)
+public sealed class AuthService(HttpClient httpClient) : IAuthService
 {
     private const string SessionKey = "controleo_auth_session";
 
