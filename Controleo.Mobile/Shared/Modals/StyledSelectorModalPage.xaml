@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Controleo.Mobile.Shared.Modals.StyledSelectorModalPage"
+             BackgroundColor="#44000000"
+             Shell.NavBarIsVisible="False">
+
+    <Grid Padding="24">
+        <Border VerticalOptions="Center" StrokeShape="RoundRectangle 20" Padding="18"
+                BackgroundColor="{StaticResource AppBg}" Stroke="{StaticResource AppBorder}">
+            <Grid RowDefinitions="Auto,*" RowSpacing="12">
+                <Grid ColumnDefinitions="*,Auto" VerticalOptions="Center">
+                    <Label x:Name="TitleLabel" FontSize="18" FontAttributes="Bold" />
+                    <Button Grid.Column="1" Text="✕" WidthRequest="36" HeightRequest="36" CornerRadius="18"
+                            BackgroundColor="{StaticResource Gray200}" TextColor="{StaticResource AppText}"
+                            FontSize="14" Clicked="OnCloseClicked" />
+                </Grid>
+
+                <CollectionView Grid.Row="1" x:Name="OptionsCollection" SelectionMode="None" HeightRequest="360">
+                    <CollectionView.ItemTemplate>
+                        <DataTemplate>
+                            <Border Padding="12,10" Margin="0,0,0,8" StrokeShape="RoundRectangle 14"
+                                    BackgroundColor="{StaticResource AppSurface2}" Stroke="{StaticResource AppBorder}"
+                                    MinimumHeightRequest="48">
+                                <Border.Triggers>
+                                    <DataTrigger TargetType="Border" Binding="{Binding IsSelected}" Value="True">
+                                        <Setter Property="BackgroundColor" Value="{StaticResource AccentLight}" />
+                                        <Setter Property="Stroke" Value="{StaticResource Tertiary}" />
+                                    </DataTrigger>
+                                </Border.Triggers>
+                                <Label Text="{Binding Label}" FontSize="15"
+                                       TextColor="{StaticResource AppText}"
+                                       HorizontalTextAlignment="Center" HorizontalOptions="Fill"
+                                       VerticalTextAlignment="Center" VerticalOptions="Center" />
+                                <Border.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="OnOptionTapped" />
+                                </Border.GestureRecognizers>
+                            </Border>
+                        </DataTemplate>
+                    </CollectionView.ItemTemplate>
+                </CollectionView>
+            </Grid>
+        </Border>
+    </Grid>
+</ContentPage>

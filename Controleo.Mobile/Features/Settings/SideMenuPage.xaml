@@ -1,0 +1,151 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Controleo.Mobile.Features.Settings.SideMenuPage"
+             Title="Menú"
+             BackgroundColor="{StaticResource AppBg}">
+
+    <Grid RowDefinitions="Auto,*" Padding="10,24,10,14" RowSpacing="10">
+        <Border StrokeShape="RoundRectangle 18"
+                StrokeThickness="0"
+                BackgroundColor="{StaticResource White}"
+                Padding="14,12">
+            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10" VerticalOptions="Center">
+                <Border WidthRequest="42" HeightRequest="42"
+                        StrokeShape="RoundRectangle 14"
+                        StrokeThickness="0"
+                        BackgroundColor="{StaticResource AppSurface2}">
+                    <Label Text="☰" FontSize="22" FontAttributes="Bold"
+                           TextColor="{StaticResource AppText}"
+                           HorizontalTextAlignment="Center"
+                           VerticalTextAlignment="Center"
+                           HorizontalOptions="Center" VerticalOptions="Center" />
+                </Border>
+                <VerticalStackLayout Grid.Column="1" Spacing="0" VerticalOptions="Center">
+                    <Label Text="Menú" FontSize="24" FontAttributes="Bold"
+                           FontFamily="OpenSansSemibold"
+                           TextColor="{StaticResource AppText}" />
+                    <Label Text="Accesos rápidos" FontSize="12"
+                           TextColor="{StaticResource AppHint}" />
+                </VerticalStackLayout>
+            </Grid>
+        </Border>
+
+        <ScrollView Grid.Row="1">
+            <VerticalStackLayout Spacing="10" Padding="0,4,0,0">
+                <Label Text="GENERAL"
+                       FontSize="10"
+                       FontAttributes="Bold"
+                       CharacterSpacing="1"
+                       TextColor="{StaticResource AppHint}"
+                       Margin="4,0,0,0" />
+
+                <Border StrokeShape="RoundRectangle 14"
+                        StrokeThickness="0"
+                        BackgroundColor="{StaticResource White}"
+                        Padding="14,12">
+                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+                        <Label Text="👤" FontSize="18" VerticalOptions="Center" />
+                        <Label Grid.Column="1" Text="Perfil"
+                               FontSize="16" FontAttributes="Bold"
+                               TextColor="{StaticResource AppText}"
+                               VerticalOptions="Center" />
+                        <Label Grid.Column="2" Text="›" FontSize="18"
+                               TextColor="{StaticResource AppHint}" VerticalOptions="Center" />
+                    </Grid>
+                    <Border.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnProfileTapped" />
+                    </Border.GestureRecognizers>
+                </Border>
+
+                <Label Text="CONFIGURACIÓN"
+                       FontSize="10"
+                       FontAttributes="Bold"
+                       CharacterSpacing="1"
+                       TextColor="{StaticResource AppHint}"
+                       Margin="4,2,0,0" />
+
+                <Border StrokeShape="RoundRectangle 14"
+                        StrokeThickness="0"
+                        BackgroundColor="{StaticResource White}"
+                        Padding="14,12">
+                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+                        <Label Text="⚙️" FontSize="18" VerticalOptions="Center" />
+                        <Label Grid.Column="1" Text="Configuración"
+                               FontSize="16" FontAttributes="Bold"
+                               TextColor="{StaticResource AppText}"
+                               VerticalOptions="Center" />
+                        <Label Grid.Column="2" x:Name="ConfigChevronLabel" Text="▸"
+                               FontSize="17" TextColor="{StaticResource AppHint}"
+                               VerticalOptions="Center" />
+                    </Grid>
+                    <Border.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnConfigurationTapped" />
+                    </Border.GestureRecognizers>
+                </Border>
+
+                <VerticalStackLayout x:Name="ConfigItemsContainer" Spacing="8" IsVisible="False" Padding="12,0,0,0" Opacity="0">
+                    <Border StrokeShape="RoundRectangle 12"
+                            StrokeThickness="0"
+                            BackgroundColor="{StaticResource AppSurface2}"
+                            Padding="12,10">
+                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                            <Label Text="💰" FontSize="14" VerticalOptions="Center" />
+                            <Label Grid.Column="1" Text="Presupuesto"
+                                   FontSize="14"
+                                   TextColor="{StaticResource AppText}" />
+                        </Grid>
+                        <Border.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnBudgetsTapped" />
+                        </Border.GestureRecognizers>
+                    </Border>
+
+                    <Border StrokeShape="RoundRectangle 12"
+                            StrokeThickness="0"
+                            BackgroundColor="{StaticResource AppSurface2}"
+                            Padding="12,10">
+                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                            <Label Text="💳" FontSize="14" VerticalOptions="Center" />
+                            <Label Grid.Column="1" Text="Medios de pago"
+                                   FontSize="14"
+                                   TextColor="{StaticResource AppText}" />
+                        </Grid>
+                        <Border.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnPaymentMethodsTapped" />
+                        </Border.GestureRecognizers>
+                    </Border>
+
+                    <Border StrokeShape="RoundRectangle 12"
+                            StrokeThickness="0"
+                            BackgroundColor="{StaticResource AppSurface2}"
+                            Padding="12,10">
+                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                            <Label Text="🧾" FontSize="14" VerticalOptions="Center" />
+                            <Label Grid.Column="1" Text="Tipos de gasto"
+                                   FontSize="14"
+                                   TextColor="{StaticResource AppText}" />
+                        </Grid>
+                        <Border.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnMovementTypesTapped" />
+                        </Border.GestureRecognizers>
+                    </Border>
+
+                    <Border StrokeShape="RoundRectangle 12"
+                            StrokeThickness="0"
+                            BackgroundColor="{StaticResource AppSurface2}"
+                            Padding="12,10">
+                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                            <Label Text="🔁" FontSize="14" VerticalOptions="Center" />
+                            <Label Grid.Column="1" Text="Recurrentes"
+                                   FontSize="14"
+                                   TextColor="{StaticResource AppText}" />
+                        </Grid>
+                        <Border.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnRecurringTapped" />
+                        </Border.GestureRecognizers>
+                    </Border>
+                </VerticalStackLayout>
+            </VerticalStackLayout>
+        </ScrollView>
+    </Grid>
+</ContentPage>

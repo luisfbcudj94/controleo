@@ -1,0 +1,229 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Controleo.Mobile.Features.Settings.SettingsPage"
+             Title="Configuración"
+             BackgroundColor="{StaticResource AppBg}">
+
+    <Grid RowDefinitions="*">
+        <RefreshView x:Name="SettingsRefreshView" Refreshing="OnRefreshing">
+            <ScrollView>
+                <VerticalStackLayout Padding="16" Spacing="14">
+
+                    <!-- Page Title -->
+                          <Label x:Name="PageTitleLabel" Text="Configuración" FontSize="28" FontAttributes="Bold"
+                           FontFamily="OpenSansSemibold" TextColor="{StaticResource AppText}"
+                           Margin="0,0,0,4" />
+
+                    <!-- Expense Sections -->
+                          <Border x:Name="MovementSectionCard" Padding="16" StrokeShape="RoundRectangle 18" StrokeThickness="0"
+                            BackgroundColor="{StaticResource White}">
+                        <Border.Shadow>
+                            <Shadow Brush="Black" Offset="0,1" Radius="6" Opacity="0.06" />
+                        </Border.Shadow>
+                        <VerticalStackLayout Spacing="10">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <Label Text="Secciones de gasto" FontAttributes="Bold" FontSize="17" VerticalOptions="Center" />
+                                <Border Grid.Column="1" StrokeShape="RoundRectangle 12" StrokeThickness="0"
+                                        BackgroundColor="{StaticResource Primary}" WidthRequest="40" HeightRequest="40"
+                                        HorizontalOptions="End">
+                                    <Label Text="+" FontSize="24" FontAttributes="Bold"
+                                           TextColor="{StaticResource PrimaryDarkText}"
+                                           HorizontalOptions="Center" VerticalOptions="Center"
+                                           HorizontalTextAlignment="Center" VerticalTextAlignment="Center" />
+                                    <Border.GestureRecognizers>
+                                        <TapGestureRecognizer Tapped="OnAddMovementTapped" />
+                                    </Border.GestureRecognizers>
+                                </Border>
+                            </Grid>
+                            <CollectionView x:Name="MovementCollection" SelectionMode="None" HeightRequest="240">
+                                <CollectionView.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Padding="10,8" Margin="0,0,0,6" StrokeShape="RoundRectangle 12"
+                                                BackgroundColor="{StaticResource AppSurface2}" Stroke="{StaticResource AppBorder}"
+                                                HeightRequest="48">
+                                            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="6">
+                                                <Label Text="{Binding ., Converter={StaticResource MovementIconConverter}}" VerticalOptions="Center"
+                                                       VerticalTextAlignment="Center" LineBreakMode="TailTruncation" FontSize="15" />
+                                                <Border Grid.Column="1" StrokeShape="RoundRectangle 14"
+                                                        BackgroundColor="{StaticResource AccentLight}" StrokeThickness="0"
+                                                        WidthRequest="28" HeightRequest="28" Padding="0">
+                                                    <Label Text="✏️" FontSize="13" HorizontalOptions="Center" VerticalOptions="Center"
+                                                           HorizontalTextAlignment="Center" VerticalTextAlignment="Center" />
+                                                    <Border.GestureRecognizers>
+                                                        <TapGestureRecognizer CommandParameter="{Binding .}" Tapped="OnEditMovementItemTapped" />
+                                                    </Border.GestureRecognizers>
+                                                </Border>
+                                                <Border Grid.Column="2" StrokeShape="RoundRectangle 14"
+                                                        BackgroundColor="#FFE0E0" StrokeThickness="0"
+                                                        WidthRequest="28" HeightRequest="28" Padding="0">
+                                                    <Label Text="🗑️" FontSize="13" HorizontalOptions="Center" VerticalOptions="Center"
+                                                           HorizontalTextAlignment="Center" VerticalTextAlignment="Center" />
+                                                    <Border.GestureRecognizers>
+                                                        <TapGestureRecognizer CommandParameter="{Binding .}" Tapped="OnDeleteMovementItemTapped" />
+                                                    </Border.GestureRecognizers>
+                                                </Border>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </CollectionView.ItemTemplate>
+                            </CollectionView>
+                        </VerticalStackLayout>
+                    </Border>
+
+                    <!-- Payment Methods -->
+                        <Border x:Name="PaymentSectionCard" Padding="16" StrokeShape="RoundRectangle 18" StrokeThickness="0"
+                            BackgroundColor="{StaticResource White}">
+                        <Border.Shadow>
+                            <Shadow Brush="Black" Offset="0,1" Radius="6" Opacity="0.06" />
+                        </Border.Shadow>
+                        <VerticalStackLayout Spacing="10">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <Label Text="Medios de pago" FontAttributes="Bold" FontSize="17" VerticalOptions="Center" />
+                                <Border Grid.Column="1" StrokeShape="RoundRectangle 12" StrokeThickness="0"
+                                        BackgroundColor="{StaticResource Primary}" WidthRequest="40" HeightRequest="40"
+                                        HorizontalOptions="End">
+                                    <Label Text="+" FontSize="24" FontAttributes="Bold"
+                                           TextColor="{StaticResource PrimaryDarkText}"
+                                           HorizontalOptions="Center" VerticalOptions="Center"
+                                           HorizontalTextAlignment="Center" VerticalTextAlignment="Center" />
+                                    <Border.GestureRecognizers>
+                                        <TapGestureRecognizer Tapped="OnAddPaymentTapped" />
+                                    </Border.GestureRecognizers>
+                                </Border>
+                            </Grid>
+                            <CollectionView x:Name="PaymentCollection" SelectionMode="None" HeightRequest="240">
+                                <CollectionView.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Padding="10,8" Margin="0,0,0,6" StrokeShape="RoundRectangle 12"
+                                                BackgroundColor="{StaticResource AppSurface2}" Stroke="{StaticResource AppBorder}"
+                                                HeightRequest="48">
+                                            <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="6">
+                                                <Label Text="{Binding ., Converter={StaticResource PaymentIconConverter}}" VerticalOptions="Center"
+                                                       VerticalTextAlignment="Center" LineBreakMode="TailTruncation" FontSize="15" />
+                                                <Border Grid.Column="1" StrokeShape="RoundRectangle 14"
+                                                        BackgroundColor="{StaticResource AccentLight}" StrokeThickness="0"
+                                                        WidthRequest="28" HeightRequest="28" Padding="0">
+                                                    <Label Text="✏️" FontSize="13" HorizontalOptions="Center" VerticalOptions="Center"
+                                                           HorizontalTextAlignment="Center" VerticalTextAlignment="Center" />
+                                                    <Border.GestureRecognizers>
+                                                        <TapGestureRecognizer CommandParameter="{Binding .}" Tapped="OnEditPaymentItemTapped" />
+                                                    </Border.GestureRecognizers>
+                                                </Border>
+                                                <Border Grid.Column="2" StrokeShape="RoundRectangle 14"
+                                                        BackgroundColor="#FFE0E0" StrokeThickness="0"
+                                                        WidthRequest="28" HeightRequest="28" Padding="0">
+                                                    <Label Text="🗑️" FontSize="13" HorizontalOptions="Center" VerticalOptions="Center"
+                                                           HorizontalTextAlignment="Center" VerticalTextAlignment="Center" />
+                                                    <Border.GestureRecognizers>
+                                                        <TapGestureRecognizer CommandParameter="{Binding .}" Tapped="OnDeletePaymentItemTapped" />
+                                                    </Border.GestureRecognizers>
+                                                </Border>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </CollectionView.ItemTemplate>
+                            </CollectionView>
+                        </VerticalStackLayout>
+                    </Border>
+
+                    <!-- Session / Logout -->
+                        <Border x:Name="SessionSectionCard" Padding="16" StrokeShape="RoundRectangle 18" StrokeThickness="0"
+                            BackgroundColor="{StaticResource White}">
+                        <Border.Shadow>
+                            <Shadow Brush="Black" Offset="0,1" Radius="4" Opacity="0.05" />
+                        </Border.Shadow>
+                        <VerticalStackLayout Spacing="12">
+                            <Label Text="Sesión" FontAttributes="Bold" FontSize="17" />
+                            <Button Text="Cerrar sesión" HeightRequest="48" CornerRadius="14"
+                                    BackgroundColor="{StaticResource ActionDelete}" TextColor="White"
+                                    FontSize="16" FontAttributes="Bold"
+                                    Clicked="OnLogoutClicked" />
+                        </VerticalStackLayout>
+                    </Border>
+
+                </VerticalStackLayout>
+            </ScrollView>
+        </RefreshView>
+
+        <!-- Edit Name Overlay (with inline icon picker for sections) -->
+        <Grid x:Name="EditOverlay" IsVisible="False" BackgroundColor="#44000000"
+              InputTransparent="False" ZIndex="20">
+            <ScrollView VerticalOptions="Center" Margin="24">
+                <Border StrokeShape="RoundRectangle 18" Padding="18"
+                        BackgroundColor="{StaticResource White}" Stroke="{StaticResource AppBorder}">
+                    <VerticalStackLayout Spacing="12">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <Label x:Name="EditModalTitleLabel" Text="Editar" FontSize="18" FontAttributes="Bold" />
+                            <Button Grid.Column="1" Text="✕" WidthRequest="36" HeightRequest="36" CornerRadius="18"
+                                    BackgroundColor="{StaticResource Gray200}" TextColor="{StaticResource AppText}"
+                                    FontSize="14" Clicked="OnCancelEditModalClicked" />
+                        </Grid>
+                        <Label Text="Nombre" FontSize="12" TextColor="{StaticResource AppHint}" />
+                        <Entry x:Name="EditModalEntry" Placeholder="Nombre" />
+
+                        <!-- Icon picker grid (only for sections) -->
+                        <VerticalStackLayout x:Name="EditIconSection" IsVisible="False" Spacing="6">
+                            <Label Text="Icono" FontSize="12" TextColor="{StaticResource AppHint}" />
+                            <Grid x:Name="EditIconGrid" ColumnSpacing="6" RowSpacing="6" />
+                            <Label x:Name="EditColorLabel" Text="Color" FontSize="12" TextColor="{StaticResource AppHint}" Margin="0,6,0,0" />
+                            <ScrollView x:Name="EditColorScroll" Orientation="Horizontal" HorizontalScrollBarVisibility="Never" HeightRequest="52">
+                                <HorizontalStackLayout x:Name="EditColorRow" Spacing="8" />
+                            </ScrollView>
+                        </VerticalStackLayout>
+
+                        <HorizontalStackLayout HorizontalOptions="End" Spacing="8">
+                            <Button Text="Cancelar" Clicked="OnCancelEditModalClicked"
+                                    BackgroundColor="{StaticResource AppSurface2}" TextColor="{StaticResource AppText}" />
+                            <Button Text="Guardar" Clicked="OnConfirmEditModalClicked"
+                                    BackgroundColor="{StaticResource ActionSave}" TextColor="White" />
+                        </HorizontalStackLayout>
+                    </VerticalStackLayout>
+                </Border>
+            </ScrollView>
+        </Grid>
+
+        <!-- Add Name Overlay -->
+        <Grid x:Name="AddOverlay" IsVisible="False" BackgroundColor="#44000000"
+              InputTransparent="False" ZIndex="20">
+            <ScrollView VerticalOptions="Center" Margin="24">
+                <Border StrokeShape="RoundRectangle 18" Padding="18"
+                        BackgroundColor="{StaticResource White}" Stroke="{StaticResource AppBorder}">
+                    <VerticalStackLayout Spacing="12">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <Label x:Name="AddModalTitleLabel" Text="Agregar" FontSize="18" FontAttributes="Bold" />
+                            <Button Grid.Column="1" Text="✕" WidthRequest="36" HeightRequest="36" CornerRadius="18"
+                                    BackgroundColor="{StaticResource Gray200}" TextColor="{StaticResource AppText}"
+                                    FontSize="14" Clicked="OnCancelAddModal" />
+                        </Grid>
+                        <Entry x:Name="AddModalEntry" Placeholder="Nombre" />
+
+                        <!-- Icon picker grid (only if adding movement) -->
+                        <VerticalStackLayout x:Name="AddIconSection" IsVisible="False" Spacing="6">
+                            <Label Text="Icono" FontSize="12" TextColor="{StaticResource AppHint}" />
+                            <Grid x:Name="AddIconGrid" ColumnSpacing="6" RowSpacing="6" />
+                            <Label x:Name="AddColorLabel" Text="Color" FontSize="12" TextColor="{StaticResource AppHint}" Margin="0,6,0,0" />
+                            <ScrollView x:Name="AddColorScroll" Orientation="Horizontal" HorizontalScrollBarVisibility="Never" HeightRequest="52">
+                                <HorizontalStackLayout x:Name="AddColorRow" Spacing="8" />
+                            </ScrollView>
+                        </VerticalStackLayout>
+
+                        <HorizontalStackLayout HorizontalOptions="End" Spacing="8">
+                            <Button Text="Cancelar" Clicked="OnCancelAddModal"
+                                    BackgroundColor="{StaticResource AppSurface2}" TextColor="{StaticResource AppText}" />
+                        <Button Text="Guardar" Clicked="OnConfirmAddModal"
+                                    BackgroundColor="{StaticResource Primary}" TextColor="{StaticResource PrimaryDarkText}" />
+                        </HorizontalStackLayout>
+                    </VerticalStackLayout>
+                </Border>
+            </ScrollView>
+        </Grid>
+
+        <!-- Loading -->
+        <Grid x:Name="LoadingOverlay" Grid.Row="0" IsVisible="False"
+              BackgroundColor="#33000000" InputTransparent="False" ZIndex="30" Margin="-16">
+            <ActivityIndicator IsRunning="True" WidthRequest="48" HeightRequest="48"
+                               Color="{StaticResource Tertiary}" HorizontalOptions="Center" VerticalOptions="Center" />
+        </Grid>
+    </Grid>
+</ContentPage>

@@ -1,4 +1,14 @@
 ﻿using Microsoft.Maui.Controls.PlatformConfiguration;
+using Controleo.Mobile.Core.Interfaces;
+using Controleo.Mobile.Core.Services;
+using Controleo.Mobile.Features.Auth;
+using Controleo.Mobile.Features.Budgets;
+using Controleo.Mobile.Features.Dashboard;
+using Controleo.Mobile.Features.Expenses;
+using Controleo.Mobile.Features.Recurring;
+using Controleo.Mobile.Features.Register;
+using Controleo.Mobile.Features.Settings;
+using Controleo.Mobile.Shared.Modals;
 
 namespace Controleo.Mobile;
 
@@ -152,11 +162,11 @@ public partial class App : Application
 	{
 		try
 		{
-			var apiClient = _serviceProvider.GetRequiredService<Interfaces.IExpenseApiClient>();
-			var authService = _serviceProvider.GetRequiredService<Interfaces.IAuthService>();
-			var monthContext = _serviceProvider.GetRequiredService<Interfaces.IMonthContextService>();
-			var colorService = _serviceProvider.GetRequiredService<Interfaces.ICatalogColorService>();
-			var paymentIconService = _serviceProvider.GetRequiredService<Interfaces.IPaymentIconService>();
+			var apiClient = _serviceProvider.GetRequiredService<IExpenseApiClient>();
+			var authService = _serviceProvider.GetRequiredService<IAuthService>();
+			var monthContext = _serviceProvider.GetRequiredService<IMonthContextService>();
+			var colorService = _serviceProvider.GetRequiredService<ICatalogColorService>();
+			var paymentIconService = _serviceProvider.GetRequiredService<IPaymentIconService>();
 
 			Page destinationPage = destination switch
 			{

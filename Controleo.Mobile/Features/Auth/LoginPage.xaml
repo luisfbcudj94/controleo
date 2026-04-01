@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Controleo.Mobile.Features.Auth.LoginPage"
+             Title="Iniciar sesión"
+             BackgroundColor="{DynamicResource AppBg}">
+
+    <Grid Padding="24" RowDefinitions="2*,Auto,Auto,2*" RowSpacing="0">
+
+        <!-- Brand Card with gradient look -->
+        <VerticalStackLayout Grid.Row="1" Spacing="0" Margin="0,0,0,28">
+            <Border StrokeShape="RoundRectangle 24" StrokeThickness="0" Padding="32,28"
+                    BackgroundColor="{DynamicResource Primary}" Margin="0,0,0,20">
+                <Border.Shadow>
+                    <Shadow Brush="#2D6A4F" Offset="0,4" Radius="20" Opacity="0.3" />
+                </Border.Shadow>
+                <VerticalStackLayout Spacing="6" HorizontalOptions="Center">
+                    <Label Text="🌿" FontSize="48" HorizontalTextAlignment="Center" />
+                    <Label Text="Controleo"
+                           FontSize="32"
+                           FontAttributes="Bold"
+                           FontFamily="OpenSansSemibold"
+                           TextColor="White"
+                           HorizontalTextAlignment="Center" />
+                    <Label Text="Tu espacio personal de finanzas"
+                           FontSize="15"
+                           TextColor="#FFFFFFDD"
+                           HorizontalTextAlignment="Center" />
+                </VerticalStackLayout>
+            </Border>
+        </VerticalStackLayout>
+
+        <!-- Form -->
+        <VerticalStackLayout Grid.Row="2" Spacing="14">
+            <VerticalStackLayout Spacing="4">
+                <Label Text="Correo electrónico" FontSize="13" FontAttributes="Bold"
+                       TextColor="{DynamicResource AppHint}" />
+                <Entry x:Name="EmailEntry"
+                       Placeholder="usuario@correo.com"
+                       Keyboard="Email"
+                       TextColor="{DynamicResource AppText}"
+                       PlaceholderColor="{DynamicResource AppHint}"
+                       BackgroundColor="{DynamicResource AppSurface2}" />
+            </VerticalStackLayout>
+
+            <VerticalStackLayout Spacing="4">
+                <Label Text="Contraseña" FontSize="13" FontAttributes="Bold"
+                       TextColor="{DynamicResource AppHint}" />
+                <Entry x:Name="PasswordEntry"
+                       Placeholder="••••••••"
+                       IsPassword="True"
+                       TextColor="{DynamicResource AppText}"
+                       PlaceholderColor="{DynamicResource AppHint}"
+                       BackgroundColor="{DynamicResource AppSurface2}" />
+            </VerticalStackLayout>
+
+            <Entry x:Name="NameEntry" Placeholder="Nombre" IsVisible="False"
+                   TextColor="{DynamicResource AppText}" PlaceholderColor="{DynamicResource AppHint}"
+                   BackgroundColor="{DynamicResource AppSurface2}" />
+
+            <Entry x:Name="ConfirmPasswordEntry" Placeholder="Confirmar contraseña" IsVisible="False"
+                   IsPassword="True" TextColor="{DynamicResource AppText}"
+                   PlaceholderColor="{DynamicResource AppHint}" BackgroundColor="{DynamicResource AppSurface2}" />
+
+            <Button x:Name="SignInButton"
+                    Text="Iniciar sesión"
+                    Clicked="OnSignInClicked"
+                    HeightRequest="52"
+                    CornerRadius="16"
+                    FontAttributes="Bold"
+                    FontSize="16"
+                    BackgroundColor="{DynamicResource Primary}"
+                    TextColor="{DynamicResource PrimaryDarkText}" />
+
+            <Button x:Name="ModeButton"
+                    Text="¿No tienes cuenta? Regístrate"
+                    Clicked="OnToggleModeClicked"
+                    HeightRequest="40"
+                    CornerRadius="14"
+                    FontSize="13"
+                    BackgroundColor="Transparent"
+                    TextColor="{DynamicResource Tertiary}" />
+
+            <Button x:Name="RegisterButton"
+                    Text="Crear cuenta"
+                    IsVisible="False"
+                    Clicked="OnRegisterClicked"
+                    HeightRequest="52"
+                    CornerRadius="16"
+                    FontAttributes="Bold"
+                    FontSize="16"
+                    BackgroundColor="{DynamicResource Primary}"
+                    TextColor="{DynamicResource PrimaryDarkText}" />
+
+            <Label x:Name="StatusLabel"
+                   IsVisible="False"
+                   FontSize="13"
+                   HorizontalTextAlignment="Center"
+                   TextColor="{DynamicResource ActionDelete}" />
+        </VerticalStackLayout>
+    </Grid>
+</ContentPage>
