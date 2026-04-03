@@ -12,9 +12,22 @@ public partial class ExpensesPage : ContentPage
 {
     private static readonly int[] AllowedPageSizes = [5, 10, 20];
 
+    private static readonly Dictionary<string, (string bg, string fg)> PaymentTileColors = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["TC Black"] = ("#1A2E23", "#FFFFFF"),
+        ["TC Rappi"] = ("#FF6B35", "#FFFFFF"),
+        ["TD Bancolombia"] = ("#FFD700", "#1A2E23"),
+        ["Bancolombia"] = ("#FFD700", "#1A2E23"),
+        ["TC Nu"] = ("#7B2D8E", "#FFFFFF"),
+        ["Efectivo"] = ("#B6E6BD", "#1A2E23"),
+        ["Transferencia"] = ("#A8D8F0", "#1A2E23"),
+        ["Nequi"] = ("#00C389", "#FFFFFF"),
+    };
+
     private readonly IExpenseApiClient _apiClient;
     private readonly IMonthContextService _monthContext;
     private readonly ICatalogColorService _colorService;
+    private readonly IPaymentIconService _paymentIconService;
     private readonly ObservableCollection<ExpenseViewItem> _expenses = [];
     private ExpenseCatalog _catalog = new([], []);
     private ExpenseItem? _selectedExpense;
@@ -28,13 +41,16 @@ public partial class ExpensesPage : ContentPage
     private string? _selectedMovementTypeFilter;
     private string? _selectedPaymentMethodFilter;
     private DateOnly _editSelectedDate = DateOnly.FromDateTime(DateTime.Today);
+    private string? _editSelectedMovementType;
+    private string? _editSelectedPaymentMethod;
 
-    public ExpensesPage(IExpenseApiClient apiClient, IMonthContextService monthContext, ICatalogColorService colorService)
+    public ExpensesPage(IExpenseApiClient apiClient, IMonthContextService monthContext, ICatalogColorService colorService, IPaymentIconService paymentIconService)
     {
         InitializeComponent();
         _apiClient = apiClient;
         _monthContext = monthContext;
         _colorService = colorService;
+        _paymentIconService = paymentIconService;
         RefreshMonthPickerItems();
         _monthContext.MonthChanged += OnMonthChanged;
         _monthContext.MonthOptionsChanged += OnMonthOptionsChanged;
@@ -46,6 +62,7 @@ public partial class ExpensesPage : ContentPage
         _isPageSizeSyncing = false;
         PageSizeSelectorLabel.Text = _pageSize.ToString();
         MoneyFormatHelper.Attach(EditAmountEntry);
+        UpdateEditSelectorUi();
         UpdateFilterUi();
     }
 
@@ -61,6 +78,8 @@ public partial class ExpensesPage : ContentPage
     {
         var monthKeys = await _apiClient.GetAvailableMonthsAsync(CancellationToken.None);
         _monthContext.SetAvailableMonths(monthKeys);
+        var currentMonth = new DateOnly(DateTime.Today.Year, DateTime.Today.Month, 1);
+        _monthContext.SetMonth(currentMonth);
         RefreshMonthPickerItems();
         SyncMonthSelection();
     }
@@ -85,8 +104,7 @@ public partial class ExpensesPage : ContentPage
         {
             _catalog = await _apiClient.GetCatalogsAsync(CancellationToken.None);
             _colorService.SetConfigs(_catalog.MovementTypeConfigs);
-            EditMovementPicker.ItemsSource = _catalog.MovementTypes.ToList();
-            EditPaymentPicker.ItemsSource = _catalog.PaymentMethods.ToList();
+            SyncPaymentIcons(_catalog);
 
             var page = await _apiClient.GetExpensesPageAsync(
                 _monthContext.SelectedMonthKey,
@@ -136,17 +154,26 @@ public partial class ExpensesPage : ContentPage
             return;
         }
 
-        var result = await _apiClient.DeleteExpenseAsync(expense.Id, CancellationToken.None);
-        await StyledResultModalPage.ShowAsync(
-            this,
-            result.IsSuccess,
-            result.IsSuccess ? "Gasto eliminado" : "No se pudo eliminar",
-            result.IsSuccess ? "El gasto se eliminó correctamente." : result.Message);
-        if (result.IsSuccess)
+        SetLoading(true);
+        try
         {
-            EditPanel.IsVisible = false;
-            _selectedExpense = null;
-            await LoadDataAsync();
+            var result = await _apiClient.DeleteExpenseAsync(expense.Id, CancellationToken.None);
+            await StyledResultModalPage.ShowAsync(
+                this,
+                result.IsSuccess,
+                result.IsSuccess ? "Gasto eliminado" : "No se pudo eliminar",
+                result.IsSuccess ? "El gasto se eliminó correctamente." : result.Message);
+
+            if (result.IsSuccess)
+            {
+                EditPanel.IsVisible = false;
+                _selectedExpense = null;
+                await LoadDataAsync();
+            }
+        }
+        finally
+        {
+            SetLoading(false);
         }
     }
 
@@ -164,8 +191,9 @@ public partial class ExpensesPage : ContentPage
         UpdateEditDateSelectorLabel();
         EditDescriptionEntry.Text = expense.Description;
         EditAmountEntry.Text = MoneyFormatHelper.FormatWithDots(((long)expense.Amount).ToString());
-        EditMovementPicker.SelectedItem = expense.MovementType;
-        EditPaymentPicker.SelectedItem = expense.PaymentMethod;
+        _editSelectedMovementType = ResolveCatalogOption(expense.MovementType, _catalog.MovementTypes);
+        _editSelectedPaymentMethod = ResolveCatalogOption(expense.PaymentMethod, _catalog.PaymentMethods);
+        UpdateEditSelectorUi();
         EditPanel.IsVisible = true;
         StatusLabel.Text = string.Empty;
     }
@@ -187,7 +215,7 @@ public partial class ExpensesPage : ContentPage
         }
 
         if (string.IsNullOrWhiteSpace(EditDescriptionEntry.Text) || amount == 0 ||
-            EditMovementPicker.SelectedItem is null || EditPaymentPicker.SelectedItem is null)
+            string.IsNullOrWhiteSpace(_editSelectedMovementType) || string.IsNullOrWhiteSpace(_editSelectedPaymentMethod))
         {
             ResetEditInputs();
             await StyledResultModalPage.ShowAsync(this, false, "No se pudo editar", "Completa todos los campos y usa un valor diferente de cero.");
@@ -198,39 +226,54 @@ public partial class ExpensesPage : ContentPage
             _editSelectedDate,
             EditDescriptionEntry.Text.Trim(),
             amount,
-            EditMovementPicker.SelectedItem.ToString()!,
-            EditPaymentPicker.SelectedItem.ToString()!);
+            _editSelectedMovementType!,
+            _editSelectedPaymentMethod!);
 
-        var result = await _apiClient.UpdateExpenseAsync(_selectedExpense.Id, request, CancellationToken.None);
-        await StyledResultModalPage.ShowAsync(
-            this,
-            result.IsSuccess,
-            result.IsSuccess ? "Gasto actualizado" : "No se pudo actualizar",
-            result.IsSuccess ? "Los cambios se guardaron correctamente." : result.Message);
-
-        if (result.IsSuccess)
+        SetLoading(true);
+        try
         {
-            await LoadDataAsync();
-            EditPanel.IsVisible = false;
-            _selectedExpense = null;
+            var result = await _apiClient.UpdateExpenseAsync(_selectedExpense.Id, request, CancellationToken.None);
+            await StyledResultModalPage.ShowAsync(
+                this,
+                result.IsSuccess,
+                result.IsSuccess ? "Gasto actualizado" : "No se pudo actualizar",
+                result.IsSuccess ? "Los cambios se guardaron correctamente." : result.Message);
+
+            if (result.IsSuccess)
+            {
+                await LoadDataAsync();
+                EditPanel.IsVisible = false;
+                _selectedExpense = null;
+            }
+            else
+            {
+                ResetEditInputs();
+            }
         }
-        else
+        finally
         {
-            ResetEditInputs();
+            SetLoading(false);
         }
     }
 
     private void OnCancelEditClicked(object? sender, EventArgs e)
     {
         EditPanel.IsVisible = false;
+        EditMovementPickerOverlay.IsVisible = false;
+        EditPaymentPickerOverlay.IsVisible = false;
         _selectedExpense = null;
         StatusLabel.Text = string.Empty;
     }
 
     private void ResetEditInputs()
     {
-        EditDescriptionEntry.Text = "0";
-        EditAmountEntry.Text = "0";
+        EditDescriptionEntry.Text = string.Empty;
+        EditAmountEntry.Text = string.Empty;
+        _editSelectedMovementType = null;
+        _editSelectedPaymentMethod = null;
+        EditMovementPickerOverlay.IsVisible = false;
+        EditPaymentPickerOverlay.IsVisible = false;
+        UpdateEditSelectorUi();
     }
 
     private void OnGoToRegisterClicked(object? sender, EventArgs e)
@@ -466,6 +509,205 @@ public partial class ExpensesPage : ContentPage
         EditDateSelectorLabel.Text = _editSelectedDate.ToString("dd/MM/yyyy", CultureInfo.GetCultureInfo("es-CO"));
     }
 
+    private void OnEditMovementSelectorTapped(object? sender, TappedEventArgs e)
+    {
+        var options = _catalog.MovementTypes
+            .Where(item => !string.IsNullOrWhiteSpace(item))
+            .Select(item => item.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (options.Count == 0)
+        {
+            return;
+        }
+
+        EditMovementPickerOverlay.IsVisible = true;
+        MainThread.BeginInvokeOnMainThread(() => BuildEditMovementPickerGrid(options));
+    }
+
+    private void OnEditPaymentSelectorTapped(object? sender, TappedEventArgs e)
+    {
+        var options = _catalog.PaymentMethods
+            .Where(item => !string.IsNullOrWhiteSpace(item))
+            .Select(item => item.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (options.Count == 0)
+        {
+            return;
+        }
+
+        EditPaymentPickerOverlay.IsVisible = true;
+        MainThread.BeginInvokeOnMainThread(() => BuildEditPaymentPickerGrid(options));
+    }
+
+    private void OnCloseEditMovementPicker(object? sender, EventArgs e)
+    {
+        EditMovementPickerOverlay.IsVisible = false;
+    }
+
+    private void OnCloseEditPaymentPicker(object? sender, EventArgs e)
+    {
+        EditPaymentPickerOverlay.IsVisible = false;
+    }
+
+    private void BuildEditMovementPickerGrid(List<string> options)
+    {
+        EditMovementPickerFlexLayout.Children.Clear();
+        var tileWidth = CalculatePickerTileWidth(EditMovementPickerFlexLayout);
+
+        foreach (var option in options)
+        {
+            var isSelected = string.Equals(option, _editSelectedMovementType, StringComparison.OrdinalIgnoreCase);
+            var tile = BuildPickerTile(
+                tileWidth,
+                _colorService.ForMovementType(option),
+                _colorService.IconForMovementType(option),
+                option,
+                Color.FromArgb("#1A2E23"),
+                isSelected);
+
+            var captured = option;
+            var tap = new TapGestureRecognizer();
+            tap.Tapped += (_, _) =>
+            {
+                _editSelectedMovementType = captured;
+                UpdateEditSelectorUi();
+                EditMovementPickerOverlay.IsVisible = false;
+            };
+            tile.GestureRecognizers.Add(tap);
+
+            EditMovementPickerFlexLayout.Children.Add(tile);
+        }
+    }
+
+    private void BuildEditPaymentPickerGrid(List<string> options)
+    {
+        EditPaymentPickerFlexLayout.Children.Clear();
+        var tileWidth = CalculatePickerTileWidth(EditPaymentPickerFlexLayout);
+
+        foreach (var option in options)
+        {
+            var (bgHex, fgHex) = PaymentTileColors.TryGetValue(option, out var colors)
+                ? colors
+                : ("#A8D8F0", "#1A2E23");
+
+            var isSelected = string.Equals(option, _editSelectedPaymentMethod, StringComparison.OrdinalIgnoreCase);
+            var tile = BuildPickerTile(
+                tileWidth,
+                Color.FromArgb(bgHex),
+                _paymentIconService.IconForPaymentMethod(option),
+                option,
+                Color.FromArgb(fgHex),
+                isSelected);
+
+            var captured = option;
+            var tap = new TapGestureRecognizer();
+            tap.Tapped += (_, _) =>
+            {
+                _editSelectedPaymentMethod = captured;
+                UpdateEditSelectorUi();
+                EditPaymentPickerOverlay.IsVisible = false;
+            };
+            tile.GestureRecognizers.Add(tap);
+
+            EditPaymentPickerFlexLayout.Children.Add(tile);
+        }
+    }
+
+    private static Border BuildPickerTile(double width, Color backgroundColor, string icon, string text, Color foregroundColor, bool isSelected)
+    {
+        var border = new Border
+        {
+            StrokeShape = new Microsoft.Maui.Controls.Shapes.RoundRectangle { CornerRadius = 12 },
+            StrokeThickness = isSelected ? 2 : 0,
+            Stroke = isSelected ? Color.FromArgb("#2D6A4F") : Colors.Transparent,
+            BackgroundColor = backgroundColor,
+            Padding = new Thickness(6),
+            WidthRequest = width,
+            HeightRequest = width,
+            Margin = new Thickness(0, 0, 6, 6),
+            Opacity = isSelected ? 1 : 0.85,
+            Content = new VerticalStackLayout
+            {
+                Spacing = 4,
+                HorizontalOptions = LayoutOptions.Center,
+                VerticalOptions = LayoutOptions.Center,
+                Children =
+                {
+                    new Label
+                    {
+                        Text = icon,
+                        FontSize = 22,
+                        HorizontalOptions = LayoutOptions.Center,
+                        TextColor = foregroundColor,
+                    },
+                    new Label
+                    {
+                        Text = text,
+                        FontSize = 10,
+                        FontAttributes = FontAttributes.Bold,
+                        HorizontalOptions = LayoutOptions.Center,
+                        HorizontalTextAlignment = TextAlignment.Center,
+                        TextColor = foregroundColor,
+                        LineBreakMode = LineBreakMode.TailTruncation,
+                        MaxLines = 2,
+                    }
+                }
+            }
+        };
+
+        return border;
+    }
+
+    private double CalculatePickerTileWidth(FlexLayout targetLayout)
+    {
+        var layoutWidth = targetLayout.Width;
+        if (layoutWidth <= 0)
+        {
+            var pageWidth = Width > 0 ? Width : DeviceDisplay.MainDisplayInfo.Width / DeviceDisplay.MainDisplayInfo.Density;
+            layoutWidth = Math.Max(220, pageWidth - 32 - 28);
+        }
+
+        const double marginRightPerTile = 6;
+        const double columns = 3;
+        var spacingReserve = marginRightPerTile * columns;
+        var tileWidth = Math.Floor((layoutWidth - spacingReserve) / columns);
+        return Math.Clamp(tileWidth, 76d, 120d);
+    }
+
+    private void UpdateEditSelectorUi()
+    {
+        var hasMovement = !string.IsNullOrWhiteSpace(_editSelectedMovementType);
+        var hasPayment = !string.IsNullOrWhiteSpace(_editSelectedPaymentMethod);
+
+        EditMovementSelectorLabel.Text = hasMovement
+            ? $"{_colorService.IconForMovementType(_editSelectedMovementType!)} {_editSelectedMovementType}"
+            : "Seleccionar";
+        EditPaymentSelectorLabel.Text = hasPayment
+            ? $"{_paymentIconService.IconForPaymentMethod(_editSelectedPaymentMethod!)} {_editSelectedPaymentMethod}"
+            : "Seleccionar";
+
+        EditMovementSelectorLabel.TextColor = hasMovement ? Color.FromArgb("#1A2E23") : Color.FromArgb("#708070");
+        EditPaymentSelectorLabel.TextColor = hasPayment ? Color.FromArgb("#1A2E23") : Color.FromArgb("#708070");
+
+        EditMovementSelectorBorder.Stroke = hasMovement ? Color.FromArgb("#2D6A4F") : Color.FromArgb("#DCE5DF");
+        EditPaymentSelectorBorder.Stroke = hasPayment ? Color.FromArgb("#2D6A4F") : Color.FromArgb("#DCE5DF");
+    }
+
+    private static string? ResolveCatalogOption(string? value, IReadOnlyList<string> options)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        var match = options.FirstOrDefault(item => string.Equals(item, value.Trim(), StringComparison.OrdinalIgnoreCase));
+        return match?.Trim() ?? value.Trim();
+    }
+
     private void UpdateFilterUi()
     {
         var filters = new List<string>();
@@ -482,6 +724,24 @@ public partial class ExpensesPage : ContentPage
         FilterSummaryBorder.IsVisible = filters.Count > 0;
         FilterSummaryLabel.Text = filters.Count == 0 ? string.Empty : string.Join(" | ", filters);
         FilterButton.Text = filters.Count == 0 ? "Filtrar" : $"Filtrar ({filters.Count})";
+    }
+
+    private void SyncPaymentIcons(ExpenseCatalog catalog)
+    {
+        foreach (var paymentMethod in catalog.PaymentMethods)
+        {
+            var configuredIcon = (catalog.PaymentMethodConfigs ?? [])
+                .FirstOrDefault(cfg => string.Equals(cfg.Name, paymentMethod, StringComparison.OrdinalIgnoreCase))
+                ?.Icon;
+
+            if (!string.IsNullOrWhiteSpace(configuredIcon))
+            {
+                _paymentIconService.SetIconForPaymentMethod(paymentMethod, configuredIcon);
+                continue;
+            }
+
+            _paymentIconService.IconForPaymentMethod(paymentMethod);
+        }
     }
 
     private static string? NormalizeFilterValue(string? value)

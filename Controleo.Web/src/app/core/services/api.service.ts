@@ -6,6 +6,7 @@ import {
   BudgetItem,
   BudgetUpsertRequest,
   DashboardCategoryItem,
+  DashboardPaymentMethodItem,
   ExpenseCatalog,
   ExpenseEntryRequest,
   ExpenseItem,
@@ -40,11 +41,19 @@ export class ApiService {
     return this.http.get<ExpenseItem[]>(`${this.baseUrl}/api/expenses?month=${encodeURIComponent(month)}`);
   }
 
-  getExpensesPage(month: string, pageNumber: number, pageSize: number, movementType?: string, searchTerm?: string): Observable<PagedExpenseResult> {
+  getExpensesPage(
+    month: string,
+    pageNumber: number,
+    pageSize: number,
+    movementType?: string,
+    searchTerm?: string,
+    paymentMethod?: string
+  ): Observable<PagedExpenseResult> {
     const movement = movementType ? `&movementType=${encodeURIComponent(movementType)}` : '';
     const search = searchTerm ? `&searchTerm=${encodeURIComponent(searchTerm)}` : '';
+    const payment = paymentMethod ? `&paymentMethod=${encodeURIComponent(paymentMethod)}` : '';
     return this.http.get<PagedExpenseResult>(
-      `${this.baseUrl}/api/expenses/paged?month=${encodeURIComponent(month)}&pageNumber=${pageNumber}&pageSize=${pageSize}${movement}${search}`
+      `${this.baseUrl}/api/expenses/paged?month=${encodeURIComponent(month)}&pageNumber=${pageNumber}&pageSize=${pageSize}${movement}${payment}${search}`
     );
   }
 
@@ -74,6 +83,10 @@ export class ApiService {
 
   getDashboardByCategory(month: string): Observable<DashboardCategoryItem[]> {
     return this.http.get<DashboardCategoryItem[]>(`${this.baseUrl}/api/dashboard/by-category?month=${encodeURIComponent(month)}`);
+  }
+
+  getDashboardByPaymentMethod(month: string): Observable<DashboardPaymentMethodItem[]> {
+    return this.http.get<DashboardPaymentMethodItem[]>(`${this.baseUrl}/api/dashboard/by-payment-method?month=${encodeURIComponent(month)}`);
   }
 
   getRecurringExpenses(): Observable<RecurringExpenseItem[]> {

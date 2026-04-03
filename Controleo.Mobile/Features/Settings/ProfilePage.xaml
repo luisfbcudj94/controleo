@@ -5,14 +5,8 @@
              Title="Perfil"
              BackgroundColor="{StaticResource AppBg}">
 
-    <Grid RowDefinitions="Auto,*,Auto" Padding="16" RowSpacing="12">
-        <Label Text="Perfil"
-               FontSize="28"
-               FontAttributes="Bold"
-               FontFamily="OpenSansSemibold"
-               TextColor="{StaticResource AppText}" />
-
-        <VerticalStackLayout Grid.Row="1" Spacing="12">
+    <Grid RowDefinitions="*,Auto" Padding="16" RowSpacing="12">
+        <VerticalStackLayout Grid.Row="0" Spacing="12">
             <Border StrokeShape="RoundRectangle 18"
                     StrokeThickness="0"
                     Padding="18"
@@ -50,7 +44,7 @@
             </Border>
         </VerticalStackLayout>
 
-        <Button Grid.Row="2"
+        <Button Grid.Row="1"
                 Text="Cerrar sesión"
                 HeightRequest="48"
                 CornerRadius="14"

@@ -9,8 +9,11 @@ using Controleo.Mobile.Core.Models;
 
 namespace Controleo.Mobile.Core.Services;
 
-public sealed class ExpenseApiClient(HttpClient httpClient, IAuthService authService) : IExpenseApiClient
+public sealed class ExpenseApiClient : IExpenseApiClient
 {
+    private readonly HttpClient httpClient;
+    private readonly IAuthService authService;
+
     private static readonly TimeSpan CacheTtl = TimeSpan.FromSeconds(20);
 
     private readonly ConcurrentDictionary<string, CacheEntry<IReadOnlyList<ExpenseItem>>> _expensesCache = new();
@@ -18,6 +21,13 @@ public sealed class ExpenseApiClient(HttpClient httpClient, IAuthService authSer
     private readonly ConcurrentDictionary<string, CacheEntry<IReadOnlyList<DashboardPaymentMethodItem>>> _dashboardByPaymentMethodCache = new();
     private readonly ConcurrentDictionary<string, CacheEntry<IReadOnlyList<BudgetItem>>> _budgetsCache = new();
     private CacheEntry<IReadOnlyList<string>>? _monthsCache;
+
+    public ExpenseApiClient(HttpClient httpClient, IAuthService authService)
+    {
+        this.httpClient = httpClient;
+        this.authService = authService;
+        this.authService.SessionCleared += ClearAllCaches;
+    }
 
     private static readonly ExpenseCatalog FallbackCatalog = new(
     [
@@ -43,6 +53,12 @@ public sealed class ExpenseApiClient(HttpClient httpClient, IAuthService authSer
         "-",
         "Nequi"
     ]);
+
+    public void ClearAllCaches()
+    {
+        InvalidateExpenseAndDashboardCaches();
+        _budgetsCache.Clear();
+    }
 
     public async Task<ExpenseCatalog> GetCatalogsAsync(CancellationToken cancellationToken)
     {
@@ -445,12 +461,78 @@ public sealed class ExpenseApiClient(HttpClient httpClient, IAuthService authSer
                 return [];
             }
 
-            var data = await httpClient.GetFromJsonAsync<List<RecurringExpenseItem>>("api/recurring-expenses", cancellationToken);
-            return data ?? [];
+            var data = await httpClient.GetFromJsonAsync<List<RecurringExpenseResponse>>("api/recurring-expenses", cancellationToken);
+            if (data is null)
+            {
+                return [];
+            }
+
+            return data
+                .Select(item => new RecurringExpenseItem(
+                    item.Id ?? string.Empty,
+                    item.Description ?? string.Empty,
+                    item.Amount,
+                    item.MovementType ?? string.Empty,
+                    item.PaymentMethod ?? string.Empty,
+                    item.DayOfMonth,
+                    ResolveRecurringStartDate(item.StartDate, item.StartMonth, item.DayOfMonth),
+                    item.IsActive))
+                .ToArray();
         }
         catch
         {
             return [];
+        }
+    }
+
+    public async Task<PagedRecurringResult> GetRecurringExpensesPageAsync(int pageNumber, int pageSize, CancellationToken cancellationToken)
+    {
+        var resolvedPageNumber = Math.Max(1, pageNumber);
+        var resolvedPageSize = pageSize is 10 or 20 ? pageSize : 5;
+
+        try
+        {
+            if (!await EnsureAuthenticatedAsync(cancellationToken))
+            {
+                return new PagedRecurringResult([], 1, resolvedPageSize, 0, 1, false, false);
+            }
+
+            var data = await httpClient.GetFromJsonAsync<PagedRecurringResponse>(
+                $"api/recurring-expenses/paged?pageNumber={resolvedPageNumber}&pageSize={resolvedPageSize}",
+                cancellationToken);
+
+            if (data is null)
+            {
+                return new PagedRecurringResult([], 1, resolvedPageSize, 0, 1, false, false);
+            }
+
+            var mappedItems = (data.Items ?? [])
+                .Select(item => new RecurringExpenseItem(
+                    item.Id ?? string.Empty,
+                    item.Description ?? string.Empty,
+                    item.Amount,
+                    item.MovementType ?? string.Empty,
+                    item.PaymentMethod ?? string.Empty,
+                    item.DayOfMonth,
+                    ResolveRecurringStartDate(item.StartDate, item.StartMonth, item.DayOfMonth),
+                    item.IsActive))
+                .ToArray();
+
+            var totalPages = data.TotalPages <= 0 ? 1 : data.TotalPages;
+            var currentPage = Math.Min(Math.Max(data.PageNumber, 1), totalPages);
+
+            return new PagedRecurringResult(
+                mappedItems,
+                currentPage,
+                data.PageSize <= 0 ? resolvedPageSize : data.PageSize,
+                Math.Max(data.TotalCount, 0),
+                totalPages,
+                data.HasPreviousPage,
+                data.HasNextPage);
+        }
+        catch
+        {
+            return new PagedRecurringResult([], 1, resolvedPageSize, 0, 1, false, false);
         }
     }
 
@@ -463,13 +545,16 @@ public sealed class ExpenseApiClient(HttpClient httpClient, IAuthService authSer
                 return new OperationResult(false, "Debes iniciar sesión antes de guardar recurrentes.");
             }
 
-            var response = string.IsNullOrWhiteSpace(id)
-                ? await httpClient.PostAsJsonAsync("api/recurring-expenses", request, cancellationToken)
-                : await httpClient.PutAsJsonAsync($"api/recurring-expenses/{id}", request, cancellationToken);
+            using var recurringRequest = CreateRecurringJsonRequest(
+                string.IsNullOrWhiteSpace(id) ? HttpMethod.Post : HttpMethod.Put,
+                string.IsNullOrWhiteSpace(id) ? "api/recurring-expenses" : $"api/recurring-expenses/{id}",
+                request);
+            var response = await httpClient.SendAsync(recurringRequest, cancellationToken);
 
             if (response.IsSuccessStatusCode)
             {
                 var result = await response.Content.ReadFromJsonAsync<OperationResult>(cancellationToken: cancellationToken);
+                InvalidateExpenseAndDashboardCaches();
                 return result ?? new OperationResult(true, "Gasto recurrente guardado correctamente.");
             }
 
@@ -495,6 +580,7 @@ public sealed class ExpenseApiClient(HttpClient httpClient, IAuthService authSer
             if (response.IsSuccessStatusCode)
             {
                 var result = await response.Content.ReadFromJsonAsync<OperationResult>(cancellationToken: cancellationToken);
+                InvalidateExpenseAndDashboardCaches();
                 return result ?? new OperationResult(true, "Gasto recurrente eliminado correctamente.");
             }
 
@@ -558,6 +644,52 @@ public sealed class ExpenseApiClient(HttpClient httpClient, IAuthService authSer
     }
 
     private sealed record CacheEntry<T>(DateTimeOffset CreatedAt, T Data);
+
+    private sealed record RecurringExpenseResponse(
+        string? Id,
+        string? Description,
+        decimal Amount,
+        string? MovementType,
+        string? PaymentMethod,
+        int DayOfMonth,
+        DateOnly? StartDate,
+        string? StartMonth,
+        bool IsActive);
+
+    private sealed record PagedRecurringResponse(
+        List<RecurringExpenseResponse>? Items,
+        int PageNumber,
+        int PageSize,
+        int TotalCount,
+        int TotalPages,
+        bool HasPreviousPage,
+        bool HasNextPage);
+
+    private static DateOnly ResolveRecurringStartDate(DateOnly? startDate, string? startMonth, int dayOfMonth)
+    {
+        if (startDate is { } explicitStartDate && explicitStartDate != DateOnly.MinValue)
+        {
+            return explicitStartDate;
+        }
+
+        if (!string.IsNullOrWhiteSpace(startMonth) && DateOnly.TryParseExact($"{startMonth.Trim()}-01", "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var monthStart))
+        {
+            var safeDay = Math.Clamp(dayOfMonth, 1, DateTime.DaysInMonth(monthStart.Year, monthStart.Month));
+            return new DateOnly(monthStart.Year, monthStart.Month, safeDay);
+        }
+
+        var today = DateOnly.FromDateTime(DateTime.Today);
+        var fallbackDay = Math.Clamp(dayOfMonth, 1, DateTime.DaysInMonth(today.Year, today.Month));
+        return new DateOnly(today.Year, today.Month, fallbackDay);
+    }
+
+    private void InvalidateExpenseAndDashboardCaches()
+    {
+        _expensesCache.Clear();
+        _dashboardCache.Clear();
+        _dashboardByPaymentMethodCache.Clear();
+        _monthsCache = null;
+    }
 
     private static async Task<string> ReadFriendlyApiErrorAsync(HttpResponseMessage response, string fallbackMessage, CancellationToken cancellationToken)
     {
@@ -726,11 +858,41 @@ public sealed class ExpenseApiClient(HttpClient httpClient, IAuthService authSer
                     ["icon"] = c.Icon,
                     ["color"] = c.Color
                 })
+                .ToArray(),
+            ["paymentMethodConfigs"] = (request.PaymentMethodConfigs ?? [])
+                .Select(c => new Dictionary<string, string>
+                {
+                    ["name"] = c.Name,
+                    ["icon"] = c.Icon
+                })
                 .ToArray()
         };
 
         var json = JsonSerializer.Serialize(payload);
         return new HttpRequestMessage(HttpMethod.Put, relativeUrl)
+        {
+            Content = new StringContent(json, Encoding.UTF8, "application/json")
+        };
+    }
+
+    private static HttpRequestMessage CreateRecurringJsonRequest(HttpMethod method, string relativeUrl, RecurringExpenseUpsertRequest request)
+    {
+        var payload = new Dictionary<string, object?>
+        {
+            ["description"] = request.Description,
+            ["amount"] = request.Amount,
+            ["movementType"] = request.MovementType,
+            ["paymentMethod"] = request.PaymentMethod,
+            ["dayOfMonth"] = request.DayOfMonth,
+            ["startMonth"] = request.StartDate.ToString("yyyy-MM", CultureInfo.InvariantCulture),
+            ["endMonth"] = null,
+            ["startDate"] = request.StartDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+            ["endDate"] = null,
+            ["isActive"] = request.IsActive
+        };
+
+        var json = JsonSerializer.Serialize(payload);
+        return new HttpRequestMessage(method, relativeUrl)
         {
             Content = new StringContent(json, Encoding.UTF8, "application/json")
         };

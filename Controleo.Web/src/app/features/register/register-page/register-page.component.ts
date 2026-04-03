@@ -3,9 +3,16 @@ import { CommonModule } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { finalize } from 'rxjs';
 import { ApiService } from '../../../core/services/api.service';
-import { firstMonthOfAvailable, monthKeyFromDate, monthLabel } from '../../../core/utils/month.utils';
-import { SelectorModalComponent } from '../../../shared/ui/selector-modal/selector-modal.component';
+import { NotificationService } from '../../../core/services/notification.service';
+import { MovementTypeConfig, PaymentMethodConfig } from '../../../core/models/api.models';
+import { SelectorModalComponent, SelectorOptionItem } from '../../../shared/ui/selector-modal/selector-modal.component';
 import { CustomDateInputComponent } from '../../../shared/ui/custom-date-input/custom-date-input.component';
+import {
+  resolveMovementColor,
+  resolveMovementIcon,
+  resolvePaymentIcon,
+  resolvePaymentStyle
+} from '../../../core/utils/catalog-visual.utils';
 
 @Component({
   selector: 'app-register-page',
@@ -14,23 +21,23 @@ import { CustomDateInputComponent } from '../../../shared/ui/custom-date-input/c
   styleUrl: './register-page.component.scss'
 })
 export class RegisterPageComponent {
-  months: string[] = [];
-  selectedMonth = monthKeyFromDate(new Date());
   movementTypes: string[] = [];
   paymentMethods: string[] = [];
+  movementTypeConfigs: MovementTypeConfig[] = [];
+  paymentMethodConfigs: PaymentMethodConfig[] = [];
   isSaving = false;
-  statusMessage = '';
   selectorOpen = false;
   selectorTitle = '';
-  selectorOptions: string[] = [];
+  selectorItems: SelectorOptionItem[] = [];
   selectorValue = '';
-  selectorContext: 'month' | 'movementType' | 'paymentMethod' | null = null;
+  selectorContext: 'movementType' | 'paymentMethod' | null = null;
 
   readonly form;
 
   constructor(
     private readonly fb: FormBuilder,
-    private readonly api: ApiService
+    private readonly api: ApiService,
+    private readonly notify: NotificationService
   ) {
     this.form = this.fb.nonNullable.group({
       date: [new Date().toISOString().slice(0, 10), Validators.required],
@@ -41,10 +48,6 @@ export class RegisterPageComponent {
     });
 
     this.loadInitialData();
-  }
-
-  get monthLabelText(): string {
-    return monthLabel(this.selectedMonth);
   }
 
   get amountPreview(): number {
@@ -64,40 +67,48 @@ export class RegisterPageComponent {
   }
 
   get movementTypeColor(): string {
+    const selectedType = this.form.controls.movementType.value;
+    if (selectedType) {
+      return this.colorForMovementType(selectedType);
+    }
+
     return this.amountPreview > 0 ? 'var(--danger)' : 'var(--accent)';
   }
 
-  previousMonth(): void {
-    const index = this.months.indexOf(this.selectedMonth);
-    if (index > 0) {
-      this.selectedMonth = this.months[index - 1];
-      this.syncDateToMonth();
+  get movementTypeSelectionLabel(): string {
+    const value = this.form.controls.movementType.value;
+    if (!value) {
+      return 'Seleccionar tipo';
     }
+
+    return `${this.iconForMovementType(value)} ${value}`;
   }
 
-  nextMonth(): void {
-    const index = this.months.indexOf(this.selectedMonth);
-    if (index >= 0 && index < this.months.length - 1) {
-      this.selectedMonth = this.months[index + 1];
-      this.syncDateToMonth();
+  get paymentMethodSelectionLabel(): string {
+    const value = this.form.controls.paymentMethod.value;
+    if (!value) {
+      return 'Seleccionar medio';
     }
-  }
 
-  onMonthSelected(month: string): void {
-    this.selectedMonth = month;
-    this.syncDateToMonth();
-  }
-
-  openMonthSelector(): void {
-    this.openSelector('month', 'Selecciona mes del gasto', this.months, this.selectedMonth);
+    return `${this.iconForPaymentMethod(value)} ${value}`;
   }
 
   openMovementTypeSelector(): void {
-    this.openSelector('movementType', 'Selecciona tipo de movimiento', this.movementTypes, this.form.controls.movementType.value || '');
+    this.openSelector(
+      'movementType',
+      'Tipo de movimiento',
+      this.buildMovementTypeSelectorItems(),
+      this.form.controls.movementType.value || ''
+    );
   }
 
   openPaymentMethodSelector(): void {
-    this.openSelector('paymentMethod', 'Selecciona medio de pago', this.paymentMethods, this.form.controls.paymentMethod.value || '');
+    this.openSelector(
+      'paymentMethod',
+      'Medio de pago',
+      this.buildPaymentMethodSelectorItems(),
+      this.form.controls.paymentMethod.value || ''
+    );
   }
 
   closeSelector(): void {
@@ -106,10 +117,6 @@ export class RegisterPageComponent {
   }
 
   selectOption(value: string): void {
-    if (this.selectorContext === 'month') {
-      this.onMonthSelected(value);
-    }
-
     if (this.selectorContext === 'movementType') {
       this.form.patchValue({ movementType: value });
     }
@@ -147,19 +154,18 @@ export class RegisterPageComponent {
 
   save(): void {
     if (this.form.invalid || this.isSaving) {
-      this.statusMessage = 'Completa todos los campos.';
+      this.notify.warning('Completa todos los campos.');
       return;
     }
 
     const value = this.form.getRawValue();
     const parsedAmount = Number(value.amount);
     if (!Number.isFinite(parsedAmount) || parsedAmount === 0) {
-      this.statusMessage = 'El valor debe ser numérico y diferente de cero.';
+      this.notify.warning('El valor debe ser numérico y diferente de cero.');
       return;
     }
 
     this.isSaving = true;
-    this.statusMessage = 'Guardando...';
 
     this.api
       .saveExpense({
@@ -171,68 +177,84 @@ export class RegisterPageComponent {
       })
       .pipe(finalize(() => (this.isSaving = false)))
       .subscribe({
-        next: (result) => {
-          this.statusMessage = result.message;
+        next: () => {
+          this.notify.success('Gasto guardado correctamente.');
           this.form.patchValue({ description: '', amount: 0 });
-          this.refreshMonths();
         },
         error: () => {
-          this.statusMessage = 'No fue posible guardar el gasto.';
+          this.notify.error('No fue posible guardar el gasto.');
         }
       });
   }
 
   private loadInitialData(): void {
-    this.refreshMonths();
-
     this.api.getCatalogs().subscribe({
       next: (catalog) => {
         this.movementTypes = catalog.movementTypes;
         this.paymentMethods = catalog.paymentMethods;
+        this.movementTypeConfigs = catalog.movementTypeConfigs ?? [];
+        this.paymentMethodConfigs = catalog.paymentMethodConfigs ?? [];
         this.form.patchValue({
           movementType: catalog.movementTypes[0] ?? '',
           paymentMethod: catalog.paymentMethods[0] ?? ''
         });
       },
       error: () => {
-        this.statusMessage = 'No fue posible cargar catálogos.';
+        this.notify.error('No fue posible cargar catálogos.');
       }
     });
-  }
-
-  private refreshMonths(): void {
-    this.api.getAvailableMonths().subscribe({
-      next: (months) => {
-        this.months = months;
-        this.selectedMonth = firstMonthOfAvailable(months);
-        this.syncDateToMonth();
-      },
-      error: () => {
-        this.months = [monthKeyFromDate(new Date())];
-        this.selectedMonth = this.months[0];
-        this.syncDateToMonth();
-      }
-    });
-  }
-
-  private syncDateToMonth(): void {
-    const [year, month] = this.selectedMonth.split('-').map(Number);
-    const day = 1;
-    const date = new Date(year, (month || 1) - 1, day);
-    this.form.patchValue({ date: date.toISOString().slice(0, 10) }, { emitEvent: false });
   }
 
   private openSelector(
-    context: 'month' | 'movementType' | 'paymentMethod',
+    context: 'movementType' | 'paymentMethod',
     title: string,
-    options: string[],
+    optionItems: SelectorOptionItem[],
     currentValue: string
   ): void {
     this.selectorContext = context;
     this.selectorTitle = title;
-    this.selectorOptions = options;
+    this.selectorItems = optionItems;
     this.selectorValue = currentValue;
     this.selectorOpen = true;
+  }
+
+  private buildMovementTypeSelectorItems(): SelectorOptionItem[] {
+    return this.movementTypes.map((movementType) => ({
+      value: movementType,
+      label: movementType,
+      icon: this.iconForMovementType(movementType),
+      color: this.colorForMovementType(movementType)
+    }));
+  }
+
+  private buildPaymentMethodSelectorItems(): SelectorOptionItem[] {
+    return this.paymentMethods.map((paymentMethod) => {
+      const style = this.styleForPaymentMethod(paymentMethod);
+
+      return {
+        value: paymentMethod,
+        label: paymentMethod,
+        icon: this.iconForPaymentMethod(paymentMethod),
+        color: style.background,
+        textColor: style.foreground
+      };
+    });
+  }
+
+  private iconForMovementType(movementType: string): string {
+    return resolveMovementIcon(movementType, this.movementTypeConfigs);
+  }
+
+  private colorForMovementType(movementType: string): string {
+    return resolveMovementColor(movementType, this.movementTypeConfigs);
+  }
+
+  private iconForPaymentMethod(paymentMethod: string): string {
+    return resolvePaymentIcon(paymentMethod, this.paymentMethodConfigs);
+  }
+
+  private styleForPaymentMethod(paymentMethod: string): { background: string; foreground: string } {
+    return resolvePaymentStyle(paymentMethod);
   }
 
 }

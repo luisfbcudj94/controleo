@@ -2,11 +2,18 @@ import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { finalize } from 'rxjs';
-import { RecurringExpenseItem, RecurringExpenseUpsertRequest } from '../../../core/models/api.models';
+import { MovementTypeConfig, PaymentMethodConfig, RecurringExpenseItem, RecurringExpenseUpsertRequest } from '../../../core/models/api.models';
 import { ApiService } from '../../../core/services/api.service';
+import { NotificationService } from '../../../core/services/notification.service';
 import { ConfirmModalComponent } from '../../../shared/ui/confirm-modal/confirm-modal.component';
-import { SelectorModalComponent } from '../../../shared/ui/selector-modal/selector-modal.component';
+import { SelectorModalComponent, SelectorOptionItem } from '../../../shared/ui/selector-modal/selector-modal.component';
 import { CustomDateInputComponent } from '../../../shared/ui/custom-date-input/custom-date-input.component';
+import {
+  resolveMovementColor,
+  resolveMovementIcon,
+  resolvePaymentIcon,
+  resolvePaymentStyle
+} from '../../../core/utils/catalog-visual.utils';
 
 @Component({
   selector: 'app-recurring-page',
@@ -17,16 +24,17 @@ import { CustomDateInputComponent } from '../../../shared/ui/custom-date-input/c
 export class RecurringPageComponent {
   isLoading = false;
   isSaving = false;
-  statusMessage = '';
   items: RecurringExpenseItem[] = [];
   movementTypes: string[] = [];
   paymentMethods: string[] = [];
+  movementTypeConfigs: MovementTypeConfig[] = [];
+  paymentMethodConfigs: PaymentMethodConfig[] = [];
   editingId: string | null = null;
   confirmDeleteOpen = false;
   pendingDelete: RecurringExpenseItem | null = null;
   selectorOpen = false;
   selectorTitle = '';
-  selectorOptions: string[] = [];
+  selectorItems: SelectorOptionItem[] = [];
   selectorValue = '';
   selectorContext: 'movementType' | 'paymentMethod' | null = null;
 
@@ -34,7 +42,8 @@ export class RecurringPageComponent {
 
   constructor(
     private readonly api: ApiService,
-    private readonly fb: FormBuilder
+    private readonly fb: FormBuilder,
+    private readonly notify: NotificationService
   ) {
     this.form = this.fb.nonNullable.group({
       description: ['', Validators.required],
@@ -48,6 +57,24 @@ export class RecurringPageComponent {
 
     this.loadCatalogs();
     this.loadRecurring();
+  }
+
+  get movementTypeSelectionLabel(): string {
+    const value = this.form.controls.movementType.value;
+    if (!value) {
+      return 'Seleccionar tipo';
+    }
+
+    return `${this.iconForMovementType(value)} ${value}`;
+  }
+
+  get paymentMethodSelectionLabel(): string {
+    const value = this.form.controls.paymentMethod.value;
+    if (!value) {
+      return 'Seleccionar medio';
+    }
+
+    return `${this.iconForPaymentMethod(value)} ${value}`;
   }
 
   edit(item: RecurringExpenseItem): void {
@@ -78,7 +105,7 @@ export class RecurringPageComponent {
 
   save(): void {
     if (this.form.invalid || this.isSaving) {
-      this.statusMessage = 'Completa todos los campos requeridos.';
+      this.notify.warning('Completa todos los campos requeridos.');
       return;
     }
 
@@ -94,18 +121,23 @@ export class RecurringPageComponent {
     };
 
     this.isSaving = true;
+    const isEditing = !!this.editingId;
     const request = this.editingId
       ? this.api.updateRecurringExpense(this.editingId, payload)
       : this.api.createRecurringExpense(payload);
 
     request.pipe(finalize(() => (this.isSaving = false))).subscribe({
-      next: (result) => {
-        this.statusMessage = result.message;
+      next: () => {
+        this.notify.success(
+          isEditing
+            ? 'Gasto recurrente actualizado correctamente.'
+            : 'Gasto recurrente guardado correctamente.'
+        );
         this.clearForm();
         this.loadRecurring();
       },
       error: () => {
-        this.statusMessage = 'No fue posible guardar el gasto recurrente.';
+        this.notify.error('No fue posible guardar el gasto recurrente.');
       }
     });
   }
@@ -126,12 +158,12 @@ export class RecurringPageComponent {
     this.pendingDelete = null;
 
     this.api.deleteRecurringExpense(item.id).subscribe({
-      next: (result) => {
-        this.statusMessage = result.message;
+      next: () => {
+        this.notify.success('Gasto recurrente eliminado correctamente.');
         this.loadRecurring();
       },
       error: () => {
-        this.statusMessage = 'No fue posible eliminar el gasto recurrente.';
+        this.notify.error('No fue posible eliminar el gasto recurrente.');
       }
     });
   }
@@ -142,11 +174,21 @@ export class RecurringPageComponent {
   }
 
   openMovementTypeSelector(): void {
-    this.openSelector('movementType', 'Selecciona tipo de movimiento', this.movementTypes, this.form.controls.movementType.value || '');
+    this.openSelector(
+      'movementType',
+      'Tipo de gasto',
+      this.buildMovementTypeSelectorItems(),
+      this.form.controls.movementType.value || ''
+    );
   }
 
   openPaymentMethodSelector(): void {
-    this.openSelector('paymentMethod', 'Selecciona medio de pago', this.paymentMethods, this.form.controls.paymentMethod.value || '');
+    this.openSelector(
+      'paymentMethod',
+      'Medio de pago',
+      this.buildPaymentMethodSelectorItems(),
+      this.form.controls.paymentMethod.value || ''
+    );
   }
 
   closeSelector(): void {
@@ -199,12 +241,17 @@ export class RecurringPageComponent {
       next: (catalog) => {
         this.movementTypes = catalog.movementTypes;
         this.paymentMethods = catalog.paymentMethods;
+        this.movementTypeConfigs = catalog.movementTypeConfigs ?? [];
+        this.paymentMethodConfigs = catalog.paymentMethodConfigs ?? [];
         if (!this.form.value.movementType && this.movementTypes.length) {
           this.form.patchValue({ movementType: this.movementTypes[0] });
         }
         if (!this.form.value.paymentMethod && this.paymentMethods.length) {
           this.form.patchValue({ paymentMethod: this.paymentMethods[0] });
         }
+      },
+      error: () => {
+        this.notify.error('No fue posible cargar catálogos.');
       }
     });
   }
@@ -222,7 +269,7 @@ export class RecurringPageComponent {
           }));
         },
         error: () => {
-          this.statusMessage = 'No fue posible cargar los recurrentes.';
+          this.notify.error('No fue posible cargar los recurrentes.');
         }
       });
   }
@@ -251,13 +298,52 @@ export class RecurringPageComponent {
   private openSelector(
     context: 'movementType' | 'paymentMethod',
     title: string,
-    options: string[],
+    optionItems: SelectorOptionItem[],
     currentValue: string
   ): void {
     this.selectorContext = context;
     this.selectorTitle = title;
-    this.selectorOptions = options;
+    this.selectorItems = optionItems;
     this.selectorValue = currentValue;
     this.selectorOpen = true;
+  }
+
+  private buildMovementTypeSelectorItems(): SelectorOptionItem[] {
+    return this.movementTypes.map((movementType) => ({
+      value: movementType,
+      label: movementType,
+      icon: this.iconForMovementType(movementType),
+      color: this.colorForMovementType(movementType)
+    }));
+  }
+
+  private buildPaymentMethodSelectorItems(): SelectorOptionItem[] {
+    return this.paymentMethods.map((paymentMethod) => {
+      const style = this.styleForPaymentMethod(paymentMethod);
+
+      return {
+        value: paymentMethod,
+        label: paymentMethod,
+        icon: this.iconForPaymentMethod(paymentMethod),
+        color: style.background,
+        textColor: style.foreground
+      };
+    });
+  }
+
+  private iconForMovementType(movementType: string): string {
+    return resolveMovementIcon(movementType, this.movementTypeConfigs);
+  }
+
+  private colorForMovementType(movementType: string): string {
+    return resolveMovementColor(movementType, this.movementTypeConfigs);
+  }
+
+  private iconForPaymentMethod(paymentMethod: string): string {
+    return resolvePaymentIcon(paymentMethod, this.paymentMethodConfigs);
+  }
+
+  private styleForPaymentMethod(paymentMethod: string): { background: string; foreground: string } {
+    return resolvePaymentStyle(paymentMethod);
   }
 }

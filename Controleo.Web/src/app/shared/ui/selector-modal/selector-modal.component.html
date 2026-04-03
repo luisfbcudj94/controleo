@@ -1,23 +1,53 @@
 @if (isOpen) {
   <div class="selector-overlay" (click)="onBackdropClick($event)">
-    <article class="selector-card">
+    <article class="selector-card" [class.tile-mode]="mode === 'tiles'">
       <div class="selector-header">
         <h3>{{ title }}</h3>
-        <button class="btn btn-close" type="button" (click)="close.emit()">Cerrar</button>
+        @if (closeVariant === 'text') {
+          <button class="btn btn-close" type="button" (click)="close.emit()">Cerrar</button>
+        } @else {
+          <button class="icon-close" type="button" aria-label="Cerrar" (click)="close.emit()">✕</button>
+        }
       </div>
 
-      @if (!options.length) {
+      @if (!renderedOptions.length && !showAddTile) {
         <p class="selector-empty">{{ emptyText }}</p>
+      } @else if (mode === 'tiles') {
+        <div class="selector-tiles">
+          @if (showAddTile) {
+            <button
+              class="selector-tile add-tile"
+              type="button"
+              [style.--tile-bg]="addTileColor"
+              (click)="add.emit()">
+              <span class="tile-icon">{{ addTileIcon }}</span>
+              <span class="tile-label">{{ addTileLabel }}</span>
+            </button>
+          }
+
+          @for (option of renderedOptions; track trackByValue($index, option)) {
+            <button
+              class="selector-tile"
+              [class.active]="isSelected(option)"
+              type="button"
+              [style.--tile-bg]="option.color || '#EFF3F1'"
+              [style.--tile-fg]="option.textColor || '#1A2E23'"
+              (click)="select(option.value)">
+              <span class="tile-icon">{{ option.icon || '📋' }}</span>
+              <span class="tile-label">{{ option.label }}</span>
+            </button>
+          }
+        </div>
       } @else {
         <div class="selector-list">
-          @for (option of options; track trackByValue($index, option)) {
+          @for (option of renderedOptions; track trackByValue($index, option)) {
             <button
               class="selector-option"
-              [class.active]="option === selectedValue"
+              [class.active]="isSelected(option)"
               type="button"
-              (click)="choose.emit(option)">
-              <span>{{ option }}</span>
-              @if (option === selectedValue) {
+              (click)="select(option.value)">
+              <span>{{ option.label }}</span>
+              @if (isSelected(option)) {
                 <span>✓</span>
               }
             </button>

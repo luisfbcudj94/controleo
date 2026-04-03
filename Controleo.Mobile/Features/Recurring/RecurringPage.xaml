@@ -9,8 +9,23 @@
         <ScrollView>
             <VerticalStackLayout Padding="16" Spacing="12">
 
-                <Label Text="Gastos recurrentes" FontSize="28" FontAttributes="Bold"
-                       TextColor="{StaticResource AppText}" />
+                <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,4">
+                    <Label Text="Gastos recurrentes"
+                           FontSize="28"
+                           FontAttributes="Bold"
+                           FontFamily="OpenSansSemibold"
+                           TextColor="{StaticResource AppText}"
+                           VerticalOptions="Center" />
+                    <Button Grid.Column="1"
+                            Text="✕"
+                            WidthRequest="36"
+                            HeightRequest="36"
+                            CornerRadius="18"
+                            BackgroundColor="{StaticResource Gray200}"
+                            TextColor="{StaticResource AppText}"
+                            FontSize="14"
+                            Clicked="OnClosePageClicked" />
+                </Grid>
 
                 <!-- Info Card -->
                 <Border StrokeShape="RoundRectangle 16" StrokeThickness="0" Padding="14"
@@ -39,6 +54,32 @@
                         TextColor="{StaticResource PrimaryDarkText}"
                         CornerRadius="16" HeightRequest="52"
                         Clicked="OnAddNewClicked" />
+
+                <Border Padding="12" StrokeShape="RoundRectangle 16" StrokeThickness="0"
+                        BackgroundColor="{StaticResource White}">
+                    <Border.Shadow>
+                        <Shadow Brush="Black" Offset="0,1" Radius="4" Opacity="0.05" />
+                    </Border.Shadow>
+                    <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto" ColumnSpacing="8" VerticalOptions="Center">
+                        <Label Text="Mostrar" VerticalOptions="Center" FontSize="12" TextColor="{StaticResource AppHint}" />
+                        <Border Grid.Column="1" StrokeShape="RoundRectangle 10"
+                                BackgroundColor="{StaticResource AppSurface2}" Stroke="{StaticResource AppBorder}" Padding="10,8">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <Label x:Name="PageSizeSelectorLabel" VerticalOptions="Center" HorizontalTextAlignment="Center" />
+                                <Label Grid.Column="1" Text="▼" FontSize="11" TextColor="{StaticResource AppHint}" VerticalOptions="Center" />
+                            </Grid>
+                            <Border.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="OnPageSizeSelectorTapped" />
+                            </Border.GestureRecognizers>
+                        </Border>
+                        <Label Grid.Column="2" x:Name="PaginationStatusLabel" HorizontalTextAlignment="Center"
+                               VerticalOptions="Center" FontSize="12" TextColor="{StaticResource AppHint}" />
+                        <Button Grid.Column="3" x:Name="PrevPageButton" Text="◀" WidthRequest="38" HeightRequest="38"
+                                CornerRadius="19" BackgroundColor="{StaticResource AppSurface2}" Clicked="OnPrevPageClicked" />
+                        <Button Grid.Column="4" x:Name="NextPageButton" Text="▶" WidthRequest="38" HeightRequest="38"
+                                CornerRadius="19" BackgroundColor="{StaticResource AppSurface2}" Clicked="OnNextPageClicked" />
+                    </Grid>
+                </Border>
 
                 <Label x:Name="StatusLabel" TextColor="{StaticResource AppHint}" FontSize="12" />
 
@@ -264,6 +305,15 @@
                 </Border>
             </ScrollView>
         </Grid>
+
+        <!-- Loading -->
+        <Grid x:Name="LoadingOverlay" Grid.Row="0" IsVisible="False"
+              BackgroundColor="#33000000" InputTransparent="False" ZIndex="40" Margin="-16">
+            <ActivityIndicator IsRunning="True" WidthRequest="48" HeightRequest="48"
+                               Color="{StaticResource Tertiary}" HorizontalOptions="Center" VerticalOptions="Center" />
+        </Grid>
+
+                <Picker x:Name="PageSizePicker" IsVisible="False" SelectedIndexChanged="OnPageSizeChanged" />
 
     </Grid>
 </ContentPage>

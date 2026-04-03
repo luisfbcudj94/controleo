@@ -1,6 +1,19 @@
+export interface MovementTypeConfig {
+  name: string;
+  icon: string;
+  color: string;
+}
+
+export interface PaymentMethodConfig {
+  name: string;
+  icon: string;
+}
+
 export interface ExpenseCatalog {
   movementTypes: string[];
   paymentMethods: string[];
+  movementTypeConfigs?: MovementTypeConfig[];
+  paymentMethodConfigs?: PaymentMethodConfig[];
 }
 
 export interface ExpenseItem {
@@ -78,9 +91,16 @@ export interface DashboardCategoryItem {
   balance: number;
 }
 
+export interface DashboardPaymentMethodItem {
+  paymentMethod: string;
+  expenseTotal: number;
+}
+
 export interface UpdateCatalogsRequest {
   movementTypes: string[];
   paymentMethods: string[];
+  movementTypeConfigs?: MovementTypeConfig[];
+  paymentMethodConfigs?: PaymentMethodConfig[];
 }
 
 export interface RecurringExpenseItem {

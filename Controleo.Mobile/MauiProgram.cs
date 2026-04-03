@@ -41,7 +41,7 @@ public static class MauiProgram
 			apiBaseUrl += "/";
 		}
 
-		// Core services � singleton, registered by interface
+		// Core services - singleton, registered by interface
 		builder.Services.AddSingleton(new HttpClient { BaseAddress = new Uri(apiBaseUrl) });
 		builder.Services.AddSingleton<IAuthService, AuthService>();
 		builder.Services.AddSingleton<IMonthContextService, MonthContextService>();
@@ -49,7 +49,7 @@ public static class MauiProgram
 		builder.Services.AddSingleton<IPaymentIconService, PaymentIconService>();
 		builder.Services.AddSingleton<IExpenseApiClient, ExpenseApiClient>();
 
-		// Pages � transient to avoid reuse/parent bugs on re-navigation
+		// Pages - transient to avoid reuse/parent bugs on re-navigation
 		builder.Services.AddSingleton<LoginPage>();
 		builder.Services.AddTransient<MainPage>();
 		builder.Services.AddTransient<ExpensesPage>();

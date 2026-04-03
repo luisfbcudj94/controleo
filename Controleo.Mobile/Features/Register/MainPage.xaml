@@ -64,23 +64,32 @@
                     </Border>
 
                     <!-- Description Row -->
-                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
-                        <Border WidthRequest="40" HeightRequest="40" StrokeShape="RoundRectangle 12"
-                                BackgroundColor="{StaticResource PastelLavender}" Stroke="Transparent" StrokeThickness="0">
-                            <Label Text="✏️" FontSize="18" HorizontalOptions="Center" VerticalOptions="Center" />
-                        </Border>
-                        <Entry Grid.Column="1"
-                               x:Name="DescriptionField"
-                               Placeholder="¿En qué gastaste?"
-                               MaxLength="100"
-                               ClearButtonVisibility="WhileEditing"
-                               BackgroundColor="{StaticResource AppSurface}" />
-                    </Grid>
+                    <VerticalStackLayout Spacing="4">
+                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                            <Border WidthRequest="40" HeightRequest="40" StrokeShape="RoundRectangle 12"
+                                    BackgroundColor="{StaticResource PastelLavender}" Stroke="Transparent" StrokeThickness="0">
+                                <Label Text="✏️" FontSize="18" HorizontalOptions="Center" VerticalOptions="Center" />
+                            </Border>
+                            <Entry Grid.Column="1"
+                                   x:Name="DescriptionField"
+                                   Placeholder="¿En qué gastaste?"
+                                MaxLength="50"
+                                   TextChanged="OnDescriptionFieldTextChanged"
+                                   ClearButtonVisibility="WhileEditing"
+                                   BackgroundColor="{StaticResource AppSurface}" />
+                        </Grid>
+                        <Label x:Name="DescriptionCounterLabel"
+                               Text="0/50"
+                               FontSize="11"
+                               TextColor="{StaticResource AppHint}"
+                               HorizontalOptions="End" />
+                    </VerticalStackLayout>
 
                                         <!-- Movement Type Grid -->
                     <Label Text="¿EN QUÉ CATEGORÍA?" FontSize="11" FontAttributes="Bold"
                            TextColor="{StaticResource AppHint}" CharacterSpacing="1" Margin="0,4,0,0" />
-                                            <ScrollView HeightRequest="112"
+                                            <ScrollView x:Name="MovementTypeScroll"
+                                                HeightRequest="112"
                                                 Orientation="Horizontal"
                                                 HorizontalScrollBarVisibility="Never"
                                                 VerticalScrollBarVisibility="Never">
@@ -92,7 +101,8 @@
                     <!-- Payment Method Grid -->
                     <Label Text="¿CÓMO PAGASTE?" FontSize="11" FontAttributes="Bold"
                            TextColor="{StaticResource AppHint}" CharacterSpacing="1" Margin="0,4,0,0" />
-                                            <ScrollView HeightRequest="112"
+                                            <ScrollView x:Name="PaymentMethodScroll"
+                                                HeightRequest="112"
                                                 Orientation="Horizontal"
                                                 HorizontalScrollBarVisibility="Never"
                                                 VerticalScrollBarVisibility="Never">
@@ -135,8 +145,8 @@
               IsVisible="False"
               BackgroundColor="#33000000"
               InputTransparent="False"
-              ZIndex="10"
-              Margin="-20">
+              ZIndex="30"
+              Margin="-16">
             <ActivityIndicator IsRunning="True"
                                WidthRequest="48"
                                HeightRequest="48"
@@ -151,7 +161,7 @@
               BackgroundColor="#66000000"
               InputTransparent="False"
               ZIndex="20"
-              Margin="-20">
+              Margin="-16">
             <Border StrokeShape="RoundRectangle 18"
                     Padding="16"
                     Margin="24"

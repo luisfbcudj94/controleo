@@ -1,80 +1,88 @@
 <section class="login-wrap">
-  <article class="login-card">
-    <h1>Iniciar sesión</h1>
-    <p>Regístrate o inicia sesión para acceder a tu espacio personal de datos en Controleo.</p>
-
-    <div class="mode-toggle">
-      <button
-        type="button"
-        class="btn btn-secondary"
-        [class.active]="mode === 'login'"
-        [disabled]="isLoading"
-        (click)="setMode('login')">
-        Iniciar sesión
-      </button>
-      <button
-        type="button"
-        class="btn btn-secondary"
-        [class.active]="mode === 'register'"
-        [disabled]="isLoading"
-        (click)="setMode('register')">
-        Registrarme
-      </button>
+  <article class="login-shell">
+    <div class="brand-card">
+      <div class="brand-icon">🌿</div>
+      <div class="brand-title">Controleo</div>
+      <p class="brand-subtitle">Tu espacio personal de finanzas</p>
     </div>
 
-    @if (mode === 'register') {
-      <label>
-        Nombre
-        <input type="text" [(ngModel)]="name" [disabled]="isLoading" autocomplete="name" />
-      </label>
-    }
+    <div class="login-card">
+      <h1>{{ mode === 'register' ? 'Crear cuenta' : 'Iniciar sesion' }}</h1>
+      <p>Registrate o inicia sesion para acceder a tu espacio personal de datos en Controleo.</p>
 
-    <label>
-      Correo
-      <input
-        type="email"
-        [(ngModel)]="email"
-        [disabled]="isLoading"
-        autocomplete="email"
-        (blur)="emailTouched = true"
-        [class.is-valid]="showEmailValid"
-        [class.is-invalid]="showEmailInvalid" />
+      <div class="mode-toggle">
+        <button
+          type="button"
+          class="btn btn-secondary"
+          [class.active]="mode === 'login'"
+          [disabled]="isLoading"
+          (click)="setMode('login')">
+          Iniciar sesion
+        </button>
+        <button
+          type="button"
+          class="btn btn-secondary"
+          [class.active]="mode === 'register'"
+          [disabled]="isLoading"
+          (click)="setMode('register')">
+          Registrarme
+        </button>
+      </div>
 
-      @if (showEmailInvalid) {
-        <span class="field-hint field-error">Correo inválido.</span>
-      } @else if (showEmailValid) {
-        <span class="field-hint field-valid">Correo válido.</span>
+      @if (mode === 'register') {
+        <label>
+          Nombre
+          <input type="text" [(ngModel)]="name" [disabled]="isLoading" autocomplete="name" />
+        </label>
       }
-    </label>
 
-    <label>
-      Contraseña
-      <input type="password" [(ngModel)]="password" [disabled]="isLoading" autocomplete="current-password" />
-    </label>
-
-    @if (mode === 'register') {
       <label>
-        Confirmar contraseña
-        <input type="password" [(ngModel)]="confirmPassword" [disabled]="isLoading" autocomplete="new-password" />
+        Correo
+        <input
+          type="email"
+          [(ngModel)]="email"
+          [disabled]="isLoading"
+          autocomplete="email"
+          (blur)="emailTouched = true"
+          [class.is-valid]="showEmailValid"
+          [class.is-invalid]="showEmailInvalid" />
+
+        @if (showEmailInvalid) {
+          <span class="field-hint field-error">Correo invalido.</span>
+        } @else if (showEmailValid) {
+          <span class="field-hint field-valid">Correo valido.</span>
+        }
       </label>
-    }
 
-    <button class="btn btn-primary" type="button" [disabled]="isLoading" (click)="submit()">
-      @if (isLoading) {
-        Conectando...
-      } @else if (mode === 'register') {
-        Crear cuenta
-      } @else {
-        Entrar
+      <label>
+        Contrasena
+        <input type="password" [(ngModel)]="password" [disabled]="isLoading" autocomplete="current-password" />
+      </label>
+
+      @if (mode === 'register') {
+        <label>
+          Confirmar contrasena
+          <input type="password" [(ngModel)]="confirmPassword" [disabled]="isLoading" autocomplete="new-password" />
+        </label>
       }
-    </button>
 
-    @if (successMessage) {
-      <p class="success">{{ successMessage }}</p>
-    }
+      <button class="btn btn-primary" type="button" [disabled]="isLoading" (click)="submit()">
+        @if (isLoading) {
+          Conectando...
+        } @else if (mode === 'register') {
+          Crear cuenta
+        } @else {
+          Entrar
+        }
+      </button>
 
-    @if (errorMessage) {
-      <p class="error">{{ errorMessage }}</p>
-    }
+      @if (successMessage) {
+        <p class="success">{{ successMessage }}</p>
+      }
+
+      @if (errorMessage) {
+        <p class="error">{{ errorMessage }}</p>
+      }
+    </div>
   </article>
 </section>

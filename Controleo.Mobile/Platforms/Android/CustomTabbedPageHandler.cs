@@ -1,4 +1,5 @@
 using Android.Content.Res;
+using AndroidX.ViewPager2.Widget;
 using Google.Android.Material.BottomNavigation;
 using Microsoft.Maui.Controls.Handlers;
 using Microsoft.Maui.Handlers;
@@ -33,6 +34,12 @@ public class CustomTabbedPageHandler : TabbedViewHandler
 
         // Disable icon tinting so colored icons show as-is
         bottomNav.ItemIconTintList = null;
+
+        var pager = FindViewPager2(view);
+        if (pager is not null)
+        {
+            pager.UserInputEnabled = false;
+        }
     }
 
     private static BottomNavigationView? FindBottomNavigationView(global::Android.Views.View view)
@@ -48,6 +55,23 @@ public class CustomTabbedPageHandler : TabbedViewHandler
                 if (found is not null) return found;
             }
         }
+        return null;
+    }
+
+    private static ViewPager2? FindViewPager2(global::Android.Views.View view)
+    {
+        if (view is ViewPager2 pager) return pager;
+        if (view is global::Android.Views.ViewGroup vg)
+        {
+            for (int i = 0; i < vg.ChildCount; i++)
+            {
+                var child = vg.GetChildAt(i);
+                if (child is null) continue;
+                var found = FindViewPager2(child);
+                if (found is not null) return found;
+            }
+        }
+
         return null;
     }
 }

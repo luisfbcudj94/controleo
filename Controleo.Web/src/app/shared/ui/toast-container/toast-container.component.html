@@ -1,0 +1,12 @@
+<section class="toast-stack" aria-live="polite" aria-atomic="false">
+  @for (toast of notifications.toasts(); track trackById($index, toast)) {
+    <article class="toast" [class.toast-success]="toast.type === 'success'" [class.toast-error]="toast.type === 'error'" [class.toast-warning]="toast.type === 'warning'" [class.toast-info]="toast.type === 'info'">
+      <div class="toast-content">
+        <strong class="toast-title">{{ toast.title }}</strong>
+        <p class="toast-message">{{ toast.message }}</p>
+      </div>
+
+      <button class="toast-close" type="button" (click)="dismiss(toast.id)" aria-label="Cerrar notificacion">✕</button>
+    </article>
+  }
+</section>

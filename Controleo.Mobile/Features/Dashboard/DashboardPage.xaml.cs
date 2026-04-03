@@ -37,8 +37,9 @@ public partial class DashboardPage : ContentPage
     private readonly IExpenseApiClient _apiClient;
     private readonly IMonthContextService _monthContext;
     private readonly ICatalogColorService _colorService;
+    private readonly IPaymentIconService _paymentIconService;
     private readonly ObservableCollection<DashboardListViewItem> _items = [];
-    private readonly ObservableCollection<DonutLegendItem> _donutLegendItems = [];
+    private readonly List<string> _distributionBreakdownOptions = [];
     private bool _isRefreshing;
     private bool _isOpeningDetail;
     private bool _isMonthPickerSyncing;
@@ -49,18 +50,22 @@ public partial class DashboardPage : ContentPage
     private readonly BudgetRingDrawable _budgetRingDrawable = new();
     private readonly DistributionDonutDrawable _distributionDonutDrawable = new();
 
-    public DashboardPage(IExpenseApiClient apiClient, IMonthContextService monthContext, ICatalogColorService colorService)
+    public DashboardPage(
+        IExpenseApiClient apiClient,
+        IMonthContextService monthContext,
+        ICatalogColorService colorService,
+        IPaymentIconService paymentIconService)
     {
         InitializeComponent();
         _apiClient = apiClient;
         _monthContext = monthContext;
         _colorService = colorService;
+        _paymentIconService = paymentIconService;
         RefreshMonthPickerItems();
         _monthContext.MonthChanged += OnMonthChanged;
         _monthContext.MonthOptionsChanged += OnMonthOptionsChanged;
         SyncMonthSelection();
         ChartCollection.ItemsSource = _items;
-        DonutLegendCollection.ItemsSource = _donutLegendItems;
         BudgetRingView.Drawable = _budgetRingDrawable;
         DistributionDonutView.Drawable = _distributionDonutDrawable;
         UpdateModeButtons();
@@ -107,6 +112,7 @@ public partial class DashboardPage : ContentPage
 
             var catalog = catalogTask.Result;
             _colorService.SetConfigs(catalog.MovementTypeConfigs);
+            SyncPaymentIcons(catalog);
 
             _categoryData = categoryTask.Result;
             _paymentMethodData = paymentTask.Result;
@@ -150,11 +156,11 @@ public partial class DashboardPage : ContentPage
 
     private void RenderDistribution()
     {
-        _donutLegendItems.Clear();
+        _distributionBreakdownOptions.Clear();
 
         if (_selectedMode == DashboardMode.Category)
         {
-            DistributionCenterLabel.Text = "Por tipo";
+            DistributionCenterLabel.Text = "Ver categorias";
             SectionListTitleLabel.Text = "CATEGORIAS";
 
             var distribution = _categoryData
@@ -171,20 +177,18 @@ public partial class DashboardPage : ContentPage
 
             if (total <= 0)
             {
-                DistributionSummaryLabel.Text = "Anade gastos para ver la distribucion";
+                DistributionSummaryLabel.Text = "Añade gastos para ver la distribución";
                 DistributionSummaryLabel.TextColor = Color.FromArgb("#E5534B");
             }
             else
             {
-                DistributionSummaryLabel.Text = "100% por categoria";
+                DistributionSummaryLabel.Text = "100% por categoría";
                 DistributionSummaryLabel.TextColor = Color.FromArgb("#1A2E23");
 
                 foreach (var item in distribution)
                 {
-                    var pct = Math.Round((item.ExpenseTotal / total) * 100m);
-                    _donutLegendItems.Add(new DonutLegendItem(
-                        $"{item.MovementType} {pct:0}%",
-                        _colorService.ForMovementType(item.MovementType)));
+                    var percentage = (item.ExpenseTotal / total) * 100m;
+                    _distributionBreakdownOptions.Add($"{item.MovementType} · {percentage:0.#}% · ${item.ExpenseTotal:N0}");
                 }
             }
 
@@ -192,7 +196,7 @@ public partial class DashboardPage : ContentPage
             return;
         }
 
-        DistributionCenterLabel.Text = "Por medio";
+        DistributionCenterLabel.Text = "Ver medios de pago";
         SectionListTitleLabel.Text = "MEDIOS DE PAGO";
 
         var paymentDistribution = _paymentMethodData
@@ -209,7 +213,7 @@ public partial class DashboardPage : ContentPage
 
         if (paymentTotal <= 0)
         {
-            DistributionSummaryLabel.Text = "Anade gastos para ver la distribucion";
+            DistributionSummaryLabel.Text = "Añade gastos para ver la distribución";
             DistributionSummaryLabel.TextColor = Color.FromArgb("#E5534B");
         }
         else
@@ -219,10 +223,8 @@ public partial class DashboardPage : ContentPage
 
             foreach (var item in paymentDistribution)
             {
-                var pct = Math.Round((item.ExpenseTotal / paymentTotal) * 100m);
-                _donutLegendItems.Add(new DonutLegendItem(
-                    $"{item.PaymentMethod} {pct:0}%",
-                    ProgressColorForPaymentMethod(item.PaymentMethod)));
+                var percentage = (item.ExpenseTotal / paymentTotal) * 100m;
+                _distributionBreakdownOptions.Add($"{item.PaymentMethod} · {percentage:0.#}% · ${item.ExpenseTotal:N0}");
             }
         }
 
@@ -274,7 +276,6 @@ public partial class DashboardPage : ContentPage
         foreach (var row in paymentData)
         {
             var ratio = totalPayment <= 0 ? 0d : (double)Math.Clamp(row.ExpenseTotal / totalPayment, 0m, 1m);
-            var share = totalPayment <= 0 ? 0m : (row.ExpenseTotal / totalPayment) * 100m;
 
             _items.Add(new DashboardListViewItem(
                 row.PaymentMethod,
@@ -282,10 +283,43 @@ public partial class DashboardPage : ContentPage
                 row.ExpenseTotal,
                 ratio,
                 ProgressColorForPaymentMethod(row.PaymentMethod),
-                totalPayment <= 0 ? "Sin gastos en el periodo" : $"Participacion: {share:0.#}%",
+                totalPayment <= 0 ? "Sin gastos en el periodo" : "Toca para ver detalle",
                 CardColorForPaymentMethod(row.PaymentMethod),
-                IconForPaymentMethod(row.PaymentMethod)));
+                _paymentIconService.IconForPaymentMethod(row.PaymentMethod)));
         }
+    }
+
+    private void SyncPaymentIcons(ExpenseCatalog catalog)
+    {
+        foreach (var paymentMethod in catalog.PaymentMethods)
+        {
+            var configuredIcon = (catalog.PaymentMethodConfigs ?? [])
+                .FirstOrDefault(cfg => string.Equals(cfg.Name, paymentMethod, StringComparison.OrdinalIgnoreCase))
+                ?.Icon;
+
+            if (!string.IsNullOrWhiteSpace(configuredIcon))
+            {
+                _paymentIconService.SetIconForPaymentMethod(paymentMethod, configuredIcon);
+                continue;
+            }
+
+            _paymentIconService.IconForPaymentMethod(paymentMethod);
+        }
+    }
+
+    private async void OnDistributionCenterTapped(object? sender, TappedEventArgs e)
+    {
+        if (_distributionBreakdownOptions.Count == 0)
+        {
+            await StyledResultModalPage.ShowAsync(this, false, "Sin datos", "Aún no hay datos para mostrar distribución.");
+            return;
+        }
+
+        var title = _selectedMode == DashboardMode.Category
+            ? "Distribución por categorías"
+            : "Distribución por medios de pago";
+
+        await StyledSelectorModalPage.PickAsync(this, title, _distributionBreakdownOptions, null);
     }
 
     private async void OnRefreshing(object? sender, EventArgs e)
@@ -314,7 +348,7 @@ public partial class DashboardPage : ContentPage
                 ? new SectionExpensesModalPage(_apiClient, _monthContext.SelectedMonthKey, selectedKey, movementType: selectedKey)
                 : new SectionExpensesModalPage(_apiClient, _monthContext.SelectedMonthKey, selectedKey, paymentMethod: selectedKey);
 
-            await Navigation.PushModalAsync(new NavigationPage(detailPage));
+            await Navigation.PushModalAsync(detailPage);
         }
         catch (Exception ex)
         {
@@ -492,32 +526,6 @@ public partial class DashboardPage : ContentPage
         return (int)(hash % (uint)length);
     }
 
-    private static string IconForPaymentMethod(string paymentMethod)
-    {
-        var normalized = paymentMethod.Trim().ToLowerInvariant();
-        if (normalized.Contains("efectivo", StringComparison.Ordinal))
-        {
-            return "💵";
-        }
-
-        if (normalized.Contains("nequi", StringComparison.Ordinal) || normalized.Contains("transfer", StringComparison.Ordinal))
-        {
-            return "📲";
-        }
-
-        if (normalized.StartsWith("td", StringComparison.Ordinal) || normalized.Contains("deb", StringComparison.Ordinal))
-        {
-            return "🏦";
-        }
-
-        if (normalized.StartsWith("tc", StringComparison.Ordinal) || normalized.Contains("cred", StringComparison.Ordinal))
-        {
-            return "💳";
-        }
-
-        return "💳";
-    }
-
     private async void OnMonthSelectorTapped(object? sender, EventArgs e)
     {
         var monthOptions = _monthContext.MonthOptions.ToList();
@@ -549,8 +557,6 @@ public partial class DashboardPage : ContentPage
         string Subtitle,
         Color CardColor,
         string Icon);
-
-    private sealed record DonutLegendItem(string Label, Color DotColor);
 
     private sealed class BudgetRingDrawable : IDrawable
     {
@@ -620,6 +626,14 @@ public partial class DashboardPage : ContentPage
             {
                 canvas.StrokeColor = Color.FromArgb("#DCE5DF");
                 canvas.DrawArc(x, y, size, size, 0, 360, true, false);
+                return;
+            }
+
+            if (normalizedSegments.Count == 1)
+            {
+                canvas.StrokeColor = normalizedSegments[0].Color;
+                canvas.DrawArc(x, y, size, size, -90f, -270f, true, false);
+                canvas.DrawArc(x, y, size, size, -270f, -450f, true, false);
                 return;
             }
 

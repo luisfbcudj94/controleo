@@ -11,6 +11,7 @@ public sealed class AuthService(HttpClient httpClient) : IAuthService
     private const string SessionKey = "controleo_auth_session";
 
     private AuthSession? _session;
+    public event Action? SessionCleared;
 
     public Task<bool> IsAuthenticatedAsync(CancellationToken cancellationToken = default)
     {
@@ -125,12 +126,36 @@ public sealed class AuthService(HttpClient httpClient) : IAuthService
     {
         _session = null;
         Preferences.Default.Remove(SessionKey);
+        SessionCleared?.Invoke();
         return Task.CompletedTask;
     }
 
-    public string CurrentUserName => _session?.User?.Name ?? _session?.User?.Email ?? "Controleo";
+    public string CurrentUserId
+    {
+        get
+        {
+            EnsureSessionLoaded();
+            return _session?.User?.UserId ?? string.Empty;
+        }
+    }
 
-    public string CurrentUserEmail => _session?.User?.Email ?? "sin-correo";
+    public string CurrentUserName
+    {
+        get
+        {
+            EnsureSessionLoaded();
+            return _session?.User?.Name ?? _session?.User?.Email ?? "Controleo";
+        }
+    }
+
+    public string CurrentUserEmail
+    {
+        get
+        {
+            EnsureSessionLoaded();
+            return _session?.User?.Email ?? "sin-correo";
+        }
+    }
 
     public string ApiBaseUrl => httpClient.BaseAddress?.ToString() ?? "(sin base URL)";
 

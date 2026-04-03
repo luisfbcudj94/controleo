@@ -5,7 +5,7 @@
   display: grid;
   place-items: center;
   padding: 1rem;
-  z-index: 1200;
+  z-index: 1400;
 }
 
 .modal-card {
@@ -16,10 +16,27 @@
   padding: 1rem;
 }
 
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+
 h3 {
   margin: 0;
-  font-family: 'Syne', sans-serif;
+  font-family: 'Open Sans', sans-serif;
   font-size: 1rem;
+}
+
+.icon-close {
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  border: 1px solid #D0D9D3;
+  background: #E4EAE6;
+  color: var(--text);
+  cursor: pointer;
 }
 
 .modal-message {

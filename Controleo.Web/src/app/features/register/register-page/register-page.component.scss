@@ -40,7 +40,7 @@
 }
 
 .fch-title {
-	font-family: 'Syne', sans-serif;
+	font-family: 'Open Sans', sans-serif;
 	font-size: 0.84rem;
 	font-weight: 700;
 }
@@ -87,10 +87,15 @@
 	cursor: pointer;
 }
 
-.month-row {
-	display: grid;
-	grid-template-columns: auto 1fr auto;
-	gap: 0.55rem;
+.tile-trigger {
+	min-height: 3.2rem;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	text-align: center;
+	font-weight: 700;
+	font-size: 0.82rem;
+	letter-spacing: 0.01em;
 }
 
 .amount-hero {
@@ -101,7 +106,7 @@
 }
 
 .ah-sym {
-	font-family: 'Syne', sans-serif;
+	font-family: 'Open Sans', sans-serif;
 	font-size: 1.8rem;
 	color: var(--muted);
 }
@@ -115,7 +120,7 @@
 	border: none;
 	background: transparent;
 	color: #1B4332;
-	font-family: 'Syne', sans-serif;
+	font-family: 'Open Sans', sans-serif;
 	font-size: 2.2rem;
 	font-weight: 800;
 	outline: none;
@@ -138,7 +143,7 @@
 }
 
 .pc-title {
-	font-family: 'Syne', sans-serif;
+	font-family: 'Open Sans', sans-serif;
 	color: var(--muted);
 	font-size: 0.7rem;
 	letter-spacing: 0.08em;
@@ -147,7 +152,7 @@
 
 .pc-amount {
 	margin: 0.8rem 0 1rem;
-	font-family: 'Syne', sans-serif;
+	font-family: 'Open Sans', sans-serif;
 	font-size: 2.15rem;
 	font-weight: 800;
 	color: #1B4332;
@@ -184,24 +189,29 @@
 	border-radius: var(--r);
 	background: #2D6A4F;
 	color: #FFFFFF;
-	font-family: 'Syne', sans-serif;
+	font-family: 'Open Sans', sans-serif;
 	font-weight: 800;
 	padding: 0.9rem;
 	cursor: pointer;
 }
 
-.status-text {
-	margin-top: 0.8rem;
-	color: var(--muted);
+.mobile-save {
+	display: none;
 }
 
 @media (max-width: 980px) {
 	.form-layout {
 		grid-template-columns: 1fr;
+		gap: 0.9rem;
 	}
 
 	.preview-card {
-		position: static;
+		display: none;
+	}
+
+	.mobile-save {
+		display: block;
+		margin-top: 0.1rem;
 	}
 }
 

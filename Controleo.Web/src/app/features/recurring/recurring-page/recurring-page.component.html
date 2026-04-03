@@ -7,11 +7,11 @@
       <div class="field"><label>Monto</label><input type="number" formControlName="amount" min="1" (focus)="onAmountFocus($event)" (blur)="onAmountBlur($event)" /></div>
       <div class="field">
         <label>Tipo</label>
-        <button class="selector-trigger" type="button" (click)="openMovementTypeSelector()">{{ form.controls.movementType.value || 'Seleccionar tipo' }}</button>
+        <button class="selector-trigger" type="button" (click)="openMovementTypeSelector()">{{ movementTypeSelectionLabel }}</button>
       </div>
       <div class="field">
         <label>Medio</label>
-        <button class="selector-trigger" type="button" (click)="openPaymentMethodSelector()">{{ form.controls.paymentMethod.value || 'Seleccionar medio' }}</button>
+        <button class="selector-trigger" type="button" (click)="openPaymentMethodSelector()">{{ paymentMethodSelectionLabel }}</button>
       </div>
       <div class="field"><label>Día de cobro</label><input type="number" min="1" max="31" formControlName="dayOfMonth" /></div>
       <div class="field"><label>Inicio</label><app-custom-date-input formControlName="startDate" /></div>
@@ -53,16 +53,11 @@
     }
   </article>
 
-  @if (statusMessage) {
-    <p class="muted">{{ statusMessage }}</p>
-  }
-
   <app-confirm-modal
     [isOpen]="confirmDeleteOpen"
     title="Eliminar programado"
     [message]="pendingDelete ? '¿Eliminar ' + pendingDelete.description + '?' : ''"
     confirmLabel="Eliminar"
-    cancelLabel="Cancelar"
     [danger]="true"
     (confirm)="confirmRemove()"
     (cancel)="cancelRemove()" />
@@ -70,8 +65,10 @@
   <app-selector-modal
     [isOpen]="selectorOpen"
     [title]="selectorTitle"
-    [options]="selectorOptions"
+    [optionItems]="selectorItems"
     [selectedValue]="selectorValue"
+    mode="tiles"
+    closeVariant="icon"
     (choose)="selectOption($event)"
     (close)="closeSelector()" />
 </section>

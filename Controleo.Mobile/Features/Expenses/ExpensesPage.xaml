@@ -157,20 +157,69 @@
                                     BackgroundColor="{StaticResource Gray200}" TextColor="{StaticResource AppText}"
                                     FontSize="14" Clicked="OnCancelEditClicked" />
                         </Grid>
-                        <Border StrokeShape="RoundRectangle 12" BackgroundColor="{StaticResource AppSurface2}"
-                                Stroke="{StaticResource AppBorder}" Padding="12,10">
-                            <Grid ColumnDefinitions="*,Auto">
-                                <Label x:Name="EditDateSelectorLabel" VerticalOptions="Center" />
-                                <Label Grid.Column="1" Text="▼" FontSize="11" TextColor="{StaticResource AppHint}" VerticalOptions="Center" />
-                            </Grid>
-                            <Border.GestureRecognizers>
-                                <TapGestureRecognizer Tapped="OnEditDateSelectorTapped" />
-                            </Border.GestureRecognizers>
-                        </Border>
-                        <Entry x:Name="EditDescriptionEntry" Placeholder="Descripción" />
-                        <Entry x:Name="EditAmountEntry" Placeholder="Valor" Keyboard="Numeric" />
-                        <Picker x:Name="EditMovementPicker" Title="Tipo de movimiento" />
-                        <Picker x:Name="EditPaymentPicker" Title="Medio de pago" />
+                        <VerticalStackLayout Spacing="6">
+                            <Label Text="FECHA DEL GASTO" FontSize="10" FontAttributes="Bold"
+                                   TextColor="{StaticResource AppHint}" CharacterSpacing="0.8" />
+                            <Border StrokeShape="RoundRectangle 12" BackgroundColor="{StaticResource AppSurface2}"
+                                    Stroke="{StaticResource AppBorder}" Padding="12,10">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <Label x:Name="EditDateSelectorLabel" VerticalOptions="Center" />
+                                    <Label Grid.Column="1" Text="▼" FontSize="11" TextColor="{StaticResource AppHint}" VerticalOptions="Center" />
+                                </Grid>
+                                <Border.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="OnEditDateSelectorTapped" />
+                                </Border.GestureRecognizers>
+                            </Border>
+                        </VerticalStackLayout>
+
+                        <VerticalStackLayout Spacing="6">
+                            <Label Text="GASTO" FontSize="10" FontAttributes="Bold"
+                                   TextColor="{StaticResource AppHint}" CharacterSpacing="0.8" />
+                            <Entry x:Name="EditDescriptionEntry" Placeholder="Descripción" />
+                        </VerticalStackLayout>
+
+                        <VerticalStackLayout Spacing="6">
+                            <Label Text="VALOR DEL GASTO" FontSize="10" FontAttributes="Bold"
+                                   TextColor="{StaticResource AppHint}" CharacterSpacing="0.8" />
+                            <Entry x:Name="EditAmountEntry" Placeholder="Valor" Keyboard="Numeric" />
+                        </VerticalStackLayout>
+
+                        <VerticalStackLayout Spacing="6">
+                            <Label Text="TIPO DE GASTO" FontSize="10" FontAttributes="Bold"
+                                   TextColor="{StaticResource AppHint}" CharacterSpacing="0.8" />
+                            <Border x:Name="EditMovementSelectorBorder" StrokeShape="RoundRectangle 12"
+                                    BackgroundColor="{StaticResource AppSurface2}" Stroke="{StaticResource AppBorder}"
+                                    Padding="12,10">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <Label x:Name="EditMovementSelectorLabel" Text="Seleccionar"
+                                           TextColor="{StaticResource AppText}" VerticalOptions="Center" />
+                                    <Label Grid.Column="1" Text="▼" FontSize="11"
+                                           TextColor="{StaticResource AppHint}" VerticalOptions="Center" />
+                                </Grid>
+                                <Border.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="OnEditMovementSelectorTapped" />
+                                </Border.GestureRecognizers>
+                            </Border>
+                        </VerticalStackLayout>
+
+                        <VerticalStackLayout Spacing="6">
+                            <Label Text="MEDIO DE PAGO" FontSize="10" FontAttributes="Bold"
+                                   TextColor="{StaticResource AppHint}" CharacterSpacing="0.8" />
+                            <Border x:Name="EditPaymentSelectorBorder" StrokeShape="RoundRectangle 12"
+                                    BackgroundColor="{StaticResource AppSurface2}" Stroke="{StaticResource AppBorder}"
+                                    Padding="12,10">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <Label x:Name="EditPaymentSelectorLabel" Text="Seleccionar"
+                                           TextColor="{StaticResource AppText}" VerticalOptions="Center" />
+                                    <Label Grid.Column="1" Text="▼" FontSize="11"
+                                           TextColor="{StaticResource AppHint}" VerticalOptions="Center" />
+                                </Grid>
+                                <Border.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="OnEditPaymentSelectorTapped" />
+                                </Border.GestureRecognizers>
+                            </Border>
+                        </VerticalStackLayout>
+
                         <HorizontalStackLayout Spacing="8" HorizontalOptions="End">
                             <Button Text="Cancelar" Clicked="OnCancelEditClicked"
                                     BackgroundColor="{StaticResource AppSurface2}" TextColor="{StaticResource AppText}" />
@@ -183,9 +232,61 @@
             </ScrollView>
         </Grid>
 
+        <!-- Edit Movement Picker Overlay -->
+        <Grid x:Name="EditMovementPickerOverlay" Grid.RowSpan="5" IsVisible="False"
+              BackgroundColor="#55000000" InputTransparent="False" ZIndex="30" Margin="-16">
+            <ScrollView VerticalOptions="Center" Margin="16">
+                <Border StrokeShape="RoundRectangle 20" Padding="16,16,12,16"
+                        BackgroundColor="{StaticResource White}" StrokeThickness="0">
+                    <Border.Shadow>
+                        <Shadow Brush="Black" Offset="0,4" Radius="20" Opacity="0.15" />
+                    </Border.Shadow>
+                    <VerticalStackLayout Spacing="14">
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                            <Label Text="Tipo de gasto" FontSize="18" FontAttributes="Bold"
+                                   TextColor="{StaticResource AppText}" />
+                            <Button Grid.Column="1" Text="✕" WidthRequest="36" HeightRequest="36"
+                                    CornerRadius="18" BackgroundColor="{StaticResource Gray200}"
+                                    TextColor="{StaticResource AppText}" FontSize="14"
+                                    Clicked="OnCloseEditMovementPicker" Padding="0" Margin="0,0,-4,0" />
+                        </Grid>
+                        <FlexLayout x:Name="EditMovementPickerFlexLayout"
+                                    Wrap="Wrap" JustifyContent="Start"
+                                    AlignItems="Start" />
+                    </VerticalStackLayout>
+                </Border>
+            </ScrollView>
+        </Grid>
+
+        <!-- Edit Payment Picker Overlay -->
+        <Grid x:Name="EditPaymentPickerOverlay" Grid.RowSpan="5" IsVisible="False"
+              BackgroundColor="#55000000" InputTransparent="False" ZIndex="30" Margin="-16">
+            <ScrollView VerticalOptions="Center" Margin="16">
+                <Border StrokeShape="RoundRectangle 20" Padding="16,16,12,16"
+                        BackgroundColor="{StaticResource White}" StrokeThickness="0">
+                    <Border.Shadow>
+                        <Shadow Brush="Black" Offset="0,4" Radius="20" Opacity="0.15" />
+                    </Border.Shadow>
+                    <VerticalStackLayout Spacing="14">
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                            <Label Text="Medio de pago" FontSize="18" FontAttributes="Bold"
+                                   TextColor="{StaticResource AppText}" />
+                            <Button Grid.Column="1" Text="✕" WidthRequest="36" HeightRequest="36"
+                                    CornerRadius="18" BackgroundColor="{StaticResource Gray200}"
+                                    TextColor="{StaticResource AppText}" FontSize="14"
+                                    Clicked="OnCloseEditPaymentPicker" Padding="0" Margin="0,0,-4,0" />
+                        </Grid>
+                        <FlexLayout x:Name="EditPaymentPickerFlexLayout"
+                                    Wrap="Wrap" JustifyContent="Start"
+                                    AlignItems="Start" />
+                    </VerticalStackLayout>
+                </Border>
+            </ScrollView>
+        </Grid>
+
         <!-- Loading -->
           <Grid x:Name="LoadingOverlay" Grid.RowSpan="5" IsVisible="False"
-              BackgroundColor="#33000000" InputTransparent="False" Margin="-16">
+                            BackgroundColor="#33000000" InputTransparent="False" ZIndex="30" Margin="-16">
             <ActivityIndicator IsRunning="True" WidthRequest="48" HeightRequest="48"
                                Color="{StaticResource Tertiary}" HorizontalOptions="Center" VerticalOptions="Center" />
         </Grid>

@@ -1,11 +1,16 @@
 @if (isOpen) {
   <div class="modal-overlay" (click)="onBackdropClick($event)">
     <article class="modal-card">
-      <h3>{{ title }}</h3>
+      <header class="modal-header">
+        <h3>{{ title }}</h3>
+        <button class="icon-close" type="button" (click)="cancel.emit()" aria-label="Cerrar">✕</button>
+      </header>
       <p class="modal-message">{{ message }}</p>
 
       <div class="modal-actions">
-        <button class="btn btn-close" type="button" (click)="cancel.emit()">{{ cancelLabel }}</button>
+        @if (showCancel) {
+          <button class="btn btn-close" type="button" (click)="cancel.emit()">{{ cancelLabel }}</button>
+        }
         <button class="btn" [class.btn-danger]="danger" [class.btn-primary]="!danger" type="button" (click)="confirm.emit()">{{ confirmLabel }}</button>
       </div>
     </article>

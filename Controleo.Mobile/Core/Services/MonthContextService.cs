@@ -39,6 +39,15 @@ public sealed class MonthContextService : IMonthContextService
             .OrderBy(month => month)
             .ToList();
 
+        if (parsedMonths.All(month => month != currentMonth))
+        {
+            parsedMonths.Add(currentMonth);
+            parsedMonths = parsedMonths
+                .Distinct()
+                .OrderBy(month => month)
+                .ToList();
+        }
+
         if (parsedMonths.Count == 0)
         {
             parsedMonths.Add(currentMonth);

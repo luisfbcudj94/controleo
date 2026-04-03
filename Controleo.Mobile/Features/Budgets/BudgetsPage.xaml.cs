@@ -76,13 +76,50 @@ public partial class BudgetsPage : ContentPage
     {
         if (e.Parameter is not BudgetViewItem item) return;
 
+        OpenBudgetEditor(item, isCreateFlow: false);
+    }
+
+    private async void OnAddBudgetClicked(object? sender, EventArgs e)
+    {
+        var candidates = _budgets.Where(item => !item.HasBudget).ToList();
+        if (candidates.Count == 0)
+        {
+            await StyledResultModalPage.ShowAsync(this, false, "Sin pendientes", "Todas las categorías ya tienen presupuesto. Puedes editar uno existente.");
+            return;
+        }
+
+        var options = candidates.Select(item => item.MovementType).ToList();
+        var selected = await StyledSelectorModalPage.PickAsync(this, "Selecciona categoría", options, options[0]);
+        if (string.IsNullOrWhiteSpace(selected))
+        {
+            return;
+        }
+
+        var selectedItem = candidates.FirstOrDefault(item => string.Equals(item.MovementType, selected, StringComparison.OrdinalIgnoreCase));
+        if (selectedItem is null)
+        {
+            return;
+        }
+
+        OpenBudgetEditor(selectedItem, isCreateFlow: true);
+    }
+
+    private void OpenBudgetEditor(BudgetViewItem item, bool isCreateFlow)
+    {
+
         _editingMovementType = item.MovementType;
         EditBudgetIcon.Text = item.Icon;
         EditBudgetTitle.Text = item.MovementType;
-        EditBudgetCurrentLabel.Text = item.HasBudget
-            ? $"Presupuesto actual: ${item.Amount:N0}"
-            : "Sin presupuesto asignado";
-        EditBudgetAmountEntry.Text = item.HasBudget ? MoneyFormatHelper.FormatWithDots(((long)item.Amount).ToString()) : string.Empty;
+        EditBudgetCurrentLabel.Text = isCreateFlow
+            ? "Asigna un presupuesto inicial para esta categoría."
+            : item.HasBudget
+                ? $"Presupuesto actual: ${item.Amount:N0}"
+                : "Sin presupuesto asignado";
+        EditBudgetAmountEntry.Text = isCreateFlow
+            ? string.Empty
+            : item.HasBudget
+                ? MoneyFormatHelper.FormatWithDots(((long)item.Amount).ToString())
+                : string.Empty;
         BudgetEditOverlay.IsVisible = true;
     }
 
@@ -104,12 +141,20 @@ public partial class BudgetsPage : ContentPage
 
         BudgetEditOverlay.IsVisible = false;
         SetLoading(true);
-        var result = await _apiClient.UpsertBudgetAsync(_editingMovementType, amount, CancellationToken.None);
-        await StyledResultModalPage.ShowAsync(
-            this, result.IsSuccess,
-            result.IsSuccess ? "Presupuesto guardado" : "No se pudo guardar",
-            result.IsSuccess ? "El presupuesto se guardó correctamente." : result.Message);
-        SetLoading(false);
+        OperationResult result;
+        try
+        {
+            result = await _apiClient.UpsertBudgetAsync(_editingMovementType, amount, CancellationToken.None);
+            await StyledResultModalPage.ShowAsync(
+                this, result.IsSuccess,
+                result.IsSuccess ? "Presupuesto guardado" : "No se pudo guardar",
+                result.IsSuccess ? "El presupuesto se guardó correctamente." : result.Message);
+        }
+        finally
+        {
+            SetLoading(false);
+        }
+
         if (result.IsSuccess) await LoadDataAsync();
     }
 
@@ -123,12 +168,20 @@ public partial class BudgetsPage : ContentPage
 
         BudgetEditOverlay.IsVisible = false;
         SetLoading(true);
-        var result = await _apiClient.DeleteBudgetAsync(_editingMovementType, CancellationToken.None);
-        await StyledResultModalPage.ShowAsync(
-            this, result.IsSuccess,
-            result.IsSuccess ? "Presupuesto eliminado" : "No se pudo eliminar",
-            result.IsSuccess ? "El presupuesto se eliminó correctamente." : result.Message);
-        SetLoading(false);
+        OperationResult result;
+        try
+        {
+            result = await _apiClient.DeleteBudgetAsync(_editingMovementType, CancellationToken.None);
+            await StyledResultModalPage.ShowAsync(
+                this, result.IsSuccess,
+                result.IsSuccess ? "Presupuesto eliminado" : "No se pudo eliminar",
+                result.IsSuccess ? "El presupuesto se eliminó correctamente." : result.Message);
+        }
+        finally
+        {
+            SetLoading(false);
+        }
+
         if (result.IsSuccess) await LoadDataAsync();
     }
 
@@ -136,6 +189,20 @@ public partial class BudgetsPage : ContentPage
     {
         BudgetEditOverlay.IsVisible = false;
         _editingMovementType = null;
+    }
+
+    private async void OnClosePageClicked(object? sender, EventArgs e)
+    {
+        if (Navigation.ModalStack.Count > 0)
+        {
+            await Navigation.PopModalAsync();
+            return;
+        }
+
+        if (Navigation.NavigationStack.Count > 1)
+        {
+            await Navigation.PopAsync();
+        }
     }
 
     private async void OnRefreshing(object? sender, EventArgs e) => await LoadDataAsync();

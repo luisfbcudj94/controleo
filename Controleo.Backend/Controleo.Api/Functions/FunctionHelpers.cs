@@ -141,6 +141,123 @@ internal static class FunctionHelpers
         return new ExpenseEntryRequest(date, desc, amount, mt, pm);
     }
 
+    public static async Task<RecurringExpenseUpsertRequest?> ReadRecurringExpenseRequestAsync(HttpRequestData request, CancellationToken ct)
+    {
+        var raw = await ReadRawBodyAsync(request, ct);
+        if (string.IsNullOrWhiteSpace(raw)) return null;
+
+        var norm = NormalizeRawPayload(raw);
+        if (string.IsNullOrWhiteSpace(norm)) return null;
+
+        var direct = TryDeserialize<RecurringExpenseUpsertRequest>(norm);
+        if (direct is not null) return NormalizeRecurringRequest(direct);
+
+        if (TryParseKV(norm, out var kv))
+        {
+            TryGetVal(kv, "description", out var description);
+            TryGetVal(kv, "movementType", out var movementType);
+            TryGetVal(kv, "paymentMethod", out var paymentMethod);
+            TryGetVal(kv, "startMonth", out var startMonthRaw);
+            TryGetVal(kv, "endMonth", out var endMonthRaw);
+            TryGetVal(kv, "startDate", out var startDateRaw);
+            TryGetVal(kv, "endDate", out var endDateRaw);
+
+            var amount = 0m;
+            if (TryGetVal(kv, "amount", out var amountRaw))
+                TryFlexAmount(amountRaw, out amount);
+
+            var dayOfMonth = 0;
+            if (TryGetVal(kv, "dayOfMonth", out var dayRaw))
+                _ = int.TryParse(dayRaw, NumberStyles.Integer, CultureInfo.InvariantCulture, out dayOfMonth)
+                    || int.TryParse(dayRaw, out dayOfMonth);
+
+            var isActive = true;
+            if (TryGetVal(kv, "isActive", out var activeRaw))
+            {
+                if (bool.TryParse(activeRaw, out var parsedActive))
+                {
+                    isActive = parsedActive;
+                }
+                else if (int.TryParse(activeRaw, NumberStyles.Integer, CultureInfo.InvariantCulture, out var activeFlag))
+                {
+                    isActive = activeFlag != 0;
+                }
+            }
+
+            return NormalizeRecurringRequest(new RecurringExpenseUpsertRequest(
+                description,
+                amount,
+                movementType,
+                paymentMethod,
+                dayOfMonth,
+                NormalizeOptional(startMonthRaw),
+                NormalizeOptional(endMonthRaw),
+                NormalizeOptional(startDateRaw),
+                NormalizeOptional(endDateRaw),
+                isActive));
+        }
+
+        JsonNode? root;
+        try
+        {
+            root = JsonNode.Parse(norm);
+        }
+        catch
+        {
+            return null;
+        }
+
+        if (root is JsonValue valNode && valNode.TryGetValue<string>(out var innerJson))
+        {
+            direct = TryDeserialize<RecurringExpenseUpsertRequest>(innerJson);
+            if (direct is not null) return NormalizeRecurringRequest(direct);
+            try
+            {
+                root = JsonNode.Parse(innerJson);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        if (root is not JsonObject payload)
+            return null;
+
+        var descriptionValue = ReadStr(payload, "description");
+        var movementTypeValue = ReadStr(payload, "movementType");
+        var paymentMethodValue = ReadStr(payload, "paymentMethod");
+        TryReadAmount(payload, out var amountValue);
+        TryReadInt(payload, "dayOfMonth", out var dayValue);
+
+        var startMonthValue = ReadNullableStr(payload, "startMonth");
+        var endMonthValue = ReadNullableStr(payload, "endMonth");
+        var startDateValue = ReadNullableStr(payload, "startDate");
+        var endDateValue = ReadNullableStr(payload, "endDate");
+
+        if (string.IsNullOrWhiteSpace(startDateValue) && TryReadDate(payload, "startDate", out var startDateParsed))
+            startDateValue = startDateParsed.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+
+        if (string.IsNullOrWhiteSpace(endDateValue) && TryReadDate(payload, "endDate", out var endDateParsed))
+            endDateValue = endDateParsed.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+
+        var isActiveValue = true;
+        if (TryReadBool(payload, "isActive", out var activeValue))
+            isActiveValue = activeValue;
+
+        return NormalizeRecurringRequest(new RecurringExpenseUpsertRequest(
+            descriptionValue,
+            amountValue,
+            movementTypeValue,
+            paymentMethodValue,
+            dayValue,
+            startMonthValue,
+            endMonthValue,
+            startDateValue,
+            endDateValue,
+            isActiveValue));
+    }
+
     public static async Task<AuthLoginRequest?> ReadLoginAsync(HttpRequestData request, CancellationToken ct)
     {
         var body = await ReadRawBodyAsync(request, ct);
@@ -185,6 +302,26 @@ internal static class FunctionHelpers
         catch { return default; }
     }
 
+    private static RecurringExpenseUpsertRequest NormalizeRecurringRequest(RecurringExpenseUpsertRequest request)
+    {
+        return new RecurringExpenseUpsertRequest(
+            request.Description?.Trim() ?? "",
+            request.Amount,
+            request.MovementType?.Trim() ?? "",
+            request.PaymentMethod?.Trim() ?? "",
+            request.DayOfMonth,
+            NormalizeOptional(request.StartMonth),
+            NormalizeOptional(request.EndMonth),
+            NormalizeOptional(request.StartDate),
+            NormalizeOptional(request.EndDate),
+            request.IsActive);
+    }
+
+    private static string? NormalizeOptional(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    }
+
     private static bool TryParseKV(string raw, out Dictionary<string, string> vals)
     {
         vals = new(StringComparer.OrdinalIgnoreCase);
@@ -219,9 +356,53 @@ internal static class FunctionHelpers
 
     private static bool TryReadDate(JsonObject p, out DateOnly date)
     {
-        var node = FindProp(p, "date"); if (node is null) { date = default; return false; }
+        return TryReadDate(p, "date", out date);
+    }
+
+    private static bool TryReadDate(JsonObject p, string name, out DateOnly date)
+    {
+        var node = FindProp(p, name); if (node is null) { date = default; return false; }
         if (node is JsonValue vn) { if (vn.TryGetValue<DateOnly>(out date)) return true; if (vn.TryGetValue<DateTime>(out var dt)) { date = DateOnly.FromDateTime(dt); return true; } if (vn.TryGetValue<string>(out var rd)) return TryFlexDate(rd, out date); }
         date = default; return false;
+    }
+
+    private static bool TryReadInt(JsonObject p, string name, out int value)
+    {
+        var node = FindProp(p, name);
+        if (node is JsonValue vn)
+        {
+            if (vn.TryGetValue<int>(out value)) return true;
+            if (vn.TryGetValue<long>(out var longValue)) { value = (int)longValue; return true; }
+            if (vn.TryGetValue<string>(out var text))
+            {
+                if (int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out value)) return true;
+                if (int.TryParse(text, out value)) return true;
+            }
+        }
+
+        value = 0;
+        return false;
+    }
+
+    private static bool TryReadBool(JsonObject p, string name, out bool value)
+    {
+        var node = FindProp(p, name);
+        if (node is JsonValue vn)
+        {
+            if (vn.TryGetValue<bool>(out value)) return true;
+            if (vn.TryGetValue<string>(out var text))
+            {
+                if (bool.TryParse(text, out value)) return true;
+                if (int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var numericValue))
+                {
+                    value = numericValue != 0;
+                    return true;
+                }
+            }
+        }
+
+        value = false;
+        return false;
     }
 
     private static bool TryReadAmount(JsonObject p, out decimal amount)
@@ -231,6 +412,18 @@ internal static class FunctionHelpers
     }
 
     private static string ReadStr(JsonObject p, string name) { var n = FindProp(p, name); return n is JsonValue vn && vn.TryGetValue<string>(out var t) ? t?.Trim() ?? "" : ""; }
+
+    private static string? ReadNullableStr(JsonObject p, string name)
+    {
+        var node = FindProp(p, name);
+        if (node is not JsonValue vn)
+            return null;
+
+        if (vn.TryGetValue<string>(out var text))
+            return NormalizeOptional(text);
+
+        return null;
+    }
 
     private static JsonNode? FindProp(JsonObject p, string name) { foreach (var i in p) if (string.Equals(i.Key, name, StringComparison.OrdinalIgnoreCase)) return i.Value; return null; }
 }

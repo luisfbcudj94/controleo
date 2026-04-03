@@ -7,6 +7,7 @@ public partial class LoginPage : ContentPage
 {
     private readonly IAuthService _authService;
     private bool _registerMode;
+    private bool _welcomeShown;
 
     public LoginPage(IAuthService authService)
     {
@@ -18,13 +19,45 @@ public partial class LoginPage : ContentPage
     {
         base.OnAppearing();
 
-        StatusLabel.IsVisible = true;
-        StatusLabel.Text = $"API: {_authService.ApiBaseUrl}";
-
+        await ShowWelcomeAsync();
+        SetBusy(true, "Validando sesión...");
         var isAuthenticated = await _authService.IsAuthenticatedAsync();
         if (isAuthenticated)
         {
-            ((App)Application.Current!).ShowMainApp();
+            var app = (App)Application.Current!;
+            await app.WarmUpCatalogVisualsAsync();
+            app.ShowMainApp();
+            return;
+        }
+
+        SetBusy(false, $"API: {_authService.ApiBaseUrl}");
+    }
+
+    private async Task ShowWelcomeAsync()
+    {
+        if (_welcomeShown || !WelcomeOverlay.IsVisible)
+        {
+            return;
+        }
+
+        _welcomeShown = true;
+        try
+        {
+            await WelcomeContent.ScaleTo(1, 250, Easing.CubicOut);
+            await Task.Delay(320);
+
+            await Task.WhenAll(
+                WelcomeContent.FadeTo(0, 220, Easing.CubicIn),
+                WelcomeContent.ScaleTo(0.96, 220, Easing.CubicIn));
+        }
+        catch
+        {
+        }
+        finally
+        {
+            WelcomeOverlay.IsVisible = false;
+            WelcomeContent.Opacity = 1;
+            WelcomeContent.Scale = 1;
         }
     }
 
@@ -47,7 +80,9 @@ public partial class LoginPage : ContentPage
             return;
         }
 
-        ((App)Application.Current!).ShowMainApp();
+        var app = (App)Application.Current!;
+        await app.WarmUpCatalogVisualsAsync();
+        app.ShowMainApp();
     }
 
     private async void OnRegisterClicked(object? sender, EventArgs e)
@@ -77,7 +112,9 @@ public partial class LoginPage : ContentPage
             return;
         }
 
-        ((App)Application.Current!).ShowMainApp();
+        var app = (App)Application.Current!;
+        await app.WarmUpCatalogVisualsAsync();
+        app.ShowMainApp();
     }
 
     private void OnToggleModeClicked(object? sender, EventArgs e)
@@ -100,6 +137,7 @@ public partial class LoginPage : ContentPage
 
     private void SetBusy(bool isBusy, string message)
     {
+        LoadingOverlay.IsVisible = isBusy;
         SignInButton.IsEnabled = !isBusy;
         RegisterButton.IsEnabled = !isBusy;
         ModeButton.IsEnabled = !isBusy;

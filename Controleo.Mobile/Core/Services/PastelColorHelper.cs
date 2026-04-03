@@ -1,5 +1,7 @@
 using Controleo.Mobile.Core.Interfaces;
 using Controleo.Mobile.Core.Models;
+using System.Globalization;
+using System.Text;
 
 namespace Controleo.Mobile.Core.Services;
 
@@ -59,10 +61,35 @@ public sealed class PastelColorHelper : ICatalogColorService
         ("📚", "Libros"),
     ];
 
+    private static readonly HashSet<string> InvalidIcons = new(StringComparer.Ordinal)
+    {
+        string.Empty,
+        "?",
+        "??",
+        "�",
+    };
+
+    private static readonly Dictionary<string, string> IconAliases = new(StringComparer.Ordinal)
+    {
+        ["✈"] = "✈️",
+        ["🛠"] = "🛠️",
+        ["🎟"] = "🎟️",
+        ["🛍"] = "🛍️",
+    };
+
+    private static readonly HashSet<string> AllowedIcons = StaticAvailableIcons
+        .Select(item => item.Emoji)
+        .ToHashSet(StringComparer.Ordinal);
+
     (string Hex, string Label)[] ICatalogColorService.AvailableColors => StaticAvailableColors;
     (string Emoji, string Label)[] ICatalogColorService.AvailableIcons => StaticAvailableIcons;
 
     private IReadOnlyList<MovementTypeConfig> _cachedConfigs = [];
+
+    public PastelColorHelper(IAuthService authService)
+    {
+        authService.SessionCleared += HandleSessionCleared;
+    }
 
     /// <summary>Call after loading catalogs to update the in-memory config.</summary>
     public void SetConfigs(IReadOnlyList<MovementTypeConfig>? configs)
@@ -91,9 +118,7 @@ public sealed class PastelColorHelper : ICatalogColorService
             return cfg.Color;
         }
 
-        // Deterministic fallback
-        var hash = (uint)movementType.Trim().ToLowerInvariant().GetHashCode();
-        return StaticAvailableColors[hash % (uint)StaticAvailableColors.Length].Hex;
+        return StaticAvailableColors[StableCatalogIndex(movementType, StaticAvailableColors.Length)].Hex;
     }
 
     /// <summary>Returns user-defined or fallback icon.</summary>
@@ -105,27 +130,26 @@ public sealed class PastelColorHelper : ICatalogColorService
         }
 
         var cfg = FindConfig(movementType);
-        if (cfg is not null && !string.IsNullOrWhiteSpace(cfg.Icon))
+        var configuredIcon = SanitizeIcon(cfg?.Icon);
+        if (configuredIcon is not null)
         {
-            return cfg.Icon;
+            return configuredIcon;
         }
 
-        // Deterministic fallback from name
-        var lower = movementType.Trim().ToLowerInvariant();
-        return lower switch
-        {
-            "basicos para vivir" => "🛒",
-            "hogar" => "🏠",
-            "salidas" => "🎉",
-            "imprevistos" => "⚡",
-            "suscripciones" => "📱",
-            "deudas" => "💳",
-            "prestamo" => "🏦",
-            "bienestar" => "🧘",
-            "viajes" => "✈️",
-            "sogamoso obra" => "🔨",
-            _ => "📋"
-        };
+        var normalized = NormalizeKey(movementType);
+        if (normalized.Contains("basico", StringComparison.Ordinal)) return "🛒";
+        if (normalized.Contains("hogar", StringComparison.Ordinal)) return "🏠";
+        if (normalized.Contains("salida", StringComparison.Ordinal)) return "🎉";
+        if (normalized.Contains("imprevisto", StringComparison.Ordinal)) return "⚡";
+        if (normalized.Contains("suscrip", StringComparison.Ordinal)) return "📱";
+        if (normalized.Contains("deuda", StringComparison.Ordinal)) return "💳";
+        if (normalized.Contains("prestamo", StringComparison.Ordinal) || normalized.Contains("banco", StringComparison.Ordinal)) return "🏦";
+        if (normalized.Contains("bienestar", StringComparison.Ordinal)) return "🧘";
+        if (normalized.Contains("viaje", StringComparison.Ordinal)) return "✈️";
+        if (normalized.Contains("obra", StringComparison.Ordinal)) return "🔨";
+        if (normalized.Contains("comida", StringComparison.Ordinal)) return "🍕";
+
+        return StaticAvailableIcons[StableCatalogIndex(movementType, StaticAvailableIcons.Length)].Emoji;
     }
 
     /// <summary>Returns colors not yet used by any movement type in the current config.</summary>
@@ -148,5 +172,84 @@ public sealed class PastelColorHelper : ICatalogColorService
     {
         return _cachedConfigs.FirstOrDefault(c =>
             string.Equals(c.Name, movementType.Trim(), StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static string NormalizeKey(string value)
+    {
+        var normalized = value
+            .Trim()
+            .ToLowerInvariant()
+            .Normalize(NormalizationForm.FormD);
+
+        var sb = new StringBuilder(normalized.Length);
+        var previousWasWhitespace = false;
+
+        foreach (var ch in normalized)
+        {
+            if (CharUnicodeInfo.GetUnicodeCategory(ch) == UnicodeCategory.NonSpacingMark)
+            {
+                continue;
+            }
+
+            if (char.IsWhiteSpace(ch))
+            {
+                if (previousWasWhitespace)
+                {
+                    continue;
+                }
+
+                sb.Append(' ');
+                previousWasWhitespace = true;
+                continue;
+            }
+
+            sb.Append(ch);
+            previousWasWhitespace = false;
+        }
+
+        return sb.ToString().Trim();
+    }
+
+    private static int StableCatalogIndex(string value, int length)
+    {
+        if (length <= 0)
+        {
+            return 0;
+        }
+
+        uint hash = 2166136261;
+        foreach (var ch in NormalizeKey(value))
+        {
+            hash ^= ch;
+            hash *= 16777619;
+        }
+
+        return (int)(hash % (uint)length);
+    }
+
+    private static string? SanitizeIcon(string? icon)
+    {
+        if (string.IsNullOrWhiteSpace(icon))
+        {
+            return null;
+        }
+
+        var trimmed = icon.Trim();
+        if (InvalidIcons.Contains(trimmed))
+        {
+            return null;
+        }
+
+        if (IconAliases.TryGetValue(trimmed, out var canonical))
+        {
+            trimmed = canonical;
+        }
+
+        return AllowedIcons.Contains(trimmed) ? trimmed : null;
+    }
+
+    private void HandleSessionCleared()
+    {
+        _cachedConfigs = [];
     }
 }

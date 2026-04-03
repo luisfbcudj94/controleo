@@ -98,5 +98,62 @@
                    HorizontalTextAlignment="Center"
                    TextColor="{DynamicResource ActionDelete}" />
         </VerticalStackLayout>
+
+                            <Grid x:Name="LoadingOverlay"
+                                                 Grid.RowSpan="4"
+                                                 IsVisible="False"
+                                                 BackgroundColor="#33000000"
+                                                 InputTransparent="False"
+                                                 ZIndex="30"
+                                                 Margin="-24">
+                                          <ActivityIndicator IsRunning="True"
+                                                                                                          WidthRequest="48"
+                                                                                                          HeightRequest="48"
+                                                                                                          Color="{DynamicResource Tertiary}"
+                                                                                                          HorizontalOptions="Center"
+                                                                                                          VerticalOptions="Center" />
+                            </Grid>
+
+                            <Grid x:Name="WelcomeOverlay"
+                                                 Grid.RowSpan="4"
+                                                 IsVisible="True"
+                                                 BackgroundColor="{DynamicResource AppBg}"
+                                                 InputTransparent="False"
+                                                 ZIndex="40"
+                                                 Margin="-24">
+                                          <VerticalStackLayout x:Name="WelcomeContent"
+                                                                                                                 HorizontalOptions="Center"
+                                                                                                                 VerticalOptions="Center"
+                                                                                                                 Spacing="8"
+                                                                                                                 Opacity="1"
+                                                                                                                 Scale="0.92">
+                                                        <Border StrokeShape="RoundRectangle 28"
+                                                                                    Padding="22"
+                                                                                    BackgroundColor="{DynamicResource Primary}"
+                                                                                    StrokeThickness="0">
+                                                                      <Border.Shadow>
+                                                                                    <Shadow Brush="#2D6A4F"
+                                                                                                                Offset="0,6"
+                                                                                                                Radius="18"
+                                                                                                                Opacity="0.3" />
+                                                                      </Border.Shadow>
+                                                                      <Label Text="🌿"
+                                                                                            FontSize="42"
+                                                                                            HorizontalTextAlignment="Center" />
+                                                        </Border>
+
+                                                        <Label Text="Controleo"
+                                                                              FontSize="30"
+                                                                              FontAttributes="Bold"
+                                                                              FontFamily="OpenSansSemibold"
+                                                                              TextColor="{DynamicResource AppText}"
+                                                                              HorizontalTextAlignment="Center" />
+
+                                                        <Label Text="Tu espacio personal de finanzas"
+                                                                              FontSize="14"
+                                                                              TextColor="{DynamicResource AppHint}"
+                                                                              HorizontalTextAlignment="Center" />
+                                          </VerticalStackLayout>
+                            </Grid>
     </Grid>
 </ContentPage>

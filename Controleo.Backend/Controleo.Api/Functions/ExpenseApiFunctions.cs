@@ -201,11 +201,22 @@ public sealed class ExpenseApiFunctions
         return await FunctionHelpers.JsonAsync(req, HttpStatusCode.OK, await _recurringService.GetRecurringExpensesAsync(user!.UserId, ct), ct);
     }
 
+    [Function("GetRecurringExpensesPaged")]
+    public async Task<HttpResponseData> GetRecurringPagedAsync([HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "recurring-expenses/paged")] HttpRequestData req, CancellationToken ct)
+    {
+        var (user, err) = await AuthAsync(req, ct); if (err is not null) return err;
+        var q = FunctionHelpers.ParseQuery(req);
+        var pn = q.TryGetValue("pageNumber", out var pnr) && int.TryParse(pnr, out var ppn) ? Math.Max(ppn, 1) : 1;
+        var ps = q.TryGetValue("pageSize", out var psr) && int.TryParse(psr, out var pps) ? FunctionHelpers.NormalizePageSize(pps) : 5;
+
+        return await FunctionHelpers.JsonAsync(req, HttpStatusCode.OK, await _recurringService.GetRecurringExpensesPageAsync(user!.UserId, pn, ps, ct), ct);
+    }
+
     [Function("CreateRecurringExpense")]
     public async Task<HttpResponseData> CreateRecurringAsync([HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "recurring-expenses")] HttpRequestData req, CancellationToken ct)
     {
         var (user, err) = await AuthAsync(req, ct); if (err is not null) return err;
-        var payload = await FunctionHelpers.ReadBodyAsync<RecurringExpenseUpsertRequest>(req, ct);
+        var payload = await FunctionHelpers.ReadRecurringExpenseRequestAsync(req, ct);
         if (payload is null) return await FunctionHelpers.JsonAsync(req, HttpStatusCode.BadRequest, new OperationResult(false, "Request inválido."), ct);
         var result = await _recurringService.UpsertRecurringExpenseAsync(user!.UserId, null, payload, ct);
         return await FunctionHelpers.JsonAsync(req, result.IsSuccess ? HttpStatusCode.Created : HttpStatusCode.BadRequest, result, ct);
@@ -215,7 +226,7 @@ public sealed class ExpenseApiFunctions
     public async Task<HttpResponseData> UpdateRecurringAsync([HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "recurring-expenses/{id}")] HttpRequestData req, string id, CancellationToken ct)
     {
         var (user, err) = await AuthAsync(req, ct); if (err is not null) return err;
-        var payload = await FunctionHelpers.ReadBodyAsync<RecurringExpenseUpsertRequest>(req, ct);
+        var payload = await FunctionHelpers.ReadRecurringExpenseRequestAsync(req, ct);
         if (payload is null) return await FunctionHelpers.JsonAsync(req, HttpStatusCode.BadRequest, new OperationResult(false, "Request inválido."), ct);
         var result = await _recurringService.UpsertRecurringExpenseAsync(user!.UserId, id, payload, ct);
         return await FunctionHelpers.JsonAsync(req, result.IsSuccess ? HttpStatusCode.OK : HttpStatusCode.BadRequest, result, ct);

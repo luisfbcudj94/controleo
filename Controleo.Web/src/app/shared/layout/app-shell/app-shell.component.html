@@ -1,8 +1,18 @@
 <div class="app-shell">
-	<aside class="sidebar">
+	<div class="mobile-backdrop" [class.show]="isSidebarOpen" (click)="closeSidebar()"></div>
+
+	<aside class="sidebar" [class.open]="isSidebarOpen">
 		<div class="sb-brand">
-			<div class="sb-logo">Controleo</div>
-			<div class="sb-tagline">Gestión financiera personal</div>
+			<div class="sb-brand-top">
+				<div class="sb-brand-mark" aria-label="Controleo">
+					<div class="sb-brand-icon" aria-hidden="true">🌿</div>
+					<div class="sb-brand-copy">
+						<div class="sb-logo">Controleo</div>
+						<div class="sb-tagline">Gestión financiera personal</div>
+					</div>
+				</div>
+				<button class="sb-close" type="button" (click)="closeSidebar()" aria-label="Cerrar menu">✕</button>
+			</div>
 		</div>
 
 		<nav class="sb-nav">
@@ -26,20 +36,22 @@
 		<div class="sb-bottom">
 			<div class="sb-user">
 				<div class="sb-avatar">{{ userInitials }}</div>
-				<div>
+				<div class="sb-user-meta">
 					<div class="sb-uname">{{ userName }}</div>
 					<div class="sb-uemail">{{ userEmail }}</div>
 				</div>
 			</div>
+			<button class="sb-logout" type="button" (click)="logout()">Cerrar sesión</button>
 		</div>
 	</aside>
 
 	<main class="main">
 		<header class="topbar">
 			<div class="tb-left">
+				<button class="tb-menu" type="button" (click)="toggleSidebar()" aria-label="Abrir menu">☰</button>
 				<div>
 					<div class="tb-page-title">{{ pageTitle }}</div>
-					<div class="tb-breadcrumb">controlee <span>›</span> <span>{{ pageCrumb }}</span></div>
+					<div class="tb-breadcrumb">controleo <span>›</span> <span>{{ pageCrumb }}</span></div>
 				</div>
 			</div>
 
@@ -48,8 +60,7 @@
 					<div class="ms-label">{{ monthLabel }}</div>
 				</div>
 
-				<a class="tb-btn primary" [routerLink]="'/registrar'">＋ Nuevo gasto</a>
-				<button class="tb-btn logout icon-only" type="button" (click)="logout()" aria-label="Cerrar sesión" title="Cerrar sesión">⇥</button>
+				<a class="tb-btn primary desktop-only" [routerLink]="'/registrar'">＋ Nuevo gasto</a>
 			</div>
 		</header>
 
@@ -57,4 +68,18 @@
 			<router-outlet />
 		</section>
 	</main>
+
+	<nav class="bottom-nav" aria-label="Navegacion principal">
+		@for (item of mobileTabs; track item.path) {
+			<a [routerLink]="item.path" routerLinkActive="active" class="bn-item" [class.active]="isActive(item.path)">
+				<span class="bn-icon">{{ item.icon }}</span>
+				<span class="bn-label">{{ item.label }}</span>
+			</a>
+		}
+
+		<button class="bn-item menu" type="button" (click)="openMenuFromTab()" aria-label="Abrir menu lateral">
+			<span class="bn-icon">☰</span>
+			<span class="bn-label">Menu</span>
+		</button>
+	</nav>
 </div>

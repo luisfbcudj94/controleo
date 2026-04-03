@@ -7,24 +7,35 @@
 
     <Grid RowDefinitions="*">
         <RefreshView x:Name="SettingsRefreshView" Refreshing="OnRefreshing">
-            <ScrollView>
+            <ScrollView x:Name="SettingsScrollView">
                 <VerticalStackLayout Padding="16" Spacing="14">
 
                     <!-- Page Title -->
-                          <Label x:Name="PageTitleLabel" Text="Configuración" FontSize="28" FontAttributes="Bold"
-                           FontFamily="OpenSansSemibold" TextColor="{StaticResource AppText}"
-                           Margin="0,0,0,4" />
+                    <Grid x:Name="PageHeaderRow" ColumnDefinitions="*,Auto" IsVisible="False" Margin="0,0,0,4">
+                        <Label x:Name="PageTitleLabel" Text="Configuración" FontSize="28" FontAttributes="Bold"
+                               FontFamily="OpenSansSemibold" TextColor="{StaticResource AppText}"
+                               VerticalOptions="Center" />
+                        <Button Grid.Column="1"
+                                Text="✕"
+                                WidthRequest="36"
+                                HeightRequest="36"
+                                CornerRadius="18"
+                                BackgroundColor="{StaticResource Gray200}"
+                                TextColor="{StaticResource AppText}"
+                                FontSize="14"
+                                Clicked="OnClosePageClicked" />
+                    </Grid>
 
                     <!-- Expense Sections -->
-                          <Border x:Name="MovementSectionCard" Padding="16" StrokeShape="RoundRectangle 18" StrokeThickness="0"
+                                                    <Border x:Name="MovementSectionCard" Padding="16" StrokeShape="RoundRectangle 18" StrokeThickness="0"
+                                                        VerticalOptions="FillAndExpand"
                             BackgroundColor="{StaticResource White}">
                         <Border.Shadow>
                             <Shadow Brush="Black" Offset="0,1" Radius="6" Opacity="0.06" />
                         </Border.Shadow>
                         <VerticalStackLayout Spacing="10">
                             <Grid ColumnDefinitions="*,Auto">
-                                <Label Text="Secciones de gasto" FontAttributes="Bold" FontSize="17" VerticalOptions="Center" />
-                                <Border Grid.Column="1" StrokeShape="RoundRectangle 12" StrokeThickness="0"
+                                <Border x:Name="MovementInlineAddButton" Grid.Column="1" StrokeShape="RoundRectangle 12" StrokeThickness="0"
                                         BackgroundColor="{StaticResource Primary}" WidthRequest="40" HeightRequest="40"
                                         HorizontalOptions="End">
                                     <Label Text="+" FontSize="24" FontAttributes="Bold"
@@ -36,7 +47,25 @@
                                     </Border.GestureRecognizers>
                                 </Border>
                             </Grid>
-                            <CollectionView x:Name="MovementCollection" SelectionMode="None" HeightRequest="240">
+                            <Border StrokeShape="RoundRectangle 10"
+                                    StrokeThickness="0"
+                                    Padding="10,8"
+                                    BackgroundColor="{StaticResource AccentLight}">
+                                <Label Text="📂 Organiza tus categorías para clasificar mejor cada gasto y analizar tus hábitos por tipo."
+                                       FontSize="11"
+                                       TextColor="{StaticResource Gray600}" />
+                            </Border>
+                            <Button x:Name="MovementAddCtaButton"
+                                    Text="➕ Agregar tipo de gasto"
+                                    FontAttributes="Bold"
+                                    FontSize="16"
+                                    HeightRequest="52"
+                                    CornerRadius="16"
+                                    IsVisible="False"
+                                    Clicked="OnAddMovementTapped"
+                                    BackgroundColor="{StaticResource Primary}"
+                                    TextColor="{StaticResource PrimaryDarkText}" />
+                            <CollectionView x:Name="MovementCollection" SelectionMode="None" VerticalOptions="FillAndExpand">
                                 <CollectionView.ItemTemplate>
                                     <DataTemplate>
                                         <Border Padding="10,8" Margin="0,0,0,6" StrokeShape="RoundRectangle 12"
@@ -73,14 +102,14 @@
 
                     <!-- Payment Methods -->
                         <Border x:Name="PaymentSectionCard" Padding="16" StrokeShape="RoundRectangle 18" StrokeThickness="0"
+                            VerticalOptions="FillAndExpand"
                             BackgroundColor="{StaticResource White}">
                         <Border.Shadow>
                             <Shadow Brush="Black" Offset="0,1" Radius="6" Opacity="0.06" />
                         </Border.Shadow>
                         <VerticalStackLayout Spacing="10">
                             <Grid ColumnDefinitions="*,Auto">
-                                <Label Text="Medios de pago" FontAttributes="Bold" FontSize="17" VerticalOptions="Center" />
-                                <Border Grid.Column="1" StrokeShape="RoundRectangle 12" StrokeThickness="0"
+                                <Border x:Name="PaymentInlineAddButton" Grid.Column="1" StrokeShape="RoundRectangle 12" StrokeThickness="0"
                                         BackgroundColor="{StaticResource Primary}" WidthRequest="40" HeightRequest="40"
                                         HorizontalOptions="End">
                                     <Label Text="+" FontSize="24" FontAttributes="Bold"
@@ -92,7 +121,25 @@
                                     </Border.GestureRecognizers>
                                 </Border>
                             </Grid>
-                            <CollectionView x:Name="PaymentCollection" SelectionMode="None" HeightRequest="240">
+                            <Border StrokeShape="RoundRectangle 10"
+                                    StrokeThickness="0"
+                                    Padding="10,8"
+                                    BackgroundColor="{StaticResource AccentLight}">
+                                <Label Text="💳 Gestiona tarjetas, efectivo y transferencias para ver la distribución real de tus pagos."
+                                       FontSize="11"
+                                       TextColor="{StaticResource Gray600}" />
+                            </Border>
+                            <Button x:Name="PaymentAddCtaButton"
+                                    Text="➕ Agregar medio de pago"
+                                    FontAttributes="Bold"
+                                    FontSize="16"
+                                    HeightRequest="52"
+                                    CornerRadius="16"
+                                    IsVisible="False"
+                                    Clicked="OnAddPaymentTapped"
+                                    BackgroundColor="{StaticResource Primary}"
+                                    TextColor="{StaticResource PrimaryDarkText}" />
+                            <CollectionView x:Name="PaymentCollection" SelectionMode="None" VerticalOptions="FillAndExpand">
                                 <CollectionView.ItemTemplate>
                                     <DataTemplate>
                                         <Border Padding="10,8" Margin="0,0,0,6" StrokeShape="RoundRectangle 12"

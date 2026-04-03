@@ -1,26 +1,15 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <svg width="456" height="456" viewBox="0 0 456 456" version="1.1" xmlns="http://www.w3.org/2000/svg">
     <defs>
-        <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stop-color="#44D07A"/>
-            <stop offset="100%" stop-color="#17A95B"/>
+        <linearGradient id="brandGradient" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#2D6A4F"/>
+            <stop offset="100%" stop-color="#1B4332"/>
         </linearGradient>
     </defs>
-    <circle cx="228" cy="228" r="132" fill="url(#g)"/>
-    <circle cx="228" cy="228" r="92" fill="none" stroke="#0E7A43" stroke-width="10" opacity="0.45"/>
 
-    <path d="M128 176c18-35 55-58 98-58" fill="none" stroke="#17A95B" stroke-width="18" stroke-linecap="round"/>
-    <path d="M226 118l-9 22 26-4z" fill="#17A95B"/>
+    <rect x="64" y="64" width="328" height="328" rx="88" fill="url(#brandGradient)"/>
 
-    <path d="M328 282c-18 35-55 58-98 58" fill="none" stroke="#17A95B" stroke-width="18" stroke-linecap="round"/>
-    <path d="M230 340l9-22-26 4z" fill="#17A95B"/>
+    <path d="M228 134C176 134 138 168 138 220C138 268 173 303 220 303C277 303 313 265 319 214C277 217 241 237 220 269C218 272 214 274 211 274C207 274 203 272 201 269C198 266 198 262 199 258C222 218 272 193 328 193C329 140 286 134 228 134Z" fill="#FFFFFF"/>
 
-    <path d="M184 198l10 10 18-18" fill="none" stroke="#FFFFFF" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
-    <rect x="214" y="192" width="66" height="10" rx="5" fill="#D9F7E6"/>
-
-    <path d="M184 228l10 10 18-18" fill="none" stroke="#FFFFFF" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
-    <rect x="214" y="222" width="66" height="10" rx="5" fill="#D9F7E6"/>
-
-    <path d="M184 258l10 10 18-18" fill="none" stroke="#FFFFFF" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
-    <rect x="214" y="252" width="66" height="10" rx="5" fill="#D9F7E6"/>
+    <path d="M170 321C198 334 229 340 262 337" fill="none" stroke="#D8F3DC" stroke-width="14" stroke-linecap="round"/>
 </svg>

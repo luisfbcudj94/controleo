@@ -2,89 +2,105 @@ import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ApiService } from '../../../core/services/api.service';
-import { BudgetItem } from '../../../core/models/api.models';
-import { firstMonthOfAvailable, monthKeyFromDate, monthLabel } from '../../../core/utils/month.utils';
+import { NotificationService } from '../../../core/services/notification.service';
+import { BudgetItem, MovementTypeConfig } from '../../../core/models/api.models';
 import { ConfirmModalComponent } from '../../../shared/ui/confirm-modal/confirm-modal.component';
-import { SelectorModalComponent } from '../../../shared/ui/selector-modal/selector-modal.component';
+import { normalizeCatalogKey, resolveMovementColor, resolveMovementIcon } from '../../../core/utils/catalog-visual.utils';
+
+interface BudgetViewItem {
+  movementType: string;
+  amount: number;
+  updatedAt: string | null;
+  hasBudget: boolean;
+  icon: string;
+  color: string;
+}
 
 @Component({
   selector: 'app-budgets-page',
-  imports: [CommonModule, ReactiveFormsModule, ConfirmModalComponent, SelectorModalComponent],
+  imports: [CommonModule, ReactiveFormsModule, ConfirmModalComponent],
   templateUrl: './budgets-page.component.html',
   styleUrl: './budgets-page.component.scss'
 })
 export class BudgetsPageComponent {
-  months: string[] = [];
-  selectedMonth = monthKeyFromDate(new Date());
   movementTypes: string[] = [];
+  movementTypeConfigs: MovementTypeConfig[] = [];
   budgets: BudgetItem[] = [];
-  message = '';
+  items: BudgetViewItem[] = [];
   confirmDeleteOpen = false;
   pendingDelete: BudgetItem | null = null;
-  selectorOpen = false;
+  editorOpen = false;
+  editingItem: BudgetViewItem | null = null;
 
   readonly form;
 
   constructor(
     private readonly api: ApiService,
-    private readonly fb: FormBuilder
+    private readonly fb: FormBuilder,
+    private readonly notify: NotificationService
   ) {
     this.form = this.fb.nonNullable.group({
-      movementType: ['', Validators.required],
       amount: [0, Validators.required]
     });
 
     this.loadData();
   }
 
-  get monthLabelText(): string {
-    return monthLabel(this.selectedMonth);
+  openEditor(item: BudgetViewItem): void {
+    this.editingItem = item;
+    this.form.patchValue({ amount: item.amount || 0 });
+    this.editorOpen = true;
   }
 
-  previousMonth(): void {
-    const index = this.months.indexOf(this.selectedMonth);
-    if (index > 0) {
-      this.selectedMonth = this.months[index - 1];
+  closeEditor(): void {
+    this.editorOpen = false;
+    this.editingItem = null;
+  }
+
+  onEditorBackdropClick(event: MouseEvent): void {
+    if (event.target === event.currentTarget) {
+      this.closeEditor();
     }
   }
 
-  nextMonth(): void {
-    const index = this.months.indexOf(this.selectedMonth);
-    if (index >= 0 && index < this.months.length - 1) {
-      this.selectedMonth = this.months[index + 1];
-    }
-  }
-
-  save(): void {
-    if (this.form.invalid) {
+  saveEditor(): void {
+    if (!this.editingItem || this.form.invalid) {
       return;
     }
 
     const value = this.form.getRawValue();
-    this.api.upsertBudget(value.movementType, { amount: Number(value.amount) }).subscribe({
-      next: (result) => {
-        this.message = result.message;
-        this.form.patchValue({ amount: 0 });
+    const parsedAmount = Number(value.amount);
+    if (!Number.isFinite(parsedAmount) || parsedAmount < 0) {
+      this.notify.warning('El presupuesto debe ser numérico y no negativo.');
+      return;
+    }
+    const isUpdate = this.editingItem.hasBudget;
+
+    this.api.upsertBudget(this.editingItem.movementType, { amount: parsedAmount }).subscribe({
+      next: () => {
+        this.notify.success(
+          isUpdate
+            ? 'Presupuesto actualizado correctamente.'
+            : 'Presupuesto guardado correctamente.'
+        );
+        this.closeEditor();
         this.refreshBudgets();
       },
-      error: () => (this.message = 'No fue posible guardar el presupuesto.')
+      error: () => {
+        this.notify.error('No fue posible guardar el presupuesto.');
+      }
     });
   }
 
-  openMovementTypeSelector(): void {
-    this.selectorOpen = true;
+  promptDelete(item: BudgetViewItem): void {
+    if (!item.hasBudget) {
+      return;
+    }
+
+    this.remove({ movementType: item.movementType, amount: item.amount, updatedAt: item.updatedAt ?? new Date().toISOString() });
   }
 
-  closeSelector(): void {
-    this.selectorOpen = false;
-  }
-
-  selectMovementType(value: string): void {
-    this.form.patchValue({ movementType: value });
-    this.closeSelector();
-  }
-
-  remove(item: BudgetItem): void {
+  private remove(item: BudgetItem): void {
     this.pendingDelete = item;
     this.confirmDeleteOpen = true;
   }
@@ -98,13 +114,16 @@ export class BudgetsPageComponent {
     const item = this.pendingDelete;
     this.confirmDeleteOpen = false;
     this.pendingDelete = null;
+    this.closeEditor();
 
     this.api.deleteBudget(item.movementType).subscribe({
-      next: (result) => {
-        this.message = result.message;
+      next: () => {
+        this.notify.success('Presupuesto eliminado correctamente.');
         this.refreshBudgets();
       },
-      error: () => (this.message = 'No fue posible eliminar el presupuesto.')
+      error: () => {
+        this.notify.error('No fue posible eliminar el presupuesto.');
+      }
     });
   }
 
@@ -114,21 +133,11 @@ export class BudgetsPageComponent {
   }
 
   private loadData(): void {
-    this.api.getAvailableMonths().subscribe({
-      next: (months) => {
-        this.months = months;
-        this.selectedMonth = firstMonthOfAvailable(months);
-      },
-      error: () => {
-        this.months = [monthKeyFromDate(new Date())];
-        this.selectedMonth = this.months[0];
-      }
-    });
-
     this.api.getCatalogs().subscribe({
       next: (catalog) => {
         this.movementTypes = catalog.movementTypes;
-        this.form.patchValue({ movementType: catalog.movementTypes[0] ?? '' });
+        this.movementTypeConfigs = catalog.movementTypeConfigs ?? [];
+        this.buildItems();
       }
     });
 
@@ -137,9 +146,48 @@ export class BudgetsPageComponent {
 
   private refreshBudgets(): void {
     this.api.getBudgets().subscribe({
-      next: (items) => (this.budgets = items),
-      error: () => (this.message = 'No fue posible cargar presupuestos.')
+      next: (items) => {
+        this.budgets = items;
+        this.buildItems();
+      },
+      error: () => {
+        this.notify.error('No fue posible cargar presupuestos.');
+      }
     });
+  }
+
+  private buildItems(): void {
+    if (!this.movementTypes.length) {
+      this.items = [];
+      return;
+    }
+
+    const budgetMap = new Map(this.budgets.map((budget) => [this.normalize(budget.movementType), budget]));
+    this.items = this.movementTypes
+      .map((movementType) => {
+        const budget = budgetMap.get(this.normalize(movementType));
+        const hasBudget = !!budget && budget.amount > 0;
+
+        return {
+          movementType,
+          amount: hasBudget ? Number(budget?.amount ?? 0) : 0,
+          updatedAt: budget?.updatedAt ?? null,
+          hasBudget,
+          icon: resolveMovementIcon(movementType, this.movementTypeConfigs),
+          color: resolveMovementColor(movementType, this.movementTypeConfigs)
+        } as BudgetViewItem;
+      })
+      .sort((left, right) => {
+        if (left.hasBudget !== right.hasBudget) {
+          return left.hasBudget ? -1 : 1;
+        }
+
+        return right.amount - left.amount;
+      });
+  }
+
+  private normalize(value: string): string {
+    return normalizeCatalogKey(value);
   }
 
 }

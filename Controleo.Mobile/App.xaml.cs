@@ -36,24 +36,60 @@ public partial class App : Application
 		return new Window(new NavigationPage(loginPage));
 	}
 
+	public async Task WarmUpCatalogVisualsAsync()
+	{
+		try
+		{
+			var apiClient = _serviceProvider.GetRequiredService<IExpenseApiClient>();
+			var colorService = _serviceProvider.GetRequiredService<ICatalogColorService>();
+			var paymentIconService = _serviceProvider.GetRequiredService<IPaymentIconService>();
+
+			var catalog = await apiClient.GetCatalogsAsync(CancellationToken.None);
+			colorService.SetConfigs(catalog.MovementTypeConfigs);
+
+			foreach (var paymentMethod in catalog.PaymentMethods)
+			{
+				var configuredIcon = (catalog.PaymentMethodConfigs ?? [])
+					.FirstOrDefault(cfg => string.Equals(cfg.Name, paymentMethod, StringComparison.OrdinalIgnoreCase))
+					?.Icon;
+
+				if (!string.IsNullOrWhiteSpace(configuredIcon))
+				{
+					paymentIconService.SetIconForPaymentMethod(paymentMethod, configuredIcon);
+					continue;
+				}
+
+				paymentIconService.IconForPaymentMethod(paymentMethod);
+			}
+		}
+		catch
+		{
+		}
+	}
+
 	public void ShowMainApp()
 	{
 		var registerPage = _serviceProvider.GetRequiredService<MainPage>();
 		var expensesPage = _serviceProvider.GetRequiredService<ExpensesPage>();
 		var dashboardPage = _serviceProvider.GetRequiredService<DashboardPage>();
 
+		var registerTab = CreateTabPage(registerPage, "Registro", "tab_home.svg");
+		var expensesTab = CreateTabPage(expensesPage, "Gastos", "tab_expenses.svg");
+		var dashboardTab = CreateTabPage(dashboardPage, "Dashboard", "tab_dashboard.svg");
 		var menuLauncherPage = CreateTabPage(CreateMenuLauncherPage(), "Menú", "tab_menu.svg");
 
 		var tabs = new TabbedPage
 		{
 			Children =
 			{
-				CreateTabPage(registerPage, "Registro", "tab_home.svg"),
-				CreateTabPage(expensesPage, "Gastos", "tab_expenses.svg"),
-				CreateTabPage(dashboardPage, "Dashboard", "tab_dashboard.svg"),
+				registerTab,
+				expensesTab,
+				dashboardTab,
 				menuLauncherPage
 			}
 		};
+
+		Page? previousTab = tabs.CurrentPage;
 
 		var sideMenuPage = new SideMenuPage();
 		var flyout = new FlyoutPage
@@ -87,16 +123,25 @@ public partial class App : Application
 
 		tabs.CurrentPageChanged += (_, __) =>
 		{
+			var currentTab = tabs.CurrentPage;
+			if (previousTab == registerTab && currentTab != registerTab)
+			{
+				registerPage.QueueResetAfterTabSwitch();
+			}
+
 			if (tabs.CurrentPage == menuLauncherPage)
 			{
 				OpenFlyoutAndRestoreTab();
+				previousTab = tabs.CurrentPage;
 				return;
 			}
 
-			if (tabs.CurrentPage is NavigationPage currentTab && currentTab != menuLauncherPage)
+			if (tabs.CurrentPage is NavigationPage selectedTab && selectedTab != menuLauncherPage)
 			{
-				_lastContentTab = currentTab;
+				_lastContentTab = selectedTab;
 			}
+
+			previousTab = tabs.CurrentPage;
 		};
 
 		flyout.PropertyChanged += (_, e) =>
@@ -147,6 +192,7 @@ public partial class App : Application
 		Microsoft.Maui.Controls.PlatformConfiguration.AndroidSpecific.TabbedPage.SetToolbarPlacement(
 			tabs,
 			Microsoft.Maui.Controls.PlatformConfiguration.AndroidSpecific.ToolbarPlacement.Bottom);
+		Microsoft.Maui.Controls.PlatformConfiguration.AndroidSpecific.TabbedPage.SetIsSwipePagingEnabled(tabs, false);
 #endif
 
 		ApplyTabColors(tabs);
@@ -178,25 +224,34 @@ public partial class App : Application
 				_ => new ProfilePage(authService)
 			};
 
+			var usePageHeader = destination is SideMenuDestination.Budgets
+				or SideMenuDestination.PaymentMethods
+				or SideMenuDestination.MovementTypes
+				or SideMenuDestination.Recurring;
+
 			// Use modal navigation — completely independent of tab stacks, no orphan/crash risk
 			var modalNav = new NavigationPage(destinationPage);
-			NavigationPage.SetHasNavigationBar(destinationPage, true);
-			destinationPage.Title = destination switch
-			{
-				SideMenuDestination.Profile => "Perfil",
-				SideMenuDestination.Budgets => "Presupuestos",
-				SideMenuDestination.PaymentMethods => "Medios de pago",
-				SideMenuDestination.MovementTypes => "Tipos de gasto",
-				SideMenuDestination.Recurring => "Gastos recurrentes",
-				_ => ""
-			};
+			NavigationPage.SetHasNavigationBar(destinationPage, !usePageHeader);
 
-			// Add close button so the user can dismiss the modal
-			destinationPage.ToolbarItems.Add(new ToolbarItem
+			if (!usePageHeader)
 			{
-				Text = "✕",
-				Command = new Command(async () => await modalNav.Navigation.PopModalAsync())
-			});
+				destinationPage.Title = destination switch
+				{
+					SideMenuDestination.Profile => "Perfil",
+					SideMenuDestination.Budgets => "Presupuestos",
+					SideMenuDestination.PaymentMethods => "Medios de pago",
+					SideMenuDestination.MovementTypes => "Tipos de gasto",
+					SideMenuDestination.Recurring => "Gastos recurrentes",
+					_ => ""
+				};
+
+				// Add close button so the user can dismiss the modal
+				destinationPage.ToolbarItems.Add(new ToolbarItem
+				{
+					Text = "✕",
+					Command = new Command(async () => await modalNav.Navigation.PopModalAsync())
+				});
+			}
 
 			var currentPage = _mainTabs?.CurrentPage ?? _mainFlyout?.Detail;
 			if (currentPage is not null)

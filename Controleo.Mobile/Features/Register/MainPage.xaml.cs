@@ -10,13 +10,16 @@ public partial class MainPage : ContentPage
 {
 	private const decimal MaxAllowedAmount = 10_000_000_000m;
 	private const int MaxAllowedAmountDigits = 11;
-	private const int MaxDescriptionLength = 100;
+	private const int MaxDescriptionLength = 50;
+	private const double AmountFontSizeMax = 48d;
+	private const double AmountFontSizeMin = 26d;
 
 	private readonly IExpenseApiClient _apiClient;
 	private readonly IMonthContextService _monthContext;
 	private readonly ICatalogColorService _colorService;
 	private readonly IPaymentIconService _paymentIconService;
 	private readonly List<MovementTypeConfig> _movementTypeConfigs = [];
+	private readonly List<PaymentMethodConfig> _paymentMethodConfigs = [];
 	private readonly Dictionary<string, Border> _movementTiles = new(StringComparer.OrdinalIgnoreCase);
 	private readonly Dictionary<string, Border> _paymentTiles = new(StringComparer.OrdinalIgnoreCase);
 	private readonly Dictionary<string, Border> _addCatalogIconTiles = new(StringComparer.Ordinal);
@@ -24,6 +27,7 @@ public partial class MainPage : ContentPage
 	private bool _isFormattingAmount;
 	private bool _isAnimatingCatalogSelection;
 	private bool _isAnimatingAddIconSelection;
+	private bool _resetOnNextAppearance;
 	private double _lastGridLayoutWidth;
 	private AddCatalogMode _addCatalogMode;
 	private string? _selectedMovementType;
@@ -48,8 +52,10 @@ public partial class MainPage : ContentPage
 		_paymentIconService = paymentIconService;
 		_monthContext.MonthChanged += OnMonthChanged;
 		_monthContext.MonthOptionsChanged += OnMonthOptionsChanged;
-		HeaderMonthBadgeLabel.Text = _monthContext.SelectedMonth.ToString("MMM yyyy", CultureInfo.InvariantCulture);
+		UpdateHeaderMonthBadge();
 		ApplyDateBoundsForSelectedMonth();
+		UpdateDescriptionCounter();
+		UpdateAmountFieldFontSize(string.Empty);
 	}
 
 	protected override async void OnAppearing()
@@ -57,6 +63,54 @@ public partial class MainPage : ContentPage
 		base.OnAppearing();
 		await RefreshMonthOptionsAsync();
 		await LoadCatalogsAsync();
+
+		if (_resetOnNextAppearance)
+		{
+			_resetOnNextAppearance = false;
+			await ResetRegisterStateAsync();
+		}
+
+		UpdateDescriptionCounter();
+	}
+
+	public void QueueResetAfterTabSwitch()
+	{
+		_resetOnNextAppearance = true;
+	}
+
+	private async Task ResetRegisterStateAsync()
+	{
+		ResetMainInputs();
+		ApplyDateBoundsForSelectedMonth();
+		ResetSelectedExpenseDate();
+
+		if (MovementTypePicker.ItemsSource is IEnumerable<string> movements)
+		{
+			var movementList = movements.ToList();
+			_selectedMovementType = movementList.Count > 0 ? movementList[0] : null;
+			MovementTypePicker.SelectedItem = _selectedMovementType;
+			BuildMovementTypeGrid(movementList);
+		}
+		else
+		{
+			_selectedMovementType = null;
+			MovementTypePicker.SelectedItem = null;
+		}
+
+		if (PaymentMethodPicker.ItemsSource is IEnumerable<string> methods)
+		{
+			var paymentList = methods.ToList();
+			_selectedPaymentMethod = paymentList.Count > 0 ? paymentList[0] : null;
+			PaymentMethodPicker.SelectedItem = _selectedPaymentMethod;
+			BuildPaymentMethodGrid(paymentList);
+		}
+		else
+		{
+			_selectedPaymentMethod = null;
+			PaymentMethodPicker.SelectedItem = null;
+		}
+
+		await ScrollCatalogsToStartAsync();
 	}
 
 	protected override void OnSizeAllocated(double width, double height)
@@ -88,7 +142,9 @@ public partial class MainPage : ContentPage
 	{
 		var monthKeys = await _apiClient.GetAvailableMonthsAsync(CancellationToken.None);
 		_monthContext.SetAvailableMonths(monthKeys);
-		HeaderMonthBadgeLabel.Text = _monthContext.SelectedMonth.ToString("MMM yyyy", CultureInfo.InvariantCulture);
+		var currentMonth = new DateOnly(DateTime.Today.Year, DateTime.Today.Month, 1);
+		_monthContext.SetMonth(currentMonth);
+		UpdateHeaderMonthBadge();
 		ApplyDateBoundsForSelectedMonth();
 	}
 
@@ -112,8 +168,29 @@ public partial class MainPage : ContentPage
 				_movementTypeConfigs.AddRange(catalog.MovementTypeConfigs);
 			}
 
+			_paymentMethodConfigs.Clear();
+			if (catalog.PaymentMethodConfigs is not null)
+			{
+				_paymentMethodConfigs.AddRange(catalog.PaymentMethodConfigs);
+			}
+
 			var movements = catalog.MovementTypes.ToList();
 			var payments = catalog.PaymentMethods.ToList();
+			foreach (var payment in payments)
+			{
+				var configuredIcon = _paymentMethodConfigs
+					.FirstOrDefault(cfg => string.Equals(cfg.Name, payment, StringComparison.OrdinalIgnoreCase))
+					?.Icon;
+
+				if (!string.IsNullOrWhiteSpace(configuredIcon))
+				{
+					_paymentIconService.SetIconForPaymentMethod(payment, configuredIcon);
+				}
+
+				UpsertPaymentMethodConfig(payment, _paymentIconService.IconForPaymentMethod(payment));
+			}
+
+			_paymentMethodConfigs.RemoveAll(cfg => !payments.Any(item => string.Equals(item, cfg.Name, StringComparison.OrdinalIgnoreCase)));
 
 			MovementTypePicker.ItemsSource = movements;
 			PaymentMethodPicker.ItemsSource = payments;
@@ -151,40 +228,44 @@ public partial class MainPage : ContentPage
 		SaveButton.IsEnabled = false;
 		SetLoading(true);
 
-		var request = new ExpenseEntryRequest(
-			_selectedExpenseDate,
-			DescriptionField.Text!.Trim(),
-			amount,
-			_selectedMovementType!,
-			_selectedPaymentMethod!);
-
-		var result = await _apiClient.SaveExpenseAsync(request, CancellationToken.None);
-		await StyledResultModalPage.ShowAsync(
-			this,
-			result.IsSuccess,
-			result.IsSuccess ? "Gasto guardado" : "No se pudo guardar",
-			result.IsSuccess ? "El gasto se registrÛ correctamente." : result.Message);
-
-		if (result.IsSuccess)
+		try
 		{
-			DescriptionField.Text = string.Empty;
-			AmountField.Text = string.Empty;
-			ApplyDateBoundsForSelectedMonth();
-			await RefreshMonthOptionsAsync();
-		}
-		else
-		{
-			ResetMainInputs();
-		}
+			var request = new ExpenseEntryRequest(
+				_selectedExpenseDate,
+				DescriptionField.Text!.Trim(),
+				amount,
+				_selectedMovementType!,
+				_selectedPaymentMethod!);
 
-		SaveButton.IsEnabled = true;
-		SetLoading(false);
+			var result = await _apiClient.SaveExpenseAsync(request, CancellationToken.None);
+			await StyledResultModalPage.ShowAsync(
+				this,
+				result.IsSuccess,
+				result.IsSuccess ? "Gasto guardado" : "No se pudo guardar",
+				result.IsSuccess ? "El gasto se registr√≥ correctamente." : result.Message);
+
+			if (result.IsSuccess)
+			{
+				await RefreshMonthOptionsAsync();
+				await ResetRegisterStateAsync();
+			}
+			else
+			{
+				ResetMainInputs();
+			}
+		}
+		finally
+		{
+			SaveButton.IsEnabled = true;
+			SetLoading(false);
+		}
 	}
 
 	private void ResetMainInputs()
 	{
-		DescriptionField.Text = "0";
-		AmountField.Text = "0";
+		DescriptionField.Text = string.Empty;
+		AmountField.Text = string.Empty;
+		UpdateDescriptionCounter();
 	}
 
 	private bool ValidateForm(out decimal amount, out string errorMessage)
@@ -195,19 +276,19 @@ public partial class MainPage : ContentPage
 		var description = DescriptionField.Text?.Trim() ?? string.Empty;
 		if (string.IsNullOrWhiteSpace(description))
 		{
-			errorMessage = "La descripciÛn es requerida.";
+			errorMessage = "La descripci√≥n es requerida.";
 			return false;
 		}
 
 		if (description.Length > MaxDescriptionLength)
 		{
-			errorMessage = $"La descripciÛn no puede superar {MaxDescriptionLength} caracteres.";
+			errorMessage = $"La descripci√≥n no puede superar {MaxDescriptionLength} caracteres.";
 			return false;
 		}
 
 		if (!TryParseAmount(AmountField.Text, out amount))
 		{
-			errorMessage = "El valor debe ser numÈrico.";
+			errorMessage = "El valor debe ser num√©rico.";
 			return false;
 		}
 
@@ -219,7 +300,7 @@ public partial class MainPage : ContentPage
 
 		if (amount > MaxAllowedAmount)
 		{
-			errorMessage = "El valor m·ximo permitido es 10.000.000.000.";
+			errorMessage = "El valor m√°ximo permitido es 10.000.000.000.";
 			return false;
 		}
 
@@ -252,7 +333,7 @@ public partial class MainPage : ContentPage
 			return;
 		}
 
-		await DisplayAlert("NavegaciÛn", "No fue posible abrir la lista de gastos.", "OK");
+		await DisplayAlert("Navegaci√≥n", "No fue posible abrir la lista de gastos.", "OK");
 	}
 
 	private static bool TryNavigateToExpensesTab(Page? rootPage)
@@ -291,7 +372,7 @@ public partial class MainPage : ContentPage
 	{
 		MainThread.BeginInvokeOnMainThread(() =>
 		{
-			HeaderMonthBadgeLabel.Text = month.ToString("MMM yyyy", CultureInfo.InvariantCulture);
+			UpdateHeaderMonthBadge();
 			ApplyDateBoundsForSelectedMonth();
 		});
 	}
@@ -300,9 +381,14 @@ public partial class MainPage : ContentPage
 	{
 		MainThread.BeginInvokeOnMainThread(() =>
 		{
-			HeaderMonthBadgeLabel.Text = _monthContext.SelectedMonth.ToString("MMM yyyy", CultureInfo.InvariantCulture);
+			UpdateHeaderMonthBadge();
 			ApplyDateBoundsForSelectedMonth();
 		});
+	}
+
+	private void UpdateHeaderMonthBadge()
+	{
+		HeaderMonthBadgeLabel.Text = _monthContext.SelectedMonth.ToString("MMM yyyy", CultureInfo.CurrentCulture);
 	}
 
 	private void SetLoading(bool isLoading)
@@ -324,13 +410,33 @@ public partial class MainPage : ContentPage
 		}
 	}
 
+	private void ResetSelectedExpenseDate()
+	{
+		var today = DateOnly.FromDateTime(DateTime.Today);
+		_selectedExpenseDate = today >= _minExpenseDate && today <= _maxExpenseDate
+			? today
+			: _maxExpenseDate;
+	}
+
+	private async Task ScrollCatalogsToStartAsync()
+	{
+		try
+		{
+			await MovementTypeScroll.ScrollToAsync(0, 0, false);
+			await PaymentMethodScroll.ScrollToAsync(0, 0, false);
+		}
+		catch
+		{
+		}
+	}
+
 	private void BuildMovementTypeGrid(List<string> types)
 	{
 		MovementTypeGrid.Children.Clear();
 		_movementTiles.Clear();
 		var tileSide = CalculateRegisterTileSide(GetRegisterViewportWidth());
 
-		var addTile = BuildAddTile("?", Color.FromArgb("#EFF3F1"));
+		var addTile = BuildAddTile("+", Color.FromArgb("#EFF3F1"));
 		addTile.WidthRequest = tileSide;
 		addTile.HeightRequest = tileSide;
 		addTile.Margin = new Thickness(5, 5, 5, 10);
@@ -414,7 +520,7 @@ public partial class MainPage : ContentPage
 		_paymentTiles.Clear();
 		var tileSide = CalculateRegisterTileSide(GetRegisterViewportWidth());
 
-		var addTile = BuildAddTile("?", Color.FromArgb("#EFF3F1"));
+		var addTile = BuildAddTile("+", Color.FromArgb("#EFF3F1"));
 		addTile.WidthRequest = tileSide;
 		addTile.HeightRequest = tileSide;
 		addTile.Margin = new Thickness(5, 5, 5, 10);
@@ -551,7 +657,7 @@ public partial class MainPage : ContentPage
 	private void OpenAddCatalogModal(AddCatalogMode mode)
 	{
 		_addCatalogMode = mode;
-		AddCatalogTitleLabel.Text = mode == AddCatalogMode.MovementType ? "Nueva categorÌa" : "Nuevo mÈtodo de pago";
+		AddCatalogTitleLabel.Text = mode == AddCatalogMode.MovementType ? "Nueva categor√≠a" : "Nuevo m√©todo de pago";
 		AddCatalogNameEntry.Placeholder = mode == AddCatalogMode.MovementType ? "Ej: Mascotas" : "Ej: Daviplata";
 		AddCatalogNameEntry.Text = string.Empty;
 		_selectedAddCatalogIcon = mode == AddCatalogMode.MovementType
@@ -645,14 +751,14 @@ public partial class MainPage : ContentPage
 			var currentMovements = (MovementTypePicker.ItemsSource?.Cast<string>().ToList() ?? []);
 			if (currentMovements.Any(item => string.Equals(item, name, StringComparison.OrdinalIgnoreCase)))
 			{
-				await StyledResultModalPage.ShowAsync(this, false, "Duplicado", "Esa categorÌa ya existe.");
+				await StyledResultModalPage.ShowAsync(this, false, "Duplicado", "Esa categor√≠a ya existe.");
 				return;
 			}
 
 			var availableColors = _colorService.GetAvailableColors(_movementTypeConfigs);
 			if (availableColors.Count == 0)
 			{
-				await StyledResultModalPage.ShowAsync(this, false, "Sin colores", "No hay m·s colores disponibles para categorÌas.");
+				await StyledResultModalPage.ShowAsync(this, false, "Sin colores", "No hay m√°s colores disponibles para categor√≠as.");
 				return;
 			}
 
@@ -675,6 +781,7 @@ public partial class MainPage : ContentPage
 
 			currentPayments.Add(name);
 			_paymentIconService.SetIconForPaymentMethod(name, selectedIcon);
+			UpsertPaymentMethodConfig(name, selectedIcon);
 			var saved = await SaveCatalogsFromRegisterAsync(MovementTypePicker.ItemsSource?.Cast<string>().ToList() ?? [], currentPayments);
 			if (saved)
 			{
@@ -851,21 +958,37 @@ public partial class MainPage : ContentPage
 			return string.Empty;
 		}
 
-		return text.Length > maxLen ? text[..maxLen] + "Ö" : text;
+		if (text.Length <= maxLen)
+		{
+			return text;
+		}
+
+		if (maxLen <= 3)
+		{
+			return text[..maxLen];
+		}
+
+		return text[..(maxLen - 3)] + "...";
 	}
 
 	private async Task<bool> SaveCatalogsFromRegisterAsync(List<string> movementTypes, List<string> paymentMethods)
 	{
 		if (movementTypes.Count == 0 || paymentMethods.Count == 0)
 		{
-			await StyledResultModalPage.ShowAsync(this, false, "No se pudo guardar", "Debe existir al menos una categorÌa y un medio de pago.");
+			await StyledResultModalPage.ShowAsync(this, false, "No se pudo guardar", "Debe existir al menos una categor√≠a y un medio de pago.");
 			return false;
 		}
 
 		SetLoading(true);
 		try
 		{
-			var request = new UpdateCatalogsRequest(movementTypes, paymentMethods, _movementTypeConfigs.ToList());
+			_paymentMethodConfigs.RemoveAll(cfg => !paymentMethods.Any(item => string.Equals(item, cfg.Name, StringComparison.OrdinalIgnoreCase)));
+			foreach (var paymentMethod in paymentMethods)
+			{
+				UpsertPaymentMethodConfig(paymentMethod, _paymentIconService.IconForPaymentMethod(paymentMethod));
+			}
+
+			var request = new UpdateCatalogsRequest(movementTypes, paymentMethods, _movementTypeConfigs.ToList(), _paymentMethodConfigs.ToList());
 			var result = await _apiClient.UpdateCatalogsAsync(request, CancellationToken.None);
 			if (!result.IsSuccess)
 			{
@@ -905,6 +1028,40 @@ public partial class MainPage : ContentPage
 		}
 	}
 
+	private void UpsertPaymentMethodConfig(string paymentMethod, string icon)
+	{
+		if (string.IsNullOrWhiteSpace(paymentMethod) || string.IsNullOrWhiteSpace(icon))
+		{
+			return;
+		}
+
+		_paymentMethodConfigs.RemoveAll(cfg => string.Equals(cfg.Name, paymentMethod, StringComparison.OrdinalIgnoreCase));
+		_paymentMethodConfigs.Add(new PaymentMethodConfig(paymentMethod.Trim(), icon.Trim()));
+	}
+
+	private void OnDescriptionFieldTextChanged(object? sender, TextChangedEventArgs e)
+	{
+		var incoming = e.NewTextValue ?? string.Empty;
+		if (incoming.Length > MaxDescriptionLength)
+		{
+			DescriptionField.Text = incoming[..MaxDescriptionLength];
+			return;
+		}
+
+		UpdateDescriptionCounter();
+	}
+
+	private void UpdateDescriptionCounter()
+	{
+		var length = DescriptionField.Text?.Length ?? 0;
+		if (length > MaxDescriptionLength)
+		{
+			length = MaxDescriptionLength;
+		}
+
+		DescriptionCounterLabel.Text = $"{length}/{MaxDescriptionLength}";
+	}
+
 	private void OnAmountFieldTextChanged(object? sender, TextChangedEventArgs e)
 	{
 		if (_isFormattingAmount)
@@ -917,6 +1074,7 @@ public partial class MainPage : ContentPage
 			var raw = e.NewTextValue ?? string.Empty;
 			if (string.IsNullOrEmpty(raw))
 			{
+				UpdateAmountFieldFontSize(string.Empty);
 				return;
 			}
 
@@ -934,6 +1092,7 @@ public partial class MainPage : ContentPage
 					try
 					{
 						AmountField.Text = string.Empty;
+						UpdateAmountFieldFontSize(string.Empty);
 					}
 					finally
 					{
@@ -957,6 +1116,7 @@ public partial class MainPage : ContentPage
 			var formatted = FormatThousandsWithDots(digits);
 			if (string.Equals(formatted, raw, StringComparison.Ordinal))
 			{
+				UpdateAmountFieldFontSize(formatted);
 				return;
 			}
 
@@ -977,6 +1137,7 @@ public partial class MainPage : ContentPage
 				try
 				{
 					AmountField.Text = formatted;
+					UpdateAmountFieldFontSize(formatted);
 				}
 				finally
 				{
@@ -987,6 +1148,53 @@ public partial class MainPage : ContentPage
 		catch
 		{
 		}
+	}
+
+	private void UpdateAmountFieldFontSize(string value)
+	{
+		var length = (value ?? string.Empty).Length;
+		double targetSize;
+
+		if (length <= 1)
+		{
+			targetSize = AmountFontSizeMax;
+		}
+		else if (length <= 5)
+		{
+			targetSize = 46;
+		}
+		else if (length <= 7)
+		{
+			targetSize = 42;
+		}
+		else if (length <= 9)
+		{
+			targetSize = 38;
+		}
+		else if (length <= 11)
+		{
+			targetSize = 34;
+		}
+		else if (length <= 13)
+		{
+			targetSize = 30;
+		}
+		else
+		{
+			targetSize = AmountFontSizeMin;
+		}
+
+		if (targetSize < AmountFontSizeMin)
+		{
+			targetSize = AmountFontSizeMin;
+		}
+
+		if (Math.Abs(AmountField.FontSize - targetSize) < 0.1)
+		{
+			return;
+		}
+
+		AmountField.FontSize = targetSize;
 	}
 
 	private static bool TryParseAmount(string? text, out decimal amount)

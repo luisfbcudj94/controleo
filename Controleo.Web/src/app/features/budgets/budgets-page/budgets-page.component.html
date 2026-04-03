@@ -1,44 +1,28 @@
 <section class="budgets-grid">
-	<article class="card month-row">
-		<button class="btn btn-ghost" type="button" (click)="previousMonth()" [disabled]="months.indexOf(selectedMonth) <= 0">◀</button>
-		<strong>{{ monthLabelText }}</strong>
-		<button class="btn btn-ghost" type="button" (click)="nextMonth()" [disabled]="months.indexOf(selectedMonth) >= months.length - 1">▶</button>
-	</article>
-
 	<article class="card">
-		<h2 class="section-title">Configurar presupuesto global por sección</h2>
-		<form class="form-grid" [formGroup]="form" (ngSubmit)="save()">
-			<div class="field">
-				<label>Sección</label>
-				<button class="selector-trigger" type="button" (click)="openMovementTypeSelector()">{{ form.controls.movementType.value || 'Seleccionar sección' }}</button>
-			</div>
+		<h2 class="section-title">Presupuestos por sección</h2>
 
-			<div class="field">
-				<label>Valor presupuesto</label>
-				<input type="number" formControlName="amount" />
-			</div>
-
-			<button class="btn btn-save" type="submit" [disabled]="form.invalid">Guardar presupuesto</button>
-			<p class="muted">{{ message }}</p>
-		</form>
-	</article>
-
-	<article class="card">
-		<h2 class="section-title">Presupuestos actuales</h2>
-
-		@if (!budgets.length) {
+		@if (!items.length) {
 			<p class="muted">No hay presupuestos configurados.</p>
 		} @else {
 			<div class="budget-list">
-				@for (item of budgets; track item.movementType) {
+				@for (item of items; track item.movementType) {
 					<div class="budget-item">
-						<div>
-							<strong>{{ item.movementType }}</strong>
-							<span class="muted">Actualizado: {{ item.updatedAt | date:'short' }}</span>
+						<div class="budget-main">
+							<div class="budget-icon" [style.background]="item.color">{{ item.icon }}</div>
+							<div>
+								<strong>{{ item.movementType }}</strong>
+								<div class="budget-sub muted">
+									{{ item.hasBudget ? ('Actualizado: ' + (item.updatedAt | date:'short')) : 'Toca ✏️ para asignar presupuesto' }}
+								</div>
+							</div>
 						</div>
 						<div class="budget-actions">
-							<strong>${{ item.amount | number:'1.0-0' }}</strong>
-							<button class="btn btn-danger" type="button" (click)="remove(item)">Eliminar</button>
+							<strong [class.no-budget]="!item.hasBudget">{{ item.hasBudget ? ('$' + (item.amount | number:'1.0-0')) : 'Sin asignar' }}</strong>
+							<div class="budget-action-buttons">
+								<button class="budget-action edit" type="button" (click)="openEditor(item)" title="Editar">✏️</button>
+								<button class="budget-action delete" type="button" (click)="promptDelete(item)" title="Eliminar" [disabled]="!item.hasBudget">🗑️</button>
+							</div>
 						</div>
 					</div>
 				}
@@ -51,16 +35,40 @@
 		title="Eliminar presupuesto"
 		[message]="pendingDelete ? '¿Eliminar presupuesto de ' + pendingDelete.movementType + '?' : ''"
 		confirmLabel="Eliminar"
-		cancelLabel="Cancelar"
 		[danger]="true"
 		(confirm)="confirmDelete()"
 		(cancel)="cancelDelete()" />
 
-	<app-selector-modal
-		[isOpen]="selectorOpen"
-		title="Selecciona sección"
-		[options]="movementTypes"
-		[selectedValue]="form.controls.movementType.value || ''"
-		(choose)="selectMovementType($event)"
-		(close)="closeSelector()" />
+	@if (editorOpen && editingItem) {
+		<div class="edit-overlay" (click)="onEditorBackdropClick($event)">
+			<article class="edit-modal card">
+				<div class="edit-head">
+					<div class="edit-title-wrap">
+						<div class="edit-icon" [style.background]="editingItem.color">{{ editingItem.icon }}</div>
+						<div>
+							<h3>{{ editingItem.movementType }}</h3>
+							@if (editingItem.hasBudget) {
+								<p class="muted">Presupuesto actual: ${{ editingItem.amount | number:'1.0-0' }}</p>
+							} @else {
+								<p class="muted">Sin presupuesto asignado</p>
+							}
+						</div>
+					</div>
+					<button class="icon-close" type="button" (click)="closeEditor()" aria-label="Cerrar">✕</button>
+				</div>
+
+				<form class="edit-form" [formGroup]="form" (ngSubmit)="saveEditor()">
+					<div class="field">
+						<label>Presupuesto</label>
+						<input type="number" formControlName="amount" min="0" />
+					</div>
+
+					<div class="edit-actions">
+						<button class="btn btn-danger" type="button" (click)="promptDelete(editingItem)" [disabled]="!editingItem.hasBudget">Eliminar</button>
+						<button class="btn btn-save" type="submit" [disabled]="form.invalid">Guardar</button>
+					</div>
+				</form>
+			</article>
+		</div>
+	}
 </section>

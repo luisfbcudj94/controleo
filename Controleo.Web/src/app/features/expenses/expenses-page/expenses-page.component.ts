@@ -2,12 +2,19 @@ import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { finalize } from 'rxjs';
-import { ExpenseItem } from '../../../core/models/api.models';
+import { ExpenseItem, MovementTypeConfig, PaymentMethodConfig } from '../../../core/models/api.models';
 import { ApiService } from '../../../core/services/api.service';
-import { firstMonthOfAvailable, monthKeyFromDate, monthLabel } from '../../../core/utils/month.utils';
+import { NotificationService } from '../../../core/services/notification.service';
+import { monthKeyFromDate, monthLabel } from '../../../core/utils/month.utils';
 import { ConfirmModalComponent } from '../../../shared/ui/confirm-modal/confirm-modal.component';
-import { SelectorModalComponent } from '../../../shared/ui/selector-modal/selector-modal.component';
+import { SelectorModalComponent, SelectorOptionItem } from '../../../shared/ui/selector-modal/selector-modal.component';
 import { CustomDateInputComponent } from '../../../shared/ui/custom-date-input/custom-date-input.component';
+import {
+  resolveMovementColor,
+  resolveMovementIcon,
+  resolvePaymentIcon,
+  resolvePaymentStyle
+} from '../../../core/utils/catalog-visual.utils';
 
 @Component({
   selector: 'app-expenses-page',
@@ -17,15 +24,6 @@ import { CustomDateInputComponent } from '../../../shared/ui/custom-date-input/c
 })
 export class ExpensesPageComponent {
   readonly allowedPageSizes = [5, 10, 20];
-  readonly icons = ['🛒', '🏗️', '💳', '🍽️', '✈️', '💊', '🏠', '📦'];
-  readonly palette = [
-    { color: 'var(--amber)', bg: 'var(--amb2)' },
-    { color: 'var(--info)', bg: 'var(--inf2)' },
-    { color: 'var(--purple)', bg: 'var(--pur2)' },
-    { color: 'var(--teal)', bg: 'var(--tea2)' },
-    { color: 'var(--coral)', bg: 'var(--cor2)' },
-    { color: 'var(--accent)', bg: 'var(--ac2)' }
-  ];
 
   months: string[] = [];
   selectedMonth = monthKeyFromDate(new Date());
@@ -35,16 +33,22 @@ export class ExpensesPageComponent {
   totalPages = 1;
   totalCount = 0;
   isLoading = false;
-  statusMessage = '';
+  isSavingEdit = false;
   editingExpense: ExpenseItem | null = null;
-  activeMovementType = 'all';
+  activeMovementType: string | null = null;
+  activePaymentMethod: string | null = null;
   searchTerm = '';
   totalAmount = 0;
+  filtersOpen = false;
+  pendingMovementType: string | null = null;
+  pendingPaymentMethod: string | null = null;
   confirmDeleteOpen = false;
   pendingDelete: ExpenseItem | null = null;
   selectorOpen = false;
+  selectorMode: 'list' | 'tiles' = 'list';
   selectorTitle = '';
   selectorOptions: string[] = [];
+  selectorItems: SelectorOptionItem[] = [];
   selectorValue = '';
   selectorContext: 'movementType' | 'paymentMethod' | 'pageSize' | null = null;
   private searchDebounceHandle: ReturnType<typeof setTimeout> | null = null;
@@ -53,10 +57,13 @@ export class ExpensesPageComponent {
 
   movementTypes: string[] = [];
   paymentMethods: string[] = [];
+  movementTypeConfigs: MovementTypeConfig[] = [];
+  paymentMethodConfigs: PaymentMethodConfig[] = [];
 
   constructor(
     private readonly api: ApiService,
-    private readonly fb: FormBuilder
+    private readonly fb: FormBuilder,
+    private readonly notify: NotificationService
   ) {
     this.editForm = this.fb.nonNullable.group({
       date: ['', Validators.required],
@@ -99,6 +106,33 @@ export class ExpensesPageComponent {
     return this.isSearchActive ? '20 por página (búsqueda)' : `${this.pageSize} por página`;
   }
 
+  get hasActiveFilters(): boolean {
+    return this.activeFiltersCount > 0;
+  }
+
+  get activeFiltersCount(): number {
+    let count = 0;
+    if (this.activeMovementType) {
+      count += 1;
+    }
+
+    if (this.activePaymentMethod) {
+      count += 1;
+    }
+
+    return count;
+  }
+
+  get activeFiltersLabel(): string {
+    if (!this.hasActiveFilters) {
+      return 'Sin filtros activos';
+    }
+
+    const movement = this.activeMovementType ?? 'Todos los tipos';
+    const payment = this.activePaymentMethod ?? 'Todos los medios';
+    return `${movement} · ${payment}`;
+  }
+
   get filteredItems(): ExpenseItem[] {
     return this.items;
   }
@@ -115,8 +149,33 @@ export class ExpensesPageComponent {
     return this.filteredItems.length ? this.totalFilteredAmount / this.filteredItems.length : 0;
   }
 
-  get movementTypeFilters(): string[] {
-    return this.movementTypes;
+  get movementFilterItems(): SelectorOptionItem[] {
+    return [
+      { value: '', label: 'Todos', icon: '🧩', color: '#EFF3F1' },
+      ...this.movementTypes.map((movementType) => ({
+        value: movementType,
+        label: movementType,
+        icon: this.iconForMovementType(movementType),
+        color: this.colorForMovementType(movementType)
+      }))
+    ];
+  }
+
+  get paymentFilterItems(): SelectorOptionItem[] {
+    return [
+      { value: '', label: 'Todos', icon: '💳', color: '#EFF3F1' },
+      ...this.paymentMethods.map((paymentMethod) => {
+        const style = this.styleForPaymentMethod(paymentMethod);
+
+        return {
+          value: paymentMethod,
+          label: paymentMethod,
+          icon: this.iconForPaymentMethod(paymentMethod),
+          color: style.background,
+          textColor: style.foreground
+        };
+      })
+    ];
   }
 
   previousMonth(): void {
@@ -144,12 +203,7 @@ export class ExpensesPageComponent {
   }
 
   openPageSizeSelector(): void {
-    this.openSelector(
-      'pageSize',
-      'Elementos por página',
-      this.allowedPageSizes.map((size) => `${size}`),
-      `${this.pageSize}`
-    );
+    this.openSelector('pageSize', 'Elementos por página', `${this.pageSize}`, 'list', this.allowedPageSizes.map((size) => `${size}`));
   }
 
   prevPage(): void {
@@ -185,20 +239,47 @@ export class ExpensesPageComponent {
     this.editingExpense = null;
   }
 
+  onEditBackdropClick(event: MouseEvent): void {
+    if (event.target === event.currentTarget) {
+      this.cancelEdit();
+    }
+  }
+
   openMovementTypeSelector(): void {
-    this.openSelector('movementType', 'Selecciona tipo de movimiento', this.movementTypes, this.editForm.controls.movementType.value || '');
+    this.openSelector(
+      'movementType',
+      'Tipo de movimiento',
+      this.editForm.controls.movementType.value || '',
+      'tiles',
+      [],
+      this.movementFilterItems.filter((item) => item.value)
+    );
   }
 
   openPaymentMethodSelector(): void {
-    this.openSelector('paymentMethod', 'Selecciona medio de pago', this.paymentMethods, this.editForm.controls.paymentMethod.value || '');
+    this.openSelector(
+      'paymentMethod',
+      'Medio de pago',
+      this.editForm.controls.paymentMethod.value || '',
+      'tiles',
+      [],
+      this.paymentFilterItems.filter((item) => item.value)
+    );
   }
 
   saveEdit(): void {
-    if (!this.editingExpense || this.editForm.invalid) {
+    if (!this.editingExpense || this.isSavingEdit) {
+      return;
+    }
+
+    if (this.editForm.invalid) {
+      this.notify.warning('Completa todos los campos para actualizar el gasto.');
       return;
     }
 
     const value = this.editForm.getRawValue();
+    this.isSavingEdit = true;
+
     this.api
       .updateExpense(this.editingExpense.id, {
         date: value.date,
@@ -207,13 +288,16 @@ export class ExpensesPageComponent {
         movementType: value.movementType,
         paymentMethod: value.paymentMethod
       })
+      .pipe(finalize(() => (this.isSavingEdit = false)))
       .subscribe({
-        next: (result) => {
-          this.statusMessage = result.message;
+        next: () => {
+          this.notify.success('Gasto actualizado correctamente.');
           this.editingExpense = null;
           this.loadPage();
         },
-        error: () => (this.statusMessage = 'No fue posible actualizar el gasto.')
+        error: () => {
+          this.notify.error('No fue posible actualizar el gasto.');
+        }
       });
   }
 
@@ -233,11 +317,13 @@ export class ExpensesPageComponent {
     this.pendingDelete = null;
 
     this.api.deleteExpense(item.id).subscribe({
-      next: (result) => {
-        this.statusMessage = result.message;
+      next: () => {
+        this.notify.success('Gasto eliminado correctamente.');
         this.loadPage();
       },
-      error: () => (this.statusMessage = 'No fue posible eliminar el gasto.')
+      error: () => {
+        this.notify.error('No fue posible eliminar el gasto.');
+      }
     });
   }
 
@@ -267,10 +353,42 @@ export class ExpensesPageComponent {
     this.closeSelector();
   }
 
-  setFilter(value: string): void {
-    this.activeMovementType = value;
+  openFilters(): void {
+    this.pendingMovementType = this.activeMovementType;
+    this.pendingPaymentMethod = this.activePaymentMethod;
+    this.filtersOpen = true;
+  }
+
+  closeFilters(): void {
+    this.filtersOpen = false;
+  }
+
+  onFiltersBackdropClick(event: MouseEvent): void {
+    if (event.target === event.currentTarget) {
+      this.closeFilters();
+    }
+  }
+
+  setPendingMovementType(value: string): void {
+    this.pendingMovementType = value || null;
+  }
+
+  setPendingPaymentMethod(value: string): void {
+    this.pendingPaymentMethod = value || null;
+  }
+
+  applyFilters(): void {
+    this.activeMovementType = this.pendingMovementType;
+    this.activePaymentMethod = this.pendingPaymentMethod;
     this.pageNumber = 1;
+    this.closeFilters();
     this.loadPage();
+  }
+
+  clearFilters(): void {
+    this.pendingMovementType = null;
+    this.pendingPaymentMethod = null;
+    this.applyFilters();
   }
 
   updateSearch(value: string): void {
@@ -287,36 +405,34 @@ export class ExpensesPageComponent {
   }
 
   colorFor(item: ExpenseItem): string {
-    return this.palette[this.paletteIndex(item)].color;
+    return this.colorForMovementType(item.movementType);
   }
 
   bgFor(item: ExpenseItem): string {
-    return this.palette[this.paletteIndex(item)].bg;
+    return `color-mix(in srgb, ${this.colorForMovementType(item.movementType)} 26%, #FFFFFF)`;
   }
 
   iconFor(item: ExpenseItem): string {
-    return this.icons[this.paletteIndex(item) % this.icons.length];
+    return this.iconForMovementType(item.movementType);
   }
 
   trackById(_: number, item: ExpenseItem): string {
     return item.id;
   }
 
-  private paletteIndex(item: ExpenseItem): number {
-    const key = this.movementTypes.findIndex((x) => x === item.movementType);
-    return key >= 0 ? key % this.palette.length : Math.abs(item.movementType.length) % this.palette.length;
-  }
-
   private refreshMonthsAndLoad(): void {
+    const currentMonth = monthKeyFromDate(new Date());
+
     this.api.getAvailableMonths().subscribe({
       next: (months) => {
-        this.months = months;
-        this.selectedMonth = firstMonthOfAvailable(months);
+        const normalizedMonths = Array.from(new Set([...months, currentMonth])).sort((left, right) => left.localeCompare(right));
+        this.months = normalizedMonths;
+        this.selectedMonth = currentMonth;
         this.loadPage();
       },
       error: () => {
-        this.months = [monthKeyFromDate(new Date())];
-        this.selectedMonth = this.months[0];
+        this.months = [currentMonth];
+        this.selectedMonth = currentMonth;
         this.loadPage();
       }
     });
@@ -327,13 +443,16 @@ export class ExpensesPageComponent {
       next: (catalog) => {
         this.movementTypes = catalog.movementTypes;
         this.paymentMethods = catalog.paymentMethods;
+        this.movementTypeConfigs = catalog.movementTypeConfigs ?? [];
+        this.paymentMethodConfigs = catalog.paymentMethodConfigs ?? [];
       }
     });
   }
 
   private loadPage(): void {
     this.isLoading = true;
-    const selectedMovementType = this.activeMovementType === 'all' ? undefined : this.activeMovementType;
+    const selectedMovementType = this.activeMovementType || undefined;
+    const selectedPaymentMethod = this.activePaymentMethod || undefined;
 
     if (this.isSearchActive) {
       this.api
@@ -345,7 +464,11 @@ export class ExpensesPageComponent {
               ? items.filter((item) => item.movementType === selectedMovementType)
               : items;
 
-            const filtered = byMovement.filter((item) => this.matchesSearch(item, this.searchTerm));
+            const byPayment = selectedPaymentMethod
+              ? byMovement.filter((item) => item.paymentMethod === selectedPaymentMethod)
+              : byMovement;
+
+            const filtered = byPayment.filter((item) => this.matchesSearch(item, this.searchTerm));
             const totalCount = filtered.length;
             const totalAmount = filtered.reduce((sum, item) => sum + Number(item.amount || 0), 0);
             const totalPages = totalCount === 0 ? 1 : Math.ceil(totalCount / this.effectivePageSize);
@@ -359,7 +482,7 @@ export class ExpensesPageComponent {
             this.totalAmount = totalAmount;
           },
           error: () => {
-            this.statusMessage = 'No fue posible cargar gastos.';
+            this.notify.error('No fue posible cargar gastos.');
           }
         });
 
@@ -367,7 +490,14 @@ export class ExpensesPageComponent {
     }
 
     this.api
-      .getExpensesPage(this.selectedMonth, this.pageNumber, this.effectivePageSize, selectedMovementType, this.searchTerm)
+      .getExpensesPage(
+        this.selectedMonth,
+        this.pageNumber,
+        this.effectivePageSize,
+        selectedMovementType,
+        this.searchTerm,
+        selectedPaymentMethod
+      )
       .pipe(finalize(() => (this.isLoading = false)))
       .subscribe({
         next: (page) => {
@@ -378,9 +508,25 @@ export class ExpensesPageComponent {
           this.totalAmount = page.totalAmount;
         },
         error: () => {
-          this.statusMessage = 'No fue posible cargar gastos.';
+          this.notify.error('No fue posible cargar gastos.');
         }
       });
+  }
+
+  private iconForMovementType(movementType: string): string {
+    return resolveMovementIcon(movementType, this.movementTypeConfigs);
+  }
+
+  private colorForMovementType(movementType: string): string {
+    return resolveMovementColor(movementType, this.movementTypeConfigs);
+  }
+
+  private iconForPaymentMethod(paymentMethod: string): string {
+    return resolvePaymentIcon(paymentMethod, this.paymentMethodConfigs);
+  }
+
+  private styleForPaymentMethod(paymentMethod: string): { background: string; foreground: string } {
+    return resolvePaymentStyle(paymentMethod);
   }
 
   private matchesSearch(item: ExpenseItem, term: string): boolean {
@@ -470,12 +616,16 @@ export class ExpensesPageComponent {
   private openSelector(
     context: 'movementType' | 'paymentMethod' | 'pageSize',
     title: string,
-    options: string[],
-    currentValue: string
+    currentValue: string,
+    mode: 'list' | 'tiles',
+    options: string[] = [],
+    optionItems: SelectorOptionItem[] = []
   ): void {
     this.selectorContext = context;
     this.selectorTitle = title;
+    this.selectorMode = mode;
     this.selectorOptions = options;
+    this.selectorItems = optionItems;
     this.selectorValue = currentValue;
     this.selectorOpen = true;
   }

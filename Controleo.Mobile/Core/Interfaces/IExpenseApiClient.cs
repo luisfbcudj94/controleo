@@ -4,6 +4,7 @@ namespace Controleo.Mobile.Core.Interfaces;
 
 public interface IExpenseApiClient
 {
+    void ClearAllCaches();
     Task<ExpenseCatalog> GetCatalogsAsync(CancellationToken cancellationToken);
     Task<IReadOnlyList<ExpenseItem>> GetExpensesAsync(string monthKey, CancellationToken cancellationToken);
     Task<PagedExpenseResult> GetExpensesPageAsync(string monthKey, int pageNumber, int pageSize, string? movementType, string? paymentMethod, string? searchTerm, CancellationToken cancellationToken);
@@ -20,6 +21,7 @@ public interface IExpenseApiClient
     Task<int> CountExpensesByMovementTypeAsync(string movementType, CancellationToken cancellationToken);
     Task<OperationResult> DeleteAllByMovementTypeAsync(string movementType, CancellationToken cancellationToken);
     Task<IReadOnlyList<RecurringExpenseItem>> GetRecurringExpensesAsync(CancellationToken cancellationToken);
+    Task<PagedRecurringResult> GetRecurringExpensesPageAsync(int pageNumber, int pageSize, CancellationToken cancellationToken);
     Task<OperationResult> SaveRecurringExpenseAsync(string? id, RecurringExpenseUpsertRequest request, CancellationToken cancellationToken);
     Task<OperationResult> DeleteRecurringExpenseAsync(string id, CancellationToken cancellationToken);
 }

@@ -8,6 +8,8 @@ namespace Controleo.Mobile.Features.Recurring;
 
 public partial class RecurringPage : ContentPage
 {
+    private static readonly int[] AllowedPageSizes = [5, 10, 20];
+
     private readonly IExpenseApiClient _apiClient;
     private readonly ICatalogColorService _colorService;
     private readonly IPaymentIconService _paymentIconService;
@@ -15,6 +17,9 @@ public partial class RecurringPage : ContentPage
     private DateOnly _selectedStartDate = new(DateTime.Today.Year, DateTime.Today.Month, 1);
     private string? _selectedMovementType;
     private string? _selectedPaymentMethod;
+    private bool _isPageSizeSyncing;
+    private int _pageNumber = 1;
+    private int _pageSize = 5;
 
     public RecurringPage(IExpenseApiClient apiClient, ICatalogColorService colorService, IPaymentIconService paymentIconService)
     {
@@ -23,20 +28,53 @@ public partial class RecurringPage : ContentPage
         _colorService = colorService;
         _paymentIconService = paymentIconService;
         UpdateStartDateSelectorLabel();
+        PageSizePicker.ItemsSource = AllowedPageSizes.Select(item => item.ToString()).ToList();
+        _isPageSizeSyncing = true;
+        PageSizePicker.SelectedItem = _pageSize.ToString();
+        _isPageSizeSyncing = false;
+        PageSizeSelectorLabel.Text = _pageSize.ToString();
+        PaginationStatusLabel.Text = "Página 1/1 · 0 registros";
+        PrevPageButton.IsEnabled = false;
+        NextPageButton.IsEnabled = false;
         MoneyFormatHelper.Attach(AmountEntry);
     }
 
     protected override async void OnAppearing()
     {
         base.OnAppearing();
-        await LoadCatalogsAsync();
-        await LoadRecurringAsync();
+
+        SetLoading(true);
+        try
+        {
+            await LoadCatalogsAsync();
+            await LoadRecurringPageAsync();
+        }
+        finally
+        {
+            SetLoading(false);
+        }
     }
 
     private async Task LoadCatalogsAsync()
     {
         var catalogs = await _apiClient.GetCatalogsAsync(CancellationToken.None);
         _colorService.SetConfigs(catalogs.MovementTypeConfigs);
+
+        foreach (var paymentMethod in catalogs.PaymentMethods)
+        {
+            var configuredIcon = (catalogs.PaymentMethodConfigs ?? [])
+                .FirstOrDefault(cfg => string.Equals(cfg.Name, paymentMethod, StringComparison.OrdinalIgnoreCase))
+                ?.Icon;
+
+            if (!string.IsNullOrWhiteSpace(configuredIcon))
+            {
+                _paymentIconService.SetIconForPaymentMethod(paymentMethod, configuredIcon);
+                continue;
+            }
+
+            _paymentIconService.IconForPaymentMethod(paymentMethod);
+        }
+
         BuildTypePickerGrid(catalogs.MovementTypes.ToList());
         BuildPayPickerGrid(catalogs.PaymentMethods.ToList());
     }
@@ -145,15 +183,21 @@ public partial class RecurringPage : ContentPage
     private void OnCloseTypePicker(object? sender, EventArgs e) => TypePickerOverlay.IsVisible = false;
     private void OnClosePayPicker(object? sender, EventArgs e) => PayPickerOverlay.IsVisible = false;
 
-    private async Task LoadRecurringAsync()
+    private async Task LoadRecurringPageAsync()
     {
-        var items = await _apiClient.GetRecurringExpensesAsync(CancellationToken.None);
-        var viewItems = items.Select(item => new RecurringViewItem(
+        var page = await _apiClient.GetRecurringExpensesPageAsync(_pageNumber, _pageSize, CancellationToken.None);
+        _pageNumber = page.PageNumber;
+
+        var viewItems = page.Items.Select(item => new RecurringViewItem(
             item,
             _colorService.ForMovementType(item.MovementType),
             _colorService.IconForMovementType(item.MovementType)
         )).ToList();
+
         RecurringCollection.ItemsSource = viewItems;
+        PaginationStatusLabel.Text = $"Página {page.PageNumber}/{page.TotalPages} · {page.TotalCount} registros";
+        PrevPageButton.IsEnabled = page.HasPreviousPage;
+        NextPageButton.IsEnabled = page.HasNextPage;
         StatusLabel.Text = string.Empty;
     }
 
@@ -161,29 +205,36 @@ public partial class RecurringPage : ContentPage
     {
         if (!TryBuildRequest(out var request, out var errorMessage))
         {
-            ResetRecurringInputs();
             await StyledResultModalPage.ShowAsync(this, false, "No se pudo guardar", errorMessage);
             return;
         }
 
         SaveButton.IsEnabled = false;
-        var result = await _apiClient.SaveRecurringExpenseAsync(_editingId, request!, CancellationToken.None);
-        SaveButton.IsEnabled = true;
-        FormOverlay.IsVisible = false;
-        await StyledResultModalPage.ShowAsync(
-            this,
-            result.IsSuccess,
-            result.IsSuccess ? "Recurrente guardado" : "No se pudo guardar",
-            result.IsSuccess ? "El gasto recurrente se guardó correctamente." : result.Message);
-
-        if (!result.IsSuccess)
+        SetLoading(true);
+        try
         {
-            ResetRecurringInputs();
-            return;
-        }
+            var result = await _apiClient.SaveRecurringExpenseAsync(_editingId, request!, CancellationToken.None);
+            await StyledResultModalPage.ShowAsync(
+                this,
+                result.IsSuccess,
+                result.IsSuccess ? "Recurrente guardado" : "No se pudo guardar",
+                result.IsSuccess ? "El gasto recurrente se guardó correctamente." : result.Message);
 
-        ClearForm();
-        await LoadRecurringAsync();
+            if (!result.IsSuccess)
+            {
+                return;
+            }
+
+            FormOverlay.IsVisible = false;
+            ClearForm();
+            _pageNumber = 1;
+            await LoadRecurringPageAsync();
+        }
+        finally
+        {
+            SaveButton.IsEnabled = true;
+            SetLoading(false);
+        }
     }
 
     private void OnAddNewClicked(object? sender, EventArgs e)
@@ -209,19 +260,31 @@ public partial class RecurringPage : ContentPage
         else
             return;
 
-        var confirm = await DisplayAlert("Eliminar", $"¿Eliminar '{item.Description}'?", "Sí", "No");
+        var confirm = await StyledConfirmModalPage.ConfirmAsync(this, "Eliminar recurrente", $"¿Eliminar '{item.Description}'?");
         if (!confirm)
         {
             return;
         }
 
-        var result = await _apiClient.DeleteRecurringExpenseAsync(item.Id, CancellationToken.None);
-        await StyledResultModalPage.ShowAsync(
-            this,
-            result.IsSuccess,
-            result.IsSuccess ? "Recurrente eliminado" : "No se pudo eliminar",
-            result.IsSuccess ? "El gasto recurrente se eliminó correctamente." : result.Message);
-        await LoadRecurringAsync();
+        SetLoading(true);
+        try
+        {
+            var result = await _apiClient.DeleteRecurringExpenseAsync(item.Id, CancellationToken.None);
+            await StyledResultModalPage.ShowAsync(
+                this,
+                result.IsSuccess,
+                result.IsSuccess ? "Recurrente eliminado" : "No se pudo eliminar",
+                result.IsSuccess ? "El gasto recurrente se eliminó correctamente." : result.Message);
+
+            if (result.IsSuccess)
+            {
+                await LoadRecurringPageAsync();
+            }
+        }
+        finally
+        {
+            SetLoading(false);
+        }
     }
 
     private void OnEditTapped(object? sender, TappedEventArgs e)
@@ -266,13 +329,6 @@ public partial class RecurringPage : ContentPage
         StatusLabel.Text = string.Empty;
     }
 
-    private void ResetRecurringInputs()
-    {
-        DescriptionEntry.Text = "0";
-        AmountEntry.Text = "0";
-        DayEntry.Text = "0";
-    }
-
     private bool TryBuildRequest(out RecurringExpenseUpsertRequest? request, out string errorMessage)
     {
         request = null;
@@ -297,6 +353,11 @@ public partial class RecurringPage : ContentPage
             return false;
         }
 
+        if (_selectedStartDate == default)
+        {
+            _selectedStartDate = new DateOnly(DateTime.Today.Year, DateTime.Today.Month, 1);
+        }
+
         var maxDay = DateTime.DaysInMonth(_selectedStartDate.Year, _selectedStartDate.Month);
         var normalizedDay = Math.Min(day, maxDay);
         var normalizedStartDate = new DateOnly(_selectedStartDate.Year, _selectedStartDate.Month, normalizedDay);
@@ -314,7 +375,7 @@ public partial class RecurringPage : ContentPage
             amount,
             _selectedMovementType,
             _selectedPaymentMethod,
-            day,
+            normalizedDay,
             normalizedStartDate,
             IsActiveCheck.IsChecked);
 
@@ -341,6 +402,87 @@ public partial class RecurringPage : ContentPage
     private void UpdateStartDateSelectorLabel()
     {
         StartDateSelectorLabel.Text = _selectedStartDate.ToString("dd/MM/yyyy", CultureInfo.GetCultureInfo("es-CO"));
+    }
+
+    private void SetLoading(bool isLoading)
+    {
+        LoadingOverlay.IsVisible = isLoading;
+    }
+
+    private async void OnPageSizeChanged(object? sender, EventArgs e)
+    {
+        if (_isPageSizeSyncing || PageSizePicker.SelectedItem is not string pageSizeText)
+        {
+            return;
+        }
+
+        if (!int.TryParse(pageSizeText, out var selectedPageSize))
+        {
+            return;
+        }
+
+        _pageSize = AllowedPageSizes.Contains(selectedPageSize) ? selectedPageSize : 5;
+        PageSizeSelectorLabel.Text = _pageSize.ToString();
+        _pageNumber = 1;
+        await LoadRecurringPageAsync();
+    }
+
+    private async void OnPageSizeSelectorTapped(object? sender, TappedEventArgs e)
+    {
+        var options = AllowedPageSizes.Select(size => size.ToString()).ToList();
+        var selected = await StyledSelectorModalPage.PickAsync(this, "Mostrar elementos", options, PageSizeSelectorLabel.Text);
+        if (selected is null)
+        {
+            return;
+        }
+
+        if (PageSizePicker.SelectedItem?.ToString() == selected)
+        {
+            return;
+        }
+
+        _isPageSizeSyncing = true;
+        PageSizePicker.SelectedItem = selected;
+        _isPageSizeSyncing = false;
+
+        if (int.TryParse(selected, out var selectedPageSize) && AllowedPageSizes.Contains(selectedPageSize))
+        {
+            _pageSize = selectedPageSize;
+            PageSizeSelectorLabel.Text = _pageSize.ToString();
+            _pageNumber = 1;
+            await LoadRecurringPageAsync();
+        }
+    }
+
+    private async void OnPrevPageClicked(object? sender, EventArgs e)
+    {
+        if (_pageNumber <= 1)
+        {
+            return;
+        }
+
+        _pageNumber--;
+        await LoadRecurringPageAsync();
+    }
+
+    private async void OnNextPageClicked(object? sender, EventArgs e)
+    {
+        _pageNumber++;
+        await LoadRecurringPageAsync();
+    }
+
+    private async void OnClosePageClicked(object? sender, EventArgs e)
+    {
+        if (Navigation.ModalStack.Count > 0)
+        {
+            await Navigation.PopModalAsync();
+            return;
+        }
+
+        if (Navigation.NavigationStack.Count > 1)
+        {
+            await Navigation.PopAsync();
+        }
     }
 
     private sealed record RecurringViewItem(RecurringExpenseItem Item, Color IconColor, string Icon)

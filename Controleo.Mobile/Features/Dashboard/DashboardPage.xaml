@@ -5,7 +5,7 @@
              Title="Dashboard"
              BackgroundColor="{StaticResource AppBg}">
 
-    <Grid Padding="10" RowSpacing="10" RowDefinitions="Auto,Auto,*,Auto,*">
+    <Grid Padding="10" RowSpacing="10" RowDefinitions="Auto,Auto,Auto,Auto,*">
 
         <Border Grid.Row="0" StrokeShape="RoundRectangle 16" Padding="8" StrokeThickness="0"
                 BackgroundColor="{StaticResource PastelMint}">
@@ -44,7 +44,7 @@
 
         <Border Grid.Row="2" Padding="10" StrokeShape="RoundRectangle 18" StrokeThickness="0"
                 BackgroundColor="{StaticResource White}">
-            <Grid RowDefinitions="Auto,*,Auto" RowSpacing="10">
+            <Grid RowDefinitions="Auto,Auto" RowSpacing="10">
                 <Grid Grid.Row="0" ColumnDefinitions="*,*" ColumnSpacing="8">
                     <VerticalStackLayout Spacing="4" HorizontalOptions="Center">
                         <Grid WidthRequest="140" HeightRequest="140">
@@ -70,10 +70,19 @@
                         <Grid WidthRequest="140" HeightRequest="140">
                             <GraphicsView x:Name="DistributionDonutView" WidthRequest="140" HeightRequest="140" />
                             <Grid HorizontalOptions="Center" VerticalOptions="Center">
-                                <Border StrokeShape="RoundRectangle 50" WidthRequest="70" HeightRequest="70"
+                                <Border StrokeShape="RoundRectangle 44" WidthRequest="88" HeightRequest="88"
                                         BackgroundColor="{StaticResource White}" StrokeThickness="0">
-                                    <Label x:Name="DistributionCenterLabel" Text="Por tipo" FontSize="11" FontAttributes="Bold"
-                                           TextColor="{StaticResource AppHint}" HorizontalOptions="Center" VerticalOptions="Center" />
+                                    <VerticalStackLayout Spacing="1" HorizontalOptions="Center" VerticalOptions="Center">
+                                        <Label Text="👁" FontSize="14" HorizontalTextAlignment="Center"
+                                               TextColor="{StaticResource AppHint}" />
+                                        <Label x:Name="DistributionCenterLabel" Text="Ver categorías"
+                                               FontSize="9" FontAttributes="Bold" MaxLines="2"
+                                               LineBreakMode="WordWrap" HorizontalTextAlignment="Center"
+                                               TextColor="{StaticResource AppHint}" />
+                                    </VerticalStackLayout>
+                                    <Border.GestureRecognizers>
+                                        <TapGestureRecognizer Tapped="OnDistributionCenterTapped" />
+                                    </Border.GestureRecognizers>
                                 </Border>
                             </Grid>
                         </Grid>
@@ -85,22 +94,7 @@
                     </VerticalStackLayout>
                 </Grid>
 
-                <CollectionView Grid.Row="1" x:Name="DonutLegendCollection" SelectionMode="None">
-                    <CollectionView.ItemsLayout>
-                        <GridItemsLayout Orientation="Vertical" Span="2" HorizontalItemSpacing="12" VerticalItemSpacing="6" />
-                    </CollectionView.ItemsLayout>
-                    <CollectionView.ItemTemplate>
-                        <DataTemplate>
-                            <HorizontalStackLayout Spacing="6">
-                                <Border WidthRequest="10" HeightRequest="10" StrokeShape="RoundRectangle 5"
-                                        BackgroundColor="{Binding DotColor}" StrokeThickness="0" VerticalOptions="Center" />
-                                <Label Text="{Binding Label}" FontSize="11" TextColor="{StaticResource Gray600}" VerticalOptions="Center" />
-                            </HorizontalStackLayout>
-                        </DataTemplate>
-                    </CollectionView.ItemTemplate>
-                </CollectionView>
-
-                <Grid Grid.Row="2" ColumnDefinitions="*,*,*" ColumnSpacing="8">
+                <Grid Grid.Row="1" ColumnDefinitions="*,*,*" ColumnSpacing="8">
                     <Border StrokeShape="RoundRectangle 12" Padding="8" BackgroundColor="{StaticResource AppSurface2}" StrokeThickness="0">
                         <VerticalStackLayout Spacing="2">
                             <Label Text="Disponible" FontSize="11" TextColor="{StaticResource AppHint}" HorizontalTextAlignment="Center" />
@@ -166,7 +160,7 @@
         </RefreshView>
 
         <Grid x:Name="LoadingOverlay" Grid.RowSpan="5" IsVisible="False"
-              BackgroundColor="#33000000" InputTransparent="False" Margin="-16">
+              BackgroundColor="#33000000" InputTransparent="False" ZIndex="30" Margin="-16">
             <ActivityIndicator IsRunning="True" WidthRequest="48" HeightRequest="48"
                                Color="{StaticResource Tertiary}" HorizontalOptions="Center" VerticalOptions="Center" />
         </Grid>

@@ -11,6 +11,6 @@ public sealed class CatalogService(ICatalogRepository repo) : ICatalogService
     {
         if (r.MovementTypes is null or { Count: 0 }) return Task.FromResult(new OperationResult(false, "Debe existir al menos una sección de gasto."));
         if (r.PaymentMethods is null or { Count: 0 }) return Task.FromResult(new OperationResult(false, "Debe existir al menos un medio de pago."));
-        return repo.UpdateCatalogsAsync(userId, r.MovementTypes, r.PaymentMethods, r.MovementTypeConfigs, ct);
+        return repo.UpdateCatalogsAsync(userId, r.MovementTypes, r.PaymentMethods, r.MovementTypeConfigs, r.PaymentMethodConfigs, ct);
     }
 }

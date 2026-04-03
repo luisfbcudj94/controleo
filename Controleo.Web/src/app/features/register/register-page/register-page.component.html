@@ -4,20 +4,11 @@
 			<article class="f-card">
 				<div class="f-card-header">
 					<div class="fch-icon" style="background: var(--inf2)">📅</div>
-					<div class="fch-title">Periodo y fecha</div>
+					<div class="fch-title">Fecha del gasto</div>
 				</div>
 
 				<div class="f-body">
-					<div class="f-row">
-						<div class="f-field">
-							<label class="f-label">Mes del gasto</label>
-							<div class="month-row">
-								<button class="btn btn-ghost" type="button" (click)="previousMonth()" [disabled]="months.indexOf(selectedMonth) <= 0">◀</button>
-								<button class="f-input selector-trigger" type="button" (click)="openMonthSelector()">{{ monthLabelText }}</button>
-								<button class="btn btn-ghost" type="button" (click)="nextMonth()" [disabled]="months.indexOf(selectedMonth) >= months.length - 1">▶</button>
-							</div>
-						</div>
-
+					<div class="f-row single">
 						<div class="f-field">
 							<label class="f-label">Fecha exacta</label>
 							<app-custom-date-input formControlName="date" />
@@ -58,16 +49,20 @@
 					<div class="f-row">
 						<div class="f-field">
 							<label class="f-label">Tipo de movimiento</label>
-							<button class="f-input selector-trigger" type="button" (click)="openMovementTypeSelector()">{{ form.controls.movementType.value || 'Seleccionar tipo' }}</button>
+							<button class="f-input selector-trigger tile-trigger" type="button" (click)="openMovementTypeSelector()">{{ movementTypeSelectionLabel }}</button>
 						</div>
 
 						<div class="f-field">
 							<label class="f-label">Medio de pago</label>
-							<button class="f-input selector-trigger" type="button" (click)="openPaymentMethodSelector()">{{ form.controls.paymentMethod.value || 'Seleccionar medio' }}</button>
+							<button class="f-input selector-trigger tile-trigger" type="button" (click)="openPaymentMethodSelector()">{{ paymentMethodSelectionLabel }}</button>
 						</div>
 					</div>
 				</div>
 			</article>
+
+			<button class="save-btn mobile-save" type="submit" [disabled]="isSaving || form.invalid">
+				{{ isSaving ? 'Guardando...' : '✦  Guardar gasto' }}
+			</button>
 		</div>
 
 		<div>
@@ -78,10 +73,6 @@
 					<div class="pc-row">
 						<span class="pc-key">Descripción</span>
 						<span class="pc-val">{{ descriptionPreview }}</span>
-					</div>
-					<div class="pc-row">
-						<span class="pc-key">Mes</span>
-						<span class="pc-val">{{ monthLabelText }}</span>
 					</div>
 					<div class="pc-row">
 						<span class="pc-key">Fecha</span>
@@ -100,10 +91,6 @@
 				<button class="save-btn" type="submit" [disabled]="isSaving || form.invalid">
 					{{ isSaving ? 'Guardando...' : '✦  Guardar gasto' }}
 				</button>
-
-				@if (statusMessage) {
-					<p class="status-text">{{ statusMessage }}</p>
-				}
 			</aside>
 		</div>
 	</form>
@@ -111,8 +98,10 @@
 	<app-selector-modal
 		[isOpen]="selectorOpen"
 		[title]="selectorTitle"
-		[options]="selectorOptions"
+		[optionItems]="selectorItems"
 		[selectedValue]="selectorValue"
+		mode="tiles"
+		closeVariant="icon"
 		(choose)="selectOption($event)"
 		(close)="closeSelector()" />
 </section>

@@ -11,37 +11,51 @@
 			<input type="text" placeholder="Buscar gasto..." (input)="updateSearch($any($event.target).value)" />
 		</div>
 
-		<div class="filter-cards">
-			<button class="filter-card" [class.active]="activeMovementType === 'all'" type="button" (click)="setFilter('all')">Todos</button>
-			@for (movementType of movementTypeFilters; track movementType) {
-				<button class="filter-card" [class.active]="activeMovementType === movementType" type="button" (click)="setFilter(movementType)">
-					{{ movementType }}
-				</button>
-			}
+		<div class="gh-actions">
+			<button
+				class="selector-trigger filter-open"
+				type="button"
+				(click)="openFilters()"
+				[class.active]="hasActiveFilters"
+				[attr.aria-label]="activeFiltersLabel"
+				[attr.title]="activeFiltersLabel">
+				<span>Filtros</span>
+				<svg class="filter-open-icon" viewBox="0 0 24 24" aria-hidden="true">
+					<path d="M3 5h18l-7 8v5l-4 2v-7L3 5z" />
+				</svg>
+				@if (activeFiltersCount > 0) {
+					<span class="filter-open-badge">{{ activeFiltersCount }}</span>
+				}
+			</button>
 		</div>
 	</div>
 
 	@if (editingExpense) {
-		<article class="card edit-card">
-			<h3 class="section-title">Editar gasto</h3>
-			<form class="form-grid" [formGroup]="editForm" (ngSubmit)="saveEdit()">
-				<div class="field"><label>Fecha</label><app-custom-date-input formControlName="date" /></div>
-				<div class="field"><label>Descripción</label><input type="text" formControlName="description" /></div>
-				<div class="field"><label>Valor</label><input type="number" formControlName="amount" /></div>
-				<div class="field">
-					<label>Tipo</label>
-					<button class="selector-trigger" type="button" (click)="openMovementTypeSelector()">{{ editForm.controls.movementType.value || 'Seleccionar tipo' }}</button>
+		<div class="edit-overlay" (click)="onEditBackdropClick($event)">
+			<article class="edit-modal card">
+				<div class="edit-header">
+					<h3 class="section-title">Editar gasto</h3>
+					<button class="icon-close" type="button" (click)="cancelEdit()" aria-label="Cerrar">✕</button>
 				</div>
-				<div class="field">
-					<label>Medio</label>
-					<button class="selector-trigger" type="button" (click)="openPaymentMethodSelector()">{{ editForm.controls.paymentMethod.value || 'Seleccionar medio' }}</button>
-				</div>
-				<div class="row-actions">
-					<button class="btn btn-save" type="submit" [disabled]="editForm.invalid">Guardar</button>
-					<button class="btn btn-close" type="button" (click)="cancelEdit()">Cerrar</button>
-				</div>
-			</form>
-		</article>
+
+				<form class="form-grid" [formGroup]="editForm" (ngSubmit)="saveEdit()">
+					<div class="field"><label>Fecha</label><app-custom-date-input formControlName="date" /></div>
+					<div class="field"><label>Descripción</label><input type="text" formControlName="description" /></div>
+					<div class="field"><label>Valor</label><input type="number" formControlName="amount" /></div>
+					<div class="field">
+						<label>Tipo de movimiento</label>
+						<button class="selector-trigger" type="button" (click)="openMovementTypeSelector()">{{ editForm.controls.movementType.value || 'Seleccionar tipo de movimiento' }}</button>
+					</div>
+					<div class="field">
+						<label>Medio de pago</label>
+						<button class="selector-trigger" type="button" (click)="openPaymentMethodSelector()">{{ editForm.controls.paymentMethod.value || 'Seleccionar medio de pago' }}</button>
+					</div>
+					<div class="row-actions edit-actions">
+						<button class="btn btn-save" type="submit" [disabled]="editForm.invalid || isSavingEdit">{{ isSavingEdit ? 'Guardando...' : 'Guardar cambios' }}</button>
+					</div>
+				</form>
+			</article>
+		</div>
 	}
 
 	<div class="expense-table">
@@ -81,6 +95,36 @@
 		}
 	</div>
 
+	<div class="expense-cards">
+		@if (isLoading) {
+			<article class="expense-card muted">Cargando gastos...</article>
+		} @else if (!filteredItems.length) {
+			<article class="expense-card muted">No hay gastos para este periodo.</article>
+		} @else {
+			@for (item of filteredItems; track trackById($index, item)) {
+				<article class="expense-card">
+					<div class="ec-top">
+						<div class="ec-desc">
+							<div class="ec-icon" [style.background]="bgFor(item)">{{ iconFor(item) }}</div>
+							<div>
+								<div class="ec-title">{{ item.description }}</div>
+								<div class="ec-sub">{{ item.movementType }} · {{ item.paymentMethod }}</div>
+							</div>
+						</div>
+						<div class="ec-amount" [style.color]="colorFor(item)">${{ item.amount | number:'1.0-0' }}</div>
+					</div>
+
+					<div class="ec-meta">{{ item.date | date:'mediumDate' }}</div>
+
+					<div class="ec-actions">
+						<button class="et-edit" type="button" (click)="openEdit(item)" title="Editar">✏️</button>
+						<button class="et-del" type="button" (click)="delete(item)" title="Eliminar">✕</button>
+					</div>
+				</article>
+			}
+		}
+	</div>
+
 	<div class="footer-row">
 		<p class="muted">{{ paginationText }}</p>
 		<div class="row-actions">
@@ -90,8 +134,56 @@
 		</div>
 	</div>
 
-	@if (statusMessage) {
-		<p class="muted">{{ statusMessage }}</p>
+	@if (filtersOpen) {
+		<div class="filters-overlay" (click)="onFiltersBackdropClick($event)">
+			<article class="filters-card">
+				<div class="filters-header">
+					<h3>Filtros de gastos</h3>
+					<button class="icon-close" type="button" (click)="closeFilters()" aria-label="Cerrar">✕</button>
+				</div>
+
+				<div class="filters-section">
+					<label>Tipo de movimiento</label>
+					<div class="filters-grid">
+						@for (option of movementFilterItems; track option.value) {
+							<button
+								class="filter-tile"
+								[class.active]="pendingMovementType === (option.value || null)"
+								type="button"
+								[style.--tile-bg]="option.color || '#EFF3F1'"
+								[style.--tile-fg]="option.textColor || '#1A2E23'"
+								(click)="setPendingMovementType(option.value)">
+								<span class="ft-icon">{{ option.icon || '📋' }}</span>
+								<span class="ft-label">{{ option.label }}</span>
+							</button>
+						}
+					</div>
+				</div>
+
+				<div class="filters-section">
+					<label>Medio de pago</label>
+					<div class="filters-grid">
+						@for (option of paymentFilterItems; track option.value) {
+							<button
+								class="filter-tile"
+								[class.active]="pendingPaymentMethod === (option.value || null)"
+								type="button"
+								[style.--tile-bg]="option.color || '#EFF3F1'"
+								[style.--tile-fg]="option.textColor || '#1A2E23'"
+								(click)="setPendingPaymentMethod(option.value)">
+								<span class="ft-icon">{{ option.icon || '💳' }}</span>
+								<span class="ft-label">{{ option.label }}</span>
+							</button>
+						}
+					</div>
+				</div>
+
+				<div class="filters-actions">
+					<button class="btn btn-ghost" type="button" (click)="clearFilters()">Limpiar</button>
+					<button class="btn btn-save" type="button" (click)="applyFilters()">Aplicar</button>
+				</div>
+			</article>
+		</div>
 	}
 
 	<app-confirm-modal
@@ -99,7 +191,6 @@
 		title="Eliminar gasto"
 		[message]="pendingDelete ? '¿Eliminar ' + pendingDelete.description + '?' : ''"
 		confirmLabel="Eliminar"
-		cancelLabel="Cancelar"
 		[danger]="true"
 		(confirm)="confirmDelete()"
 		(cancel)="cancelDelete()" />
@@ -108,7 +199,10 @@
 		[isOpen]="selectorOpen"
 		[title]="selectorTitle"
 		[options]="selectorOptions"
+		[optionItems]="selectorItems"
+		[mode]="selectorMode"
 		[selectedValue]="selectorValue"
+		closeVariant="icon"
 		(choose)="selectOption($event)"
 		(close)="closeSelector()" />
 </section>

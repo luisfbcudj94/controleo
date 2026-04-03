@@ -1,10 +1,8 @@
 <section class="settings-grid">
 	<article class="card catalog-card">
-		<h2 class="section-title">Secciones de gasto</h2>
-
-		<div class="add-row">
-			<input type="text" placeholder="Nueva sección" [(ngModel)]="newMovementType" [disabled]="isLoading || isSaving" />
-			<button class="btn btn-save" type="button" (click)="addMovementType()" [disabled]="isLoading || isSaving">Agregar</button>
+		<div class="catalog-header">
+			<h2 class="section-title">Secciones de gasto</h2>
+			<button class="btn btn-save add-catalog-btn" type="button" (click)="openCreateMovementType()" [disabled]="isLoading || isSaving">Agregar sección</button>
 		</div>
 
 		@if (!movementTypes.length) {
@@ -12,30 +10,25 @@
 		} @else {
 			<div class="item-list">
 				@for (item of movementTypes; track item) {
-					<button
-						type="button"
-						class="item-row"
-						[class.active]="selectedMovementType === item"
-						(click)="selectMovementType(item)">
-						{{ item }}
-					</button>
+					<div class="item-row movement-row">
+						<div class="item-main">
+							<div class="movement-icon" [style.background]="movementMeta(item).color">{{ movementMeta(item).icon }}</div>
+							<div class="item-name">{{ item }}</div>
+						</div>
+						<div class="item-actions">
+							<button class="item-action edit" type="button" (click)="openEditMovementType(item)" [disabled]="isSaving">✏️</button>
+							<button class="item-action delete" type="button" (click)="openDeleteMovementType(item)" [disabled]="isSaving">🗑️</button>
+						</div>
+					</div>
 				}
 			</div>
 		}
-
-		<p class="muted">{{ selectedMovementType ? 'Seleccionada: ' + selectedMovementType : 'Sin sección seleccionada' }}</p>
-		<div class="row-actions">
-			<button class="btn btn-edit" type="button" (click)="openEditMovementType()" [disabled]="!selectedMovementType || isSaving">Editar</button>
-			<button class="btn btn-delete" type="button" (click)="openDeleteMovementType()" [disabled]="!selectedMovementType || isSaving">Eliminar</button>
-		</div>
 	</article>
 
 	<article class="card catalog-card">
-		<h2 class="section-title">Medios de pago</h2>
-
-		<div class="add-row">
-			<input type="text" placeholder="Nuevo medio de pago" [(ngModel)]="newPaymentMethod" [disabled]="isLoading || isSaving" />
-			<button class="btn btn-save" type="button" (click)="addPaymentMethod()" [disabled]="isLoading || isSaving">Agregar</button>
+		<div class="catalog-header">
+			<h2 class="section-title">Medios de pago</h2>
+			<button class="btn btn-save add-catalog-btn" type="button" (click)="openCreatePaymentMethod()" [disabled]="isLoading || isSaving">Agregar medio</button>
 		</div>
 
 		@if (!paymentMethods.length) {
@@ -43,26 +36,79 @@
 		} @else {
 			<div class="item-list">
 				@for (item of paymentMethods; track item) {
-					<button
-						type="button"
-						class="item-row"
-						[class.active]="selectedPaymentMethod === item"
-						(click)="selectPaymentMethod(item)">
-						{{ item }}
-					</button>
+					<div class="item-row">
+						<div class="item-main">
+							<div class="payment-icon">{{ paymentIcon(item) }}</div>
+							<div class="item-name">{{ item }}</div>
+						</div>
+						<div class="item-actions">
+							<button class="item-action edit" type="button" (click)="openEditPaymentMethod(item)" [disabled]="isSaving">✏️</button>
+							<button class="item-action delete" type="button" (click)="openDeletePaymentMethod(item)" [disabled]="isSaving">🗑️</button>
+						</div>
+					</div>
 				}
 			</div>
 		}
-
-		<p class="muted">{{ selectedPaymentMethod ? 'Seleccionado: ' + selectedPaymentMethod : 'Sin medio seleccionado' }}</p>
-		<div class="row-actions">
-			<button class="btn btn-edit" type="button" (click)="openEditPaymentMethod()" [disabled]="!selectedPaymentMethod || isSaving">Editar</button>
-			<button class="btn btn-delete" type="button" (click)="openDeletePaymentMethod()" [disabled]="!selectedPaymentMethod || isSaving">Eliminar</button>
-		</div>
 	</article>
 
-	@if (statusMessage) {
-		<p class="muted">{{ statusMessage }}</p>
+	@if (createOpen && createTarget) {
+		<div class="edit-overlay">
+			<article class="edit-modal card">
+				<h3>{{ createTarget === 'movement' ? 'Agregar sección de gasto' : 'Agregar medio de pago' }}</h3>
+
+				@if (createTarget === 'movement') {
+					<div class="field">
+						<label>Nombre de la sección</label>
+						<input type="text" placeholder="Ej: Mascotas" [(ngModel)]="newMovementType" [disabled]="isSaving" />
+					</div>
+
+					<div class="edit-options-stack">
+						<div class="field compact-field">
+							<label>Icono</label>
+							<button class="icon-picker" type="button" (click)="openMovementIconSelector('newMovement')" [disabled]="isSaving">{{ newMovementIcon }}</button>
+						</div>
+						<div class="field compact-field">
+							<label>Color</label>
+							<div class="color-chip-row modal-colors">
+								@for (color of movementColorOptions; track color.hex) {
+									<button
+										class="color-chip"
+										[class.selected]="isMovementColorSelected(color.hex, 'new')"
+										type="button"
+										[style.background]="color.hex"
+										[title]="color.label"
+										(click)="selectMovementColor(color.hex, 'new')"
+										[disabled]="isSaving">
+										@if (isMovementColorSelected(color.hex, 'new')) {
+											<span>✓</span>
+										}
+									</button>
+								}
+							</div>
+						</div>
+					</div>
+				}
+
+				@if (createTarget === 'payment') {
+					<div class="field">
+						<label>Nombre del medio de pago</label>
+						<input type="text" placeholder="Ej: Daviplata" [(ngModel)]="newPaymentMethod" [disabled]="isSaving" />
+					</div>
+
+					<div class="field compact-field">
+						<label>Icono</label>
+						<button class="icon-picker" type="button" (click)="openPaymentIconSelector('newPayment')" [disabled]="isSaving">{{ newPaymentIcon }}</button>
+					</div>
+				}
+
+				<div class="row-actions">
+					<button class="btn btn-close" type="button" (click)="closeCreate()" [disabled]="isSaving">Cancelar</button>
+					<button class="btn btn-save" type="button" (click)="confirmCreate()" [disabled]="isSaving || !canConfirmCreate">
+						{{ createTarget === 'movement' ? 'Crear sección' : 'Crear medio de pago' }}
+					</button>
+				</div>
+			</article>
+		</div>
 	}
 
 	@if (editOpen) {
@@ -73,6 +119,39 @@
 					<label>Nuevo nombre</label>
 					<input type="text" [(ngModel)]="editValue" />
 				</div>
+
+				@if (editTarget === 'movement') {
+					<div class="edit-options-stack">
+						<div class="field compact-field">
+							<label>Icono</label>
+							<button class="icon-picker" type="button" (click)="openMovementIconSelector('editMovement')">{{ editMovementIcon }}</button>
+						</div>
+						<div class="field compact-field">
+							<label>Color</label>
+							<div class="color-chip-row modal-colors">
+								@for (color of movementColorOptions; track color.hex) {
+									<button
+										class="color-chip"
+										[class.selected]="isMovementColorSelected(color.hex, 'edit')"
+										type="button"
+										[style.background]="color.hex"
+										[title]="color.label"
+										(click)="selectMovementColor(color.hex, 'edit')">
+										@if (isMovementColorSelected(color.hex, 'edit')) {
+											<span>✓</span>
+										}
+									</button>
+								}
+							</div>
+						</div>
+					</div>
+				} @else if (editTarget === 'payment') {
+					<div class="field compact-field">
+						<label>Icono</label>
+						<button class="icon-picker" type="button" (click)="openPaymentIconSelector('editPayment')">{{ editPaymentIcon }}</button>
+					</div>
+				}
+
 				<div class="row-actions">
 					<button class="btn btn-close" type="button" (click)="closeEdit()">Cerrar</button>
 					<button class="btn btn-save" type="button" (click)="confirmEdit()" [disabled]="isSaving || !editValue.trim()">Guardar</button>
@@ -86,8 +165,17 @@
 		title="Eliminar elemento"
 		[message]="deleteMessage"
 		confirmLabel="Eliminar"
-		cancelLabel="Cancelar"
 		[danger]="true"
 		(confirm)="confirmDelete()"
 		(cancel)="cancelDelete()" />
+
+	<app-selector-modal
+		[isOpen]="iconSelectorOpen"
+		title="Selecciona icono"
+		[optionItems]="iconSelectorItems"
+		[selectedValue]="iconSelectorSelectedValue"
+		mode="tiles"
+		closeVariant="icon"
+		(choose)="selectIcon($event)"
+		(close)="closeIconSelector()" />
 </section>

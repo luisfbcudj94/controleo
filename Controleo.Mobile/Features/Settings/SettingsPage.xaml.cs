@@ -17,6 +17,8 @@ public enum SettingsSectionMode
 
 public partial class SettingsPage : ContentPage
 {
+    private const double DefaultDualSectionListHeight = 240;
+
     private readonly IExpenseApiClient _apiClient;
     private readonly IAuthService _authService;
     private readonly ICatalogColorService _colorService;
@@ -26,6 +28,7 @@ public partial class SettingsPage : ContentPage
     private readonly ObservableCollection<string> _movementTypes = [];
     private readonly ObservableCollection<string> _paymentMethods = [];
     private readonly List<MovementTypeConfig> _configs = [];
+    private readonly List<PaymentMethodConfig> _paymentConfigs = [];
     private bool _isEditingMovement;
     private bool _editingMovementWillPickIconColor;
     private string? _editingOriginalValue;
@@ -50,12 +53,12 @@ public partial class SettingsPage : ContentPage
         bool showSessionActions = false)
     {
         InitializeComponent();
-        Resources.Add("MovementIconConverter", new MovementIconConverter());
-        Resources.Add("PaymentIconConverter", new PaymentIconConverter());
         _apiClient = apiClient;
         _authService = authService;
         _colorService = colorService;
         _paymentIconService = paymentIconService;
+        Resources.Add("MovementIconConverter", new MovementIconConverter(_colorService));
+        Resources.Add("PaymentIconConverter", new PaymentIconConverter(_paymentIconService));
         _sectionMode = sectionMode;
         _showSessionActions = showSessionActions;
         MovementCollection.ItemsSource = _movementTypes;
@@ -68,7 +71,14 @@ public partial class SettingsPage : ContentPage
     protected override async void OnAppearing()
     {
         base.OnAppearing();
+        ApplyCollectionHeights();
         await LoadDataAsync();
+    }
+
+    protected override void OnSizeAllocated(double width, double height)
+    {
+        base.OnSizeAllocated(width, height);
+        ApplyCollectionHeights();
     }
 
     private async Task LoadDataAsync()
@@ -80,9 +90,30 @@ public partial class SettingsPage : ContentPage
         {
             var catalog = await _apiClient.GetCatalogsAsync(CancellationToken.None);
             _configs.Clear();
-            if (catalog.MovementTypeConfigs is not null)
-                _configs.AddRange(catalog.MovementTypeConfigs);
+
+            _colorService.SetConfigs(catalog.MovementTypeConfigs);
+            foreach (var movementType in catalog.MovementTypes)
+            {
+                var existing = catalog.MovementTypeConfigs
+                    ?.FirstOrDefault(cfg => string.Equals(cfg.Name, movementType, StringComparison.OrdinalIgnoreCase));
+
+                var resolvedColor = !string.IsNullOrWhiteSpace(existing?.Color)
+                    ? existing.Color.Trim()
+                    : _colorService.HexForMovementType(movementType);
+
+                _configs.Add(new MovementTypeConfig(
+                    movementType,
+                    _colorService.IconForMovementType(movementType),
+                    resolvedColor));
+            }
+
             _colorService.SetConfigs(_configs);
+
+            _paymentConfigs.Clear();
+            if (catalog.PaymentMethodConfigs is not null)
+            {
+                _paymentConfigs.AddRange(catalog.PaymentMethodConfigs);
+            }
 
             _movementTypes.Clear();
             foreach (var item in catalog.MovementTypes)
@@ -90,7 +121,22 @@ public partial class SettingsPage : ContentPage
 
             _paymentMethods.Clear();
             foreach (var item in catalog.PaymentMethods)
+            {
                 _paymentMethods.Add(item);
+
+                var configuredIcon = _paymentConfigs
+                    .FirstOrDefault(cfg => string.Equals(cfg.Name, item, StringComparison.OrdinalIgnoreCase))
+                    ?.Icon;
+
+                if (!string.IsNullOrWhiteSpace(configuredIcon))
+                {
+                    _paymentIconService.SetIconForPaymentMethod(item, configuredIcon);
+                }
+
+                UpsertPaymentConfig(item, _paymentIconService.IconForPaymentMethod(item));
+            }
+
+            _paymentConfigs.RemoveAll(cfg => !_paymentMethods.Any(item => string.Equals(item, cfg.Name, StringComparison.OrdinalIgnoreCase)));
         }
         finally
         {
@@ -107,26 +153,68 @@ public partial class SettingsPage : ContentPage
             case SettingsSectionMode.MovementOnly:
                 Title = "Tipos de gasto";
                 PageTitleLabel.Text = "Tipos de gasto";
+                PageHeaderRow.IsVisible = true;
                 MovementSectionCard.IsVisible = true;
                 PaymentSectionCard.IsVisible = false;
+                MovementInlineAddButton.IsVisible = false;
+                PaymentInlineAddButton.IsVisible = false;
+                MovementAddCtaButton.IsVisible = true;
+                PaymentAddCtaButton.IsVisible = false;
                 break;
 
             case SettingsSectionMode.PaymentOnly:
                 Title = "Medios de pago";
                 PageTitleLabel.Text = "Medios de pago";
+                PageHeaderRow.IsVisible = true;
                 MovementSectionCard.IsVisible = false;
                 PaymentSectionCard.IsVisible = true;
+                MovementInlineAddButton.IsVisible = false;
+                PaymentInlineAddButton.IsVisible = false;
+                MovementAddCtaButton.IsVisible = false;
+                PaymentAddCtaButton.IsVisible = true;
                 break;
 
             default:
                 Title = "Configuración";
                 PageTitleLabel.Text = "Configuración";
+                PageHeaderRow.IsVisible = false;
                 MovementSectionCard.IsVisible = true;
                 PaymentSectionCard.IsVisible = true;
+                MovementInlineAddButton.IsVisible = true;
+                PaymentInlineAddButton.IsVisible = true;
+                MovementAddCtaButton.IsVisible = false;
+                PaymentAddCtaButton.IsVisible = false;
                 break;
         }
 
         SessionSectionCard.IsVisible = _showSessionActions;
+        ApplyCollectionHeights();
+    }
+
+    private void ApplyCollectionHeights()
+    {
+        if (Height <= 0)
+        {
+            return;
+        }
+
+        switch (_sectionMode)
+        {
+            case SettingsSectionMode.MovementOnly:
+                MovementCollection.HeightRequest = Math.Max(280, Height - 230);
+                PaymentCollection.HeightRequest = -1;
+                break;
+
+            case SettingsSectionMode.PaymentOnly:
+                PaymentCollection.HeightRequest = Math.Max(280, Height - 230);
+                MovementCollection.HeightRequest = -1;
+                break;
+
+            default:
+                MovementCollection.HeightRequest = DefaultDualSectionListHeight;
+                PaymentCollection.HeightRequest = DefaultDualSectionListHeight;
+                break;
+        }
     }
 
     // ── Add flows via modal ──
@@ -216,6 +304,7 @@ public partial class SettingsPage : ContentPage
 
             _paymentMethods.Add(name);
             _paymentIconService.SetIconForPaymentMethod(name, _addSelectedPaymentIcon);
+            UpsertPaymentConfig(name, _addSelectedPaymentIcon);
             await SaveCatalogsAsync();
         }
     }
@@ -231,9 +320,9 @@ public partial class SettingsPage : ContentPage
         EditModalTitleLabel.Text = "Editar sección";
         EditModalEntry.Text = value;
 
-        // Find current icon or default
+        // Resolve icon/color through the shared service to avoid stale invalid icons.
         var cfg = _configs.FirstOrDefault(c => string.Equals(c.Name, value, StringComparison.OrdinalIgnoreCase));
-        _editSelectedIcon = cfg?.Icon ?? _colorService.IconForMovementType(value);
+        _editSelectedIcon = _colorService.IconForMovementType(value);
         _editSelectedColor = cfg?.Color;
         EditIconSection.IsVisible = true;
         EditColorLabel.IsVisible = true;
@@ -250,6 +339,16 @@ public partial class SettingsPage : ContentPage
         if (e.Parameter is not string value) return;
         _isEditingMovement = false;
         _editingMovementWillPickIconColor = false;
+
+        var configuredIcon = _paymentConfigs
+            .FirstOrDefault(cfg => string.Equals(cfg.Name, value, StringComparison.OrdinalIgnoreCase))
+            ?.Icon;
+
+        if (!string.IsNullOrWhiteSpace(configuredIcon))
+        {
+            _paymentIconService.SetIconForPaymentMethod(value, configuredIcon);
+        }
+
         _editSelectedPaymentIcon = _paymentIconService.IconForPaymentMethod(value);
         _editingOriginalValue = value;
         EditModalTitleLabel.Text = "Editar medio de pago";
@@ -266,9 +365,16 @@ public partial class SettingsPage : ContentPage
         if (e.Parameter is not string value) return;
 
         // Check how many expenses exist for this movement type
+        int count;
         SetLoading(true);
-        var count = await _apiClient.CountExpensesByMovementTypeAsync(value, CancellationToken.None);
-        SetLoading(false);
+        try
+        {
+            count = await _apiClient.CountExpensesByMovementTypeAsync(value, CancellationToken.None);
+        }
+        finally
+        {
+            SetLoading(false);
+        }
 
         string confirmMessage;
         if (count > 0)
@@ -285,15 +391,22 @@ public partial class SettingsPage : ContentPage
         var confirmed = await StyledConfirmModalPage.ConfirmAsync(this, "Eliminar sección", confirmMessage);
         if (!confirmed) return;
 
-        SetLoading(true);
-
         // Cascade delete all data for this movement type on the server
         if (count > 0)
         {
-            var deleteResult = await _apiClient.DeleteAllByMovementTypeAsync(value, CancellationToken.None);
-            if (!deleteResult.IsSuccess)
+            SetLoading(true);
+            OperationResult deleteResult;
+            try
+            {
+                deleteResult = await _apiClient.DeleteAllByMovementTypeAsync(value, CancellationToken.None);
+            }
+            finally
             {
                 SetLoading(false);
+            }
+
+            if (!deleteResult.IsSuccess)
+            {
                 await StyledResultModalPage.ShowAsync(this, false, "Error", deleteResult.Message);
                 return;
             }
@@ -303,7 +416,6 @@ public partial class SettingsPage : ContentPage
         _movementTypes.Remove(value);
         _configs.RemoveAll(c => string.Equals(c.Name, value, StringComparison.OrdinalIgnoreCase));
         await SaveCatalogsAsync();
-        SetLoading(false);
         await StyledResultModalPage.ShowAsync(this, true, "Eliminado",
             count > 0 ? $"Se eliminó '{value}' y {count} gasto(s) asociados." : $"Sección '{value}' eliminada.");
     }
@@ -315,6 +427,7 @@ public partial class SettingsPage : ContentPage
         if (!confirmed) return;
         _paymentMethods.Remove(value);
         _paymentIconService.RemovePaymentMethod(value);
+        _paymentConfigs.RemoveAll(cfg => string.Equals(cfg.Name, value, StringComparison.OrdinalIgnoreCase));
         await SaveCatalogsAsync();
     }
 
@@ -386,9 +499,11 @@ public partial class SettingsPage : ContentPage
             if (!string.IsNullOrWhiteSpace(originalPaymentName))
             {
                 _paymentIconService.RenamePaymentMethod(originalPaymentName, edited);
+                _paymentConfigs.RemoveAll(cfg => string.Equals(cfg.Name, originalPaymentName, StringComparison.OrdinalIgnoreCase));
             }
 
             _paymentIconService.SetIconForPaymentMethod(edited, _editSelectedPaymentIcon);
+            UpsertPaymentConfig(edited, _editSelectedPaymentIcon);
         }
 
         EditOverlay.IsVisible = false;
@@ -547,11 +662,28 @@ public partial class SettingsPage : ContentPage
         }
 
         SetLoading(true);
-        var request = new UpdateCatalogsRequest(_movementTypes.ToList(), _paymentMethods.ToList(), _configs.ToList());
-        var result = await _apiClient.UpdateCatalogsAsync(request, CancellationToken.None);
-        await StyledResultModalPage.ShowAsync(this, result.IsSuccess,
-            result.IsSuccess ? "Guardado" : "Error", result.IsSuccess ? "Catálogos actualizados." : result.Message);
-        SetLoading(false);
+        try
+        {
+            _paymentConfigs.RemoveAll(cfg => !_paymentMethods.Any(item => string.Equals(item, cfg.Name, StringComparison.OrdinalIgnoreCase)));
+            foreach (var paymentMethod in _paymentMethods)
+            {
+                if (_paymentConfigs.Any(cfg => string.Equals(cfg.Name, paymentMethod, StringComparison.OrdinalIgnoreCase)))
+                {
+                    continue;
+                }
+
+                UpsertPaymentConfig(paymentMethod, _paymentIconService.IconForPaymentMethod(paymentMethod));
+            }
+
+            var request = new UpdateCatalogsRequest(_movementTypes.ToList(), _paymentMethods.ToList(), _configs.ToList(), _paymentConfigs.ToList());
+            var result = await _apiClient.UpdateCatalogsAsync(request, CancellationToken.None);
+            await StyledResultModalPage.ShowAsync(this, result.IsSuccess,
+                result.IsSuccess ? "Guardado" : "Error", result.IsSuccess ? "Catálogos actualizados." : result.Message);
+        }
+        finally
+        {
+            SetLoading(false);
+        }
     }
 
     private static void ReplaceItem(ObservableCollection<string> source, string oldValue, string newValue)
@@ -560,16 +692,49 @@ public partial class SettingsPage : ContentPage
         if (index >= 0) source[index] = newValue;
     }
 
+    private void UpsertPaymentConfig(string paymentMethod, string icon)
+    {
+        if (string.IsNullOrWhiteSpace(paymentMethod) || string.IsNullOrWhiteSpace(icon))
+        {
+            return;
+        }
+
+        _paymentConfigs.RemoveAll(cfg => string.Equals(cfg.Name, paymentMethod, StringComparison.OrdinalIgnoreCase));
+        _paymentConfigs.Add(new PaymentMethodConfig(paymentMethod.Trim(), icon.Trim()));
+    }
+
     private async void OnRefreshing(object? sender, EventArgs e) => await LoadDataAsync();
 
     private async void OnLogoutClicked(object? sender, EventArgs e)
     {
-        await _authService.SignOutAsync();
-        if (Application.Current?.Windows.FirstOrDefault() is { } window)
+        SetLoading(true);
+        try
         {
-            var loginPage = new LoginPage(_authService);
-            NavigationPage.SetHasNavigationBar(loginPage, false);
-            window.Page = new NavigationPage(loginPage);
+            await _authService.SignOutAsync();
+            if (Application.Current?.Windows.FirstOrDefault() is { } window)
+            {
+                var loginPage = new LoginPage(_authService);
+                NavigationPage.SetHasNavigationBar(loginPage, false);
+                window.Page = new NavigationPage(loginPage);
+            }
+        }
+        finally
+        {
+            SetLoading(false);
+        }
+    }
+
+    private async void OnClosePageClicked(object? sender, EventArgs e)
+    {
+        if (Navigation.ModalStack.Count > 0)
+        {
+            await Navigation.PopModalAsync();
+            return;
+        }
+
+        if (Navigation.NavigationStack.Count > 1)
+        {
+            await Navigation.PopAsync();
         }
     }
 
@@ -577,12 +742,17 @@ public partial class SettingsPage : ContentPage
 
     private sealed class MovementIconConverter : IValueConverter
     {
+        private readonly ICatalogColorService _colorService;
+
+        public MovementIconConverter(ICatalogColorService colorService)
+        {
+            _colorService = colorService;
+        }
+
         public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
         {
             if (value is string name && !string.IsNullOrWhiteSpace(name))
-                return PastelColorHelper.StaticAvailableIcons
-                    .FirstOrDefault(i => string.Equals(i.Label, name, StringComparison.OrdinalIgnoreCase)).Emoji
-                    + " " + name;
+                return _colorService.IconForMovementType(name) + " " + name;
             return value?.ToString() ?? "";
         }
         public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture) => throw new NotSupportedException();
@@ -590,12 +760,18 @@ public partial class SettingsPage : ContentPage
 
     private sealed class PaymentIconConverter : IValueConverter
     {
+        private readonly IPaymentIconService _paymentIconService;
+
+        public PaymentIconConverter(IPaymentIconService paymentIconService)
+        {
+            _paymentIconService = paymentIconService;
+        }
+
         public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
         {
             if (value is string name && !string.IsNullOrWhiteSpace(name))
             {
-                var svc = new PaymentIconService();
-                var emoji = svc.IconForPaymentMethod(name);
+                var emoji = _paymentIconService.IconForPaymentMethod(name);
                 return emoji + " " + name;
             }
             return value?.ToString() ?? "";

@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700;800&display=swap');
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -38,22 +38,27 @@
 
   --r: 16px;
   --rs: 12px;
+  --rm: 20px;
   --rx: 18px;
   --sidebar: 220px;
+  --ok: #40916C;
 }
 
 html, body { min-height: 100%; }
 
 body {
   margin: 0;
-  font-family: 'DM Sans', sans-serif;
+  font-family: 'Open Sans', sans-serif;
   background: var(--bg);
   color: var(--text);
-  font-size: 14px;
+  font-size: 15px;
   line-height: 1.5;
 }
 
-button, select, input, textarea { font: inherit; }
+button, select, input, textarea {
+  font: inherit;
+  font-family: inherit;
+}
 
 .card {
   background: var(--s1);
@@ -65,7 +70,7 @@ button, select, input, textarea { font: inherit; }
 
 .section-title {
   margin: 0 0 0.75rem;
-  font-family: 'Syne', sans-serif;
+  font-family: 'Open Sans', sans-serif;
   font-size: 0.95rem;
   font-weight: 700;
   color: var(--text);
@@ -88,6 +93,7 @@ button, select, input, textarea { font: inherit; }
     background: var(--s2);
     border: 1px solid var(--b1);
     border-radius: var(--rs);
+    min-height: 44px;
     padding: 0.68rem 0.78rem;
     outline: none;
     &:focus { border-color: var(--tertiary); }
@@ -106,6 +112,8 @@ input[type='date'] {
 .btn {
   border: none;
   border-radius: var(--rs);
+  min-height: 44px;
+  min-width: 44px;
   padding: 0.64rem 0.85rem;
   cursor: pointer;
   font-weight: 600;
@@ -116,14 +124,12 @@ input[type='date'] {
 .btn-primary {
   background: var(--primary);
   color: var(--primary-text);
-  font-family: 'Syne', sans-serif;
   font-weight: 700;
 }
 
 .btn-save {
   background: var(--primary);
   color: var(--primary-text);
-  font-family: 'Syne', sans-serif;
   font-weight: 700;
 }
 

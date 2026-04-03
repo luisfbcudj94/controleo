@@ -1,119 +1,325 @@
 <section class="dashboard-grid">
 	<article class="month-banner card">
-		<button class="btn btn-ghost" type="button" (click)="previousMonth()">◀</button>
+		<button class="btn month-nav" type="button" (click)="previousMonth()" [disabled]="!canGoPreviousMonth" [class.inactive]="!canGoPreviousMonth">◀</button>
 		<strong>{{ monthLabelText }}</strong>
-		<button class="btn btn-ghost" type="button" (click)="nextMonth()">▶</button>
+		<button class="btn month-nav" type="button" (click)="nextMonth()" [disabled]="!canGoNextMonth" [class.inactive]="!canGoNextMonth">▶</button>
 	</article>
-
-	<div class="dash-grid">
-		<article class="kpi-card">
-			<div class="kpi-header">
-				<div class="kpi-icon" style="background: var(--ac2)">💰</div>
-			</div>
-			<div class="kpi-val" style="color: var(--accent)">${{ totalBudget | number:'1.0-0' }}</div>
-			<div class="kpi-lbl">Presupuesto total</div>
-		</article>
-
-		<article class="kpi-card">
-			<div class="kpi-header">
-				<div class="kpi-icon" style="background: var(--dan2)">📤</div>
-			</div>
-			<div class="kpi-val" style="color: var(--danger)">${{ totalSpentFromBudget | number:'1.0-0' }}</div>
-			<div class="kpi-lbl">Presupuesto gastado</div>
-		</article>
-
-		<article class="kpi-card">
-			<div class="kpi-header">
-				<div class="kpi-icon" style="background: var(--tea2)">🏦</div>
-			</div>
-			<div class="kpi-val" [style.color]="available >= 0 ? 'var(--teal)' : 'var(--danger)'">${{ available | number:'1.0-0' }}</div>
-			<div class="kpi-lbl">Disponible</div>
-		</article>
-
-		<article class="kpi-card">
-			<div class="kpi-header">
-				<div class="kpi-icon" style="background: var(--amb2)">⚠️</div>
-			</div>
-			<div class="kpi-val" style="color: var(--amber)">${{ totalSpentWithExtras | number:'1.0-0' }}</div>
-			<div class="kpi-lbl">Total gastado</div>
-		</article>
-	</div>
 
 	@if (loading) {
 		<article class="card"><p class="muted">Cargando dashboard...</p></article>
-	} @else if (!rows.length) {
+	} @else if (!categoryRows.length && !paymentRows.length) {
 		<article class="card"><p class="muted">Sin datos para este mes.</p></article>
 	} @else {
-		<div class="dash-bottom">
-			<article class="donut-card">
-				<div class="donut-wrap">
-					<svg class="donut-svg" viewBox="0 0 130 130">
-						<circle class="donut-track" cx="65" cy="65" r="56" />
-						<circle
-							class="donut-fill"
-							cx="65"
-							cy="65"
-							r="56"
-							[attr.stroke-dasharray]="donutCircumference"
-							[attr.stroke-dashoffset]="donutOffset" />
-					</svg>
-					<div class="donut-center">
-						<div class="donut-pct">{{ usagePercent | number:'1.0-0' }}%</div>
-						<div class="donut-lbl">USADO</div>
+		<div class="mobile-dashboard-layout">
+			<article class="mobile-overview-card">
+				<div class="mode-switch mobile-mode-switch">
+					<button class="mode-btn" type="button" [class.active]="mode === 'category'" (click)="setMode('category')">Categorías</button>
+					<button class="mode-btn" type="button" [class.active]="mode === 'payment'" (click)="setMode('payment')">Medios de pago</button>
+				</div>
+
+				<div class="mobile-donut-grid">
+					<div class="mobile-donut-block">
+						<div class="donut-wrap mobile-donut-wrap">
+							<svg class="donut-svg mobile-donut-svg" viewBox="0 0 130 130">
+								<circle class="donut-track" cx="65" cy="65" r="56" />
+								<circle
+									class="donut-fill"
+									cx="65"
+									cy="65"
+									r="56"
+									[attr.stroke-dasharray]="donutCircumference"
+									[attr.stroke-dashoffset]="donutOffset" />
+							</svg>
+							<div class="donut-center">
+								<div class="donut-pct">{{ usagePercent | number:'1.0-0' }}%</div>
+								<div class="donut-lbl">USADO</div>
+							</div>
+						</div>
+						<div class="mobile-donut-caption">PRESUPUESTO</div>
+						<div class="mobile-donut-value">${{ totalSpentFromBudget | number:'1.0-0' }} / ${{ totalBudget | number:'1.0-0' }}</div>
+					</div>
+
+					<div class="mobile-donut-block">
+						<div class="donut-wrap mobile-donut-wrap">
+							<div class="dist-donut mobile-dist-donut" [style.background]="distributionGradient">
+								<div
+									class="dist-center mobile-dist-center distribution-eye-trigger"
+									role="button"
+									tabindex="0"
+									(click)="openDistributionBreakdown()"
+									(keydown.enter)="openDistributionBreakdown()"
+									(keydown.space)="$event.preventDefault(); openDistributionBreakdown()">
+									<div class="mobile-center-icon">👁</div>
+								</div>
+							</div>
+						</div>
+						<div class="mobile-donut-caption">DISTRIBUCIÓN</div>
+						<div class="mobile-donut-value">{{ distributionSummaryText }}</div>
 					</div>
 				</div>
 
-				<div class="donut-stats">
-					<div class="ds-row">
-						<div class="ds-left">
-							<div class="ds-dot" style="background: var(--accent)"></div>
-							<div class="ds-name">Presupuesto total</div>
-						</div>
-						<div class="ds-val" style="color: var(--accent)">${{ totalBudget | number:'1.0-0' }}</div>
-					</div>
-					<div class="ds-row">
-						<div class="ds-left">
-							<div class="ds-dot" style="background: var(--danger)"></div>
-							<div class="ds-name">Presupuesto gastado</div>
-						</div>
-						<div class="ds-val" style="color: var(--danger)">${{ totalSpentFromBudget | number:'1.0-0' }}</div>
-					</div>
-					<div class="ds-row">
-						<div class="ds-left">
-							<div class="ds-dot" style="background: var(--teal)"></div>
-							<div class="ds-name">Disponible</div>
-						</div>
-						<div class="ds-val" [style.color]="available >= 0 ? 'var(--teal)' : 'var(--danger)'">${{ available | number:'1.0-0' }}</div>
-					</div>
+				<div class="mobile-mini-kpis">
+					<article class="mobile-mini-card">
+						<div class="mk-label">Disponible</div>
+						<div class="mk-value" [style.color]="available >= 0 ? 'var(--teal)' : 'var(--danger)'">${{ available | number:'1.0-0' }}</div>
+					</article>
+					<article class="mobile-mini-card">
+						<div class="mk-label">Presupuesto</div>
+						<div class="mk-value" style="color: var(--text)">${{ totalBudget | number:'1.0-0' }}</div>
+					</article>
+					<article class="mobile-mini-card">
+						<div class="mk-label">Gastado</div>
+						<div class="mk-value" style="color: var(--danger)">${{ totalSpentFromBudget | number:'1.0-0' }}</div>
+					</article>
 				</div>
 			</article>
 
-			<article class="cat-table-card">
-				<div class="ctc-header">
-					<div class="ctc-title">Por categoría</div>
-				</div>
+			<article class="mobile-list-card">
+				<div class="mobile-list-title">{{ mode === 'category' ? 'CATEGORÍAS' : 'MEDIOS DE PAGO' }}</div>
+				@if (!mobileListRows.length) {
+					<p class="muted">Sin movimientos para este mes.</p>
+				} @else {
+					<div class="mobile-list">
+						@for (row of mobileListRows; track row.key) {
+							<button class="mobile-row" type="button" (click)="openDetail(row.detail)" [style.background]="row.bg">
+								<div class="mobile-row-top">
+									<div class="mobile-row-main">
+										<div class="mobile-row-icon">{{ row.icon }}</div>
+										<div class="mobile-row-name">{{ row.label }}</div>
+									</div>
+									<div class="mobile-row-amount" [style.color]="row.color">${{ row.amount | number:'1.0-0' }}</div>
+								</div>
 
-				@for (row of topRows; track trackByMovementType($index, row)) {
-					<div class="cat-row">
-						<div class="cr-icon" [style.background]="bgAt($index)">{{ iconAt($index) }}</div>
-						<div class="cr-name">{{ row.movementType }}</div>
-						<div class="cr-bar">
-							<div class="cr-track"><div class="cr-fill" [style.width.%]="barWidth(row)" [style.background]="colorAt($index)"></div></div>
-							<div class="cr-pct">{{ barWidth(row) | number:'1.0-0' }}%</div>
-						</div>
-						<div>
-							<div class="cr-amount" [style.color]="colorAt($index)">${{ row.expenseTotal | number:'1.0-0' }}</div>
-							<div class="cr-bal" [class.bal-g]="row.balance >= 0" [class.bal-r]="row.balance < 0">
-								{{ row.balance >= 0 ? '+' : '' }}${{ row.balance | number:'1.0-0' }}
-							</div>
-						</div>
+								<div class="mobile-row-progress">
+									<div class="mobile-row-track">
+										<div class="mobile-row-fill" [style.width.%]="row.progress" [style.background]="row.color"></div>
+									</div>
+								</div>
+
+								@if (mode === 'category') {
+									@if (row.budgetTotal !== null && row.balance !== null) {
+										<div class="mobile-row-sub">Presupuesto: ${{ row.budgetTotal | number:'1.0-0' }} · Saldo: ${{ row.balance | number:'1.0-0' }}</div>
+									} @else {
+										<div class="mobile-row-sub">Sin presupuesto asignado</div>
+									}
+								} @else {
+									<div class="mobile-row-sub">Toca para ver detalle</div>
+								}
+							</button>
+						}
 					</div>
 				}
 			</article>
+		</div>
+
+		<div class="desktop-dashboard-layout">
+			<div class="dash-grid">
+				<article class="kpi-card">
+					<div class="kpi-header">
+						<div class="kpi-icon" style="background: var(--ac2)">💰</div>
+					</div>
+					<div class="kpi-val" style="color: var(--accent)">${{ totalBudget | number:'1.0-0' }}</div>
+					<div class="kpi-lbl">Presupuesto total</div>
+				</article>
+
+				<article class="kpi-card">
+					<div class="kpi-header">
+						<div class="kpi-icon" style="background: var(--dan2)">📤</div>
+					</div>
+					<div class="kpi-val" style="color: var(--danger)">${{ totalSpentFromBudget | number:'1.0-0' }}</div>
+					<div class="kpi-lbl">Presupuesto gastado</div>
+				</article>
+
+				<article class="kpi-card">
+					<div class="kpi-header">
+						<div class="kpi-icon" style="background: var(--tea2)">🏦</div>
+					</div>
+					<div class="kpi-val" [style.color]="available >= 0 ? 'var(--teal)' : 'var(--danger)'">${{ available | number:'1.0-0' }}</div>
+					<div class="kpi-lbl">Disponible</div>
+				</article>
+
+				<article class="kpi-card">
+					<div class="kpi-header">
+						<div class="kpi-icon" style="background: var(--amb2)">⚠️</div>
+					</div>
+					<div class="kpi-val" style="color: var(--amber)">${{ totalSpentWithExtras | number:'1.0-0' }}</div>
+					<div class="kpi-lbl">Total gastado</div>
+				</article>
+			</div>
+
+			<div class="dash-bottom">
+				<article class="donut-card">
+					<div class="donut-wrap">
+						<svg class="donut-svg" viewBox="0 0 130 130">
+							<circle class="donut-track" cx="65" cy="65" r="56" />
+							<circle
+								class="donut-fill"
+								cx="65"
+								cy="65"
+								r="56"
+								[attr.stroke-dasharray]="donutCircumference"
+								[attr.stroke-dashoffset]="donutOffset" />
+						</svg>
+						<div class="donut-center">
+							<div class="donut-pct">{{ usagePercent | number:'1.0-0' }}%</div>
+							<div class="donut-lbl">USADO</div>
+						</div>
+					</div>
+
+					<div class="donut-stats">
+						<div class="ds-row">
+							<div class="ds-left">
+								<div class="ds-dot" style="background: var(--accent)"></div>
+								<div class="ds-name">Presupuesto total</div>
+							</div>
+							<div class="ds-val" style="color: var(--accent)">${{ totalBudget | number:'1.0-0' }}</div>
+						</div>
+						<div class="ds-row">
+							<div class="ds-left">
+								<div class="ds-dot" style="background: var(--danger)"></div>
+								<div class="ds-name">Presupuesto gastado</div>
+							</div>
+							<div class="ds-val" style="color: var(--danger)">${{ totalSpentFromBudget | number:'1.0-0' }}</div>
+						</div>
+						<div class="ds-row">
+							<div class="ds-left">
+								<div class="ds-dot" style="background: var(--teal)"></div>
+								<div class="ds-name">Disponible</div>
+							</div>
+							<div class="ds-val" [style.color]="available >= 0 ? 'var(--teal)' : 'var(--danger)'">${{ available | number:'1.0-0' }}</div>
+						</div>
+					</div>
+				</article>
+
+				<article class="donut-card distribution-card">
+					<div class="donut-wrap">
+						<div class="dist-donut" [style.background]="distributionGradient">
+							<div class="dist-center">
+								<div class="donut-pct">{{ distributionTotal > 0 ? '100%' : '0%' }}</div>
+								<div class="donut-lbl">{{ mode === 'category' ? 'CATEG.' : 'MEDIOS' }}</div>
+							</div>
+						</div>
+					</div>
+
+					<div class="donut-stats">
+						<div class="mode-switch">
+							<button class="mode-btn" type="button" [class.active]="mode === 'category'" (click)="setMode('category')">Categorías</button>
+							<button class="mode-btn" type="button" [class.active]="mode === 'payment'" (click)="setMode('payment')">Medios de pago</button>
+						</div>
+
+						<div class="dist-summary">{{ distributionSummaryText }}</div>
+
+						@for (row of topDistributionRows; track trackByDistribution($index, row)) {
+							<button class="dist-row" type="button" (click)="openDetail(row)">
+								<div class="dist-left">
+									<div class="dist-dot" [style.background]="row.color"></div>
+									<div class="dist-name">{{ row.label }}</div>
+								</div>
+								<div class="dist-val">{{ row.progress | number:'1.0-0' }}%</div>
+							</button>
+						}
+					</div>
+				</article>
+
+				<article class="cat-table-card">
+					<div class="ctc-header">
+						<div class="ctc-title">{{ modeTitle }}</div>
+						<div class="ctc-controls">
+							<label class="ctc-label" for="distribution-page-size">Mostrar</label>
+							<select id="distribution-page-size" class="ctc-size" [value]="distributionPageSize" (change)="onDistributionPageSizeChange($any($event.target).value)">
+								@for (size of allowedPageSizes; track size) {
+									<option [value]="size">{{ size }}</option>
+								}
+							</select>
+							<span class="ctc-status">{{ distributionPaginationText }}</span>
+							<button class="ctc-nav" type="button" [disabled]="!canGoDistributionPreviousPage" (click)="previousDistributionPage()">◀</button>
+							<button class="ctc-nav" type="button" [disabled]="!canGoDistributionNextPage" (click)="nextDistributionPage()">▶</button>
+						</div>
+					</div>
+
+					@for (row of topDistributionRows; track trackByDistribution($index, row)) {
+						<button class="cat-row" type="button" (click)="openDetail(row)">
+							<div class="cr-icon" [style.background]="row.bg">{{ row.icon }}</div>
+							<div class="cr-name">{{ row.label }}</div>
+							<div class="cr-bar">
+								<div class="cr-track"><div class="cr-fill" [style.width.%]="row.progress" [style.background]="row.color"></div></div>
+								<div class="cr-pct">{{ row.progress | number:'1.0-0' }}%</div>
+							</div>
+							<div>
+								<div class="cr-amount" [style.color]="row.color">${{ row.amount | number:'1.0-0' }}</div>
+								@if (row.balance !== null) {
+									<div class="cr-bal" [class.bal-g]="row.balance >= 0" [class.bal-r]="row.balance < 0">
+										{{ row.balance >= 0 ? '+' : '' }}${{ row.balance | number:'1.0-0' }}
+									</div>
+								} @else {
+									<div class="cr-bal muted">Detalle</div>
+								}
+							</div>
+						</button>
+					}
+				</article>
+			</div>
 		</div>
 	}
 
 	@if (message) {
 		<p class="muted">{{ message }}</p>
+	}
+
+	<app-selector-modal
+		[isOpen]="distributionBreakdownOpen"
+		[title]="distributionBreakdownTitle"
+		[options]="distributionBreakdownOptions"
+		selectedValue=""
+		emptyText="Aún no hay datos para mostrar distribución."
+		mode="list"
+		closeVariant="icon"
+		(choose)="closeDistributionBreakdown()"
+		(close)="closeDistributionBreakdown()" />
+
+	@if (detailOpen) {
+		<div class="detail-overlay" (click)="onDetailBackdropClick($event)">
+			<article class="detail-card">
+				<div class="detail-header">
+					<div>
+						<h3>{{ detailTitle }}</h3>
+						<p class="muted">{{ detailContextText }} · {{ monthLabelText }}</p>
+					</div>
+					<button class="icon-close" type="button" (click)="closeDetail()" aria-label="Cerrar">✕</button>
+				</div>
+
+				<div class="detail-total">{{ detailTotalCount }} gasto(s) · Total: ${{ detailTotal | number:'1.0-0' }}</div>
+
+				<div class="detail-pagination">
+					<label class="detail-label" for="detail-page-size">Mostrar</label>
+					<select id="detail-page-size" class="detail-size" [value]="detailPageSize" (change)="onDetailPageSizeChange($any($event.target).value)">
+						@for (size of allowedPageSizes; track size) {
+							<option [value]="size">{{ size }}</option>
+						}
+					</select>
+					<span class="detail-status">{{ detailPaginationText }}</span>
+					<button class="detail-nav" type="button" [disabled]="!detailHasPreviousPage" (click)="previousDetailPage()">◀</button>
+					<button class="detail-nav" type="button" [disabled]="!detailHasNextPage" (click)="nextDetailPage()">▶</button>
+				</div>
+
+				@if (detailLoading) {
+					<p class="muted">Cargando detalle...</p>
+				} @else if (!detailItems.length) {
+					<p class="muted">No hay gastos para este filtro.</p>
+				} @else {
+					<div class="detail-list">
+						@for (item of detailItems; track item.id) {
+							<div class="detail-row">
+								<div>
+									<div class="detail-name">{{ item.description }}</div>
+									<div class="detail-meta">{{ item.date | date:'mediumDate' }} · {{ item.paymentMethod }}</div>
+								</div>
+								<div class="detail-amount">${{ item.amount | number:'1.0-0' }}</div>
+							</div>
+						}
+					</div>
+				}
+			</article>
+		</div>
 	}
 </section>

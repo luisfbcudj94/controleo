@@ -1,6 +1,7 @@
-import { Component } from '@angular/core';
-import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { Component, HostListener } from '@angular/core';
+import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
+import { filter } from 'rxjs';
 
 @Component({
   selector: 'app-app-shell',
@@ -15,6 +16,12 @@ export class AppShellComponent {
     { path: '/registrar', icon: '➕', label: 'Registrar gasto' }
   ];
 
+  readonly mobileTabs = [
+    { path: '/registrar', icon: '🏠', label: 'Registro' },
+    { path: '/gastos', icon: '📋', label: 'Gastos' },
+    { path: '/dashboard', icon: '📊', label: 'Dashboard' }
+  ];
+
   readonly analysisNav = [
     { path: '/presupuestos', icon: '🎯', label: 'Presupuestos' },
     { path: '/recurrentes', icon: '🔁', label: 'Recurrentes' },
@@ -23,12 +30,19 @@ export class AppShellComponent {
 
   currentMonthDate = new Date();
   isGirlMode = false;
+  isSidebarOpen = false;
 
   constructor(
     private readonly router: Router,
     private readonly auth: AuthService
   ) {
     this.initializeTheme();
+
+    this.router.events
+      .pipe(filter((event): event is NavigationEnd => event instanceof NavigationEnd))
+      .subscribe(() => {
+        this.isSidebarOpen = false;
+      });
   }
 
   get userInitials(): string {
@@ -65,6 +79,25 @@ export class AppShellComponent {
 
   nextMonth(): void {
     this.currentMonthDate = new Date(this.currentMonthDate.getFullYear(), this.currentMonthDate.getMonth() + 1, 1);
+  }
+
+  toggleSidebar(): void {
+    this.isSidebarOpen = !this.isSidebarOpen;
+  }
+
+  closeSidebar(): void {
+    this.isSidebarOpen = false;
+  }
+
+  openMenuFromTab(): void {
+    this.isSidebarOpen = true;
+  }
+
+  @HostListener('window:resize')
+  onResize(): void {
+    if (window.innerWidth >= 1024 && this.isSidebarOpen) {
+      this.isSidebarOpen = false;
+    }
   }
 
   toggleTheme(): void {
