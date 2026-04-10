@@ -13,8 +13,15 @@ public sealed class ExpenseApiClient : IExpenseApiClient
 {
     private readonly HttpClient httpClient;
     private readonly IAuthService authService;
+    private readonly IConnectivityService connectivityService;
+    private readonly IOfflineDataStore offlineDataStore;
+    private readonly IOfflineSyncService offlineSyncService;
+    private readonly JsonSerializerOptions jsonOptions = new(JsonSerializerDefaults.Web);
+    private readonly SemaphoreSlim offlineInitLock = new(1, 1);
+    private bool offlineInitialized;
 
     private static readonly TimeSpan CacheTtl = TimeSpan.FromSeconds(20);
+    private const string PremiumOfflineMessage = "El modo offline esta disponible solo para usuarios premium.";
 
     private readonly ConcurrentDictionary<string, CacheEntry<IReadOnlyList<ExpenseItem>>> _expensesCache = new();
     private readonly ConcurrentDictionary<string, CacheEntry<IReadOnlyList<DashboardCategoryItem>>> _dashboardCache = new();
@@ -22,10 +29,18 @@ public sealed class ExpenseApiClient : IExpenseApiClient
     private readonly ConcurrentDictionary<string, CacheEntry<IReadOnlyList<BudgetItem>>> _budgetsCache = new();
     private CacheEntry<IReadOnlyList<string>>? _monthsCache;
 
-    public ExpenseApiClient(HttpClient httpClient, IAuthService authService)
+    public ExpenseApiClient(
+        HttpClient httpClient,
+        IAuthService authService,
+        IConnectivityService connectivityService,
+        IOfflineDataStore offlineDataStore,
+        IOfflineSyncService offlineSyncService)
     {
         this.httpClient = httpClient;
         this.authService = authService;
+        this.connectivityService = connectivityService;
+        this.offlineDataStore = offlineDataStore;
+        this.offlineSyncService = offlineSyncService;
         this.authService.SessionCleared += ClearAllCaches;
     }
 
@@ -62,19 +77,30 @@ public sealed class ExpenseApiClient : IExpenseApiClient
 
     public async Task<ExpenseCatalog> GetCatalogsAsync(CancellationToken cancellationToken)
     {
+        await EnsureOfflineStoreInitializedAsync(cancellationToken);
+        var userId = GetCurrentUserId();
+        var canUseOffline = CanUseOfflineData(userId);
+
         try
         {
             if (!await EnsureAuthenticatedAsync(cancellationToken))
             {
-                return FallbackCatalog;
+                return await GetOfflineCatalogOrFallbackAsync(userId, canUseOffline, cancellationToken);
             }
 
             var catalog = await httpClient.GetFromJsonAsync<ExpenseCatalog>("api/catalogs", cancellationToken);
-            return catalog ?? FallbackCatalog;
+            var result = catalog ?? FallbackCatalog;
+
+            if (canUseOffline)
+            {
+                await offlineDataStore.SaveCatalogAsync(userId!, result, cancellationToken);
+            }
+
+            return result;
         }
         catch
         {
-            return FallbackCatalog;
+            return await GetOfflineCatalogOrFallbackAsync(userId, canUseOffline, cancellationToken);
         }
     }
 
@@ -85,21 +111,32 @@ public sealed class ExpenseApiClient : IExpenseApiClient
             return cachedData;
         }
 
+        await EnsureOfflineStoreInitializedAsync(cancellationToken);
+        var userId = GetCurrentUserId();
+        var canUseOffline = CanUseOfflineData(userId);
+
         try
         {
             if (!await EnsureAuthenticatedAsync(cancellationToken))
             {
-                return [];
+                return await GetOfflineExpensesOrEmptyAsync(userId, monthKey, canUseOffline, cancellationToken);
             }
 
             var data = await httpClient.GetFromJsonAsync<List<ExpenseItem>>($"api/expenses?month={Uri.EscapeDataString(monthKey)}", cancellationToken);
             var result = (IReadOnlyList<ExpenseItem>)(data ?? []);
             _expensesCache[monthKey] = new CacheEntry<IReadOnlyList<ExpenseItem>>(DateTimeOffset.UtcNow, result);
+
+            if (canUseOffline)
+            {
+                await offlineDataStore.MergeExpensesAsync(userId!, monthKey, result, cancellationToken);
+                await offlineDataStore.AddAvailableMonthAsync(userId!, monthKey, cancellationToken);
+            }
+
             return result;
         }
         catch
         {
-            return [];
+            return await GetOfflineExpensesOrEmptyAsync(userId, monthKey, canUseOffline, cancellationToken);
         }
     }
 
@@ -124,22 +161,51 @@ public sealed class ExpenseApiClient : IExpenseApiClient
             ? string.Empty
             : $"&searchTerm={Uri.EscapeDataString(searchTerm)}";
 
+        await EnsureOfflineStoreInitializedAsync(cancellationToken);
+        var userId = GetCurrentUserId();
+        var canUseOffline = CanUseOfflineData(userId);
+
         try
         {
             if (!await EnsureAuthenticatedAsync(cancellationToken))
             {
-                return new PagedExpenseResult([], 1, resolvedPageSize, 0, 0m, 1, false, false);
+                return await BuildOfflineExpensePageAsync(
+                    userId,
+                    monthKey,
+                    resolvedPageNumber,
+                    resolvedPageSize,
+                    movementType,
+                    paymentMethod,
+                    searchTerm,
+                    canUseOffline,
+                    cancellationToken);
             }
 
             var data = await httpClient.GetFromJsonAsync<PagedExpenseResult>(
                 $"api/expenses/paged?month={Uri.EscapeDataString(monthKey)}&pageNumber={resolvedPageNumber}&pageSize={resolvedPageSize}{movementSegment}{paymentMethodSegment}{searchSegment}",
                 cancellationToken);
 
-            return data ?? new PagedExpenseResult([], 1, resolvedPageSize, 0, 0m, 1, false, false);
+            var result = data ?? new PagedExpenseResult([], 1, resolvedPageSize, 0, 0m, 1, false, false);
+            if (canUseOffline)
+            {
+                await offlineDataStore.MergeExpensesAsync(userId!, monthKey, result.Items, cancellationToken);
+                await offlineDataStore.AddAvailableMonthAsync(userId!, monthKey, cancellationToken);
+            }
+
+            return result;
         }
         catch
         {
-            return new PagedExpenseResult([], 1, resolvedPageSize, 0, 0m, 1, false, false);
+            return await BuildOfflineExpensePageAsync(
+                userId,
+                monthKey,
+                resolvedPageNumber,
+                resolvedPageSize,
+                movementType,
+                paymentMethod,
+                searchTerm,
+                canUseOffline,
+                cancellationToken);
         }
     }
 
@@ -150,26 +216,54 @@ public sealed class ExpenseApiClient : IExpenseApiClient
             return _monthsCache.Data;
         }
 
+        await EnsureOfflineStoreInitializedAsync(cancellationToken);
+        var userId = GetCurrentUserId();
+        var canUseOffline = CanUseOfflineData(userId);
+
         try
         {
             if (!await EnsureAuthenticatedAsync(cancellationToken))
             {
-                return [];
+                return await GetOfflineMonthsOrEmptyAsync(userId, canUseOffline, cancellationToken);
             }
 
             var data = await httpClient.GetFromJsonAsync<List<string>>("api/expenses/months", cancellationToken);
             var result = (IReadOnlyList<string>)(data ?? []);
             _monthsCache = new CacheEntry<IReadOnlyList<string>>(DateTimeOffset.UtcNow, result);
+
+            if (canUseOffline)
+            {
+                await offlineDataStore.SaveAvailableMonthsAsync(userId!, result, cancellationToken);
+            }
+
             return result;
         }
         catch
         {
-            return [];
+            return await GetOfflineMonthsOrEmptyAsync(userId, canUseOffline, cancellationToken);
         }
     }
 
     public async Task<SaveExpenseResult> SaveExpenseAsync(ExpenseEntryRequest request, CancellationToken cancellationToken)
     {
+        await EnsureOfflineStoreInitializedAsync(cancellationToken);
+        var userId = GetCurrentUserId();
+
+        if (string.IsNullOrWhiteSpace(userId))
+        {
+            return new SaveExpenseResult(false, "Debes iniciar sesión antes de guardar gastos.", 0);
+        }
+
+        if (!connectivityService.IsOnline)
+        {
+            if (!CanUseOfflineData(userId))
+            {
+                return new SaveExpenseResult(false, PremiumOfflineMessage, 0);
+            }
+
+            return await SaveExpenseOfflineAsync(userId, request, cancellationToken);
+        }
+
         try
         {
             if (!await EnsureAuthenticatedAsync(cancellationToken))
@@ -186,11 +280,33 @@ public sealed class ExpenseApiClient : IExpenseApiClient
                 _dashboardCache.TryRemove(request.Date.ToString("yyyy-MM"), out _);
                 _dashboardByPaymentMethodCache.TryRemove(request.Date.ToString("yyyy-MM"), out _);
                 _monthsCache = null;
+
+                // Reconnection might have happened recently; proactively flush pending queue.
+                await offlineSyncService.TriggerSyncAsync(cancellationToken);
+
                 return result ?? new SaveExpenseResult(false, "Respuesta inválida del servidor.", 0);
             }
 
             var message = await ReadFriendlyApiErrorAsync(response, "No fue posible guardar el gasto.", cancellationToken);
             return new SaveExpenseResult(false, message, 0);
+        }
+        catch (HttpRequestException)
+        {
+            if (!CanUseOfflineData(userId))
+            {
+                return new SaveExpenseResult(false, "No fue posible conectar con API.", 0);
+            }
+
+            return await SaveExpenseOfflineAsync(userId, request, cancellationToken);
+        }
+        catch (TaskCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            if (!CanUseOfflineData(userId))
+            {
+                return new SaveExpenseResult(false, "No fue posible conectar con API.", 0);
+            }
+
+            return await SaveExpenseOfflineAsync(userId, request, cancellationToken);
         }
         catch (Exception ex)
         {
@@ -200,6 +316,24 @@ public sealed class ExpenseApiClient : IExpenseApiClient
 
     public async Task<OperationResult> UpdateExpenseAsync(string id, ExpenseEntryRequest request, CancellationToken cancellationToken)
     {
+        await EnsureOfflineStoreInitializedAsync(cancellationToken);
+        var userId = GetCurrentUserId();
+
+        if (string.IsNullOrWhiteSpace(userId))
+        {
+            return new OperationResult(false, "Debes iniciar sesión antes de actualizar gastos.");
+        }
+
+        if (!connectivityService.IsOnline)
+        {
+            if (!CanUseOfflineData(userId))
+            {
+                return new OperationResult(false, PremiumOfflineMessage);
+            }
+
+            return await UpdateExpenseOfflineAsync(userId, id, request, cancellationToken);
+        }
+
         try
         {
             if (!await EnsureAuthenticatedAsync(cancellationToken))
@@ -216,11 +350,32 @@ public sealed class ExpenseApiClient : IExpenseApiClient
                 _dashboardCache.Clear();
                 _dashboardByPaymentMethodCache.Clear();
                 _monthsCache = null;
+
+                await offlineSyncService.TriggerSyncAsync(cancellationToken);
+
                 return result ?? new OperationResult(false, "Respuesta inválida del servidor.");
             }
 
             var message = await ReadFriendlyApiErrorAsync(response, "No fue posible actualizar el gasto.", cancellationToken);
             return new OperationResult(false, message);
+        }
+        catch (HttpRequestException)
+        {
+            if (!CanUseOfflineData(userId))
+            {
+                return new OperationResult(false, "No fue posible conectar con API.");
+            }
+
+            return await UpdateExpenseOfflineAsync(userId, id, request, cancellationToken);
+        }
+        catch (TaskCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            if (!CanUseOfflineData(userId))
+            {
+                return new OperationResult(false, "No fue posible conectar con API.");
+            }
+
+            return await UpdateExpenseOfflineAsync(userId, id, request, cancellationToken);
         }
         catch (Exception ex)
         {
@@ -230,6 +385,24 @@ public sealed class ExpenseApiClient : IExpenseApiClient
 
     public async Task<OperationResult> DeleteExpenseAsync(string id, CancellationToken cancellationToken)
     {
+        await EnsureOfflineStoreInitializedAsync(cancellationToken);
+        var userId = GetCurrentUserId();
+
+        if (string.IsNullOrWhiteSpace(userId))
+        {
+            return new OperationResult(false, "Debes iniciar sesión antes de eliminar gastos.");
+        }
+
+        if (!connectivityService.IsOnline)
+        {
+            if (!CanUseOfflineData(userId))
+            {
+                return new OperationResult(false, PremiumOfflineMessage);
+            }
+
+            return await DeleteExpenseOfflineAsync(userId, id, cancellationToken);
+        }
+
         try
         {
             if (!await EnsureAuthenticatedAsync(cancellationToken))
@@ -245,11 +418,40 @@ public sealed class ExpenseApiClient : IExpenseApiClient
                 _dashboardCache.Clear();
                 _dashboardByPaymentMethodCache.Clear();
                 _monthsCache = null;
+
+                await offlineDataStore.RemoveExpenseAcrossMonthsAsync(userId, id, cancellationToken);
+
+                var monthKey = await ResolveExpenseMonthKeyAsync(userId, id, cancellationToken);
+                if (CanUseOfflineData(userId) && !string.IsNullOrWhiteSpace(monthKey))
+                {
+                    await offlineDataStore.RemoveExpenseAsync(userId, monthKey, id, cancellationToken);
+                }
+
+                await offlineSyncService.TriggerSyncAsync(cancellationToken);
+
                 return result ?? new OperationResult(true, "Gasto eliminado correctamente.");
             }
 
             var message = await ReadFriendlyApiErrorAsync(response, "No fue posible eliminar el gasto.", cancellationToken);
             return new OperationResult(false, message);
+        }
+        catch (HttpRequestException)
+        {
+            if (!CanUseOfflineData(userId))
+            {
+                return new OperationResult(false, "No fue posible conectar con API.");
+            }
+
+            return await DeleteExpenseOfflineAsync(userId, id, cancellationToken);
+        }
+        catch (TaskCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            if (!CanUseOfflineData(userId))
+            {
+                return new OperationResult(false, "No fue posible conectar con API.");
+            }
+
+            return await DeleteExpenseOfflineAsync(userId, id, cancellationToken);
         }
         catch (Exception ex)
         {
@@ -264,21 +466,31 @@ public sealed class ExpenseApiClient : IExpenseApiClient
             return cachedData;
         }
 
+        await EnsureOfflineStoreInitializedAsync(cancellationToken);
+        var userId = GetCurrentUserId();
+        var canUseOffline = CanUseOfflineData(userId);
+
         try
         {
             if (!await EnsureAuthenticatedAsync(cancellationToken))
             {
-                return [];
+                return await GetOfflineDashboardByCategoryOrEmptyAsync(userId, monthKey, canUseOffline, cancellationToken);
             }
 
             var data = await httpClient.GetFromJsonAsync<List<DashboardCategoryItem>>($"api/dashboard/by-category?month={Uri.EscapeDataString(monthKey)}", cancellationToken);
             var result = (IReadOnlyList<DashboardCategoryItem>)(data ?? []);
             _dashboardCache[monthKey] = new CacheEntry<IReadOnlyList<DashboardCategoryItem>>(DateTimeOffset.UtcNow, result);
+
+            if (canUseOffline)
+            {
+                await offlineDataStore.SaveDashboardByCategoryAsync(userId!, monthKey, result, cancellationToken);
+            }
+
             return result;
         }
         catch
         {
-            return [];
+            return await GetOfflineDashboardByCategoryOrEmptyAsync(userId, monthKey, canUseOffline, cancellationToken);
         }
     }
 
@@ -289,21 +501,31 @@ public sealed class ExpenseApiClient : IExpenseApiClient
             return cachedData;
         }
 
+        await EnsureOfflineStoreInitializedAsync(cancellationToken);
+        var userId = GetCurrentUserId();
+        var canUseOffline = CanUseOfflineData(userId);
+
         try
         {
             if (!await EnsureAuthenticatedAsync(cancellationToken))
             {
-                return [];
+                return await GetOfflineDashboardByPaymentMethodOrEmptyAsync(userId, monthKey, canUseOffline, cancellationToken);
             }
 
             var data = await httpClient.GetFromJsonAsync<List<DashboardPaymentMethodItem>>($"api/dashboard/by-payment-method?month={Uri.EscapeDataString(monthKey)}", cancellationToken);
             var result = (IReadOnlyList<DashboardPaymentMethodItem>)(data ?? []);
             _dashboardByPaymentMethodCache[monthKey] = new CacheEntry<IReadOnlyList<DashboardPaymentMethodItem>>(DateTimeOffset.UtcNow, result);
+
+            if (canUseOffline)
+            {
+                await offlineDataStore.SaveDashboardByPaymentMethodAsync(userId!, monthKey, result, cancellationToken);
+            }
+
             return result;
         }
         catch
         {
-            return [];
+            return await GetOfflineDashboardByPaymentMethodOrEmptyAsync(userId, monthKey, canUseOffline, cancellationToken);
         }
     }
 
@@ -593,6 +815,484 @@ public sealed class ExpenseApiClient : IExpenseApiClient
         }
     }
 
+    public async Task<IReadOnlyList<ObligationItem>> GetObligationsAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (!await EnsureAuthenticatedAsync(cancellationToken))
+            {
+                return [];
+            }
+
+            var data = await httpClient.GetFromJsonAsync<List<ObligationResponse>>("api/obligations", cancellationToken);
+            if (data is null)
+            {
+                return [];
+            }
+
+            return data
+                .Select(item => new ObligationItem(
+                    item.Id ?? string.Empty,
+                    item.Description ?? string.Empty,
+                    item.MovementType ?? string.Empty,
+                    item.PaymentMethod ?? string.Empty,
+                    item.DueDayOfMonth,
+                    item.MonthlyPayment,
+                    item.ReminderDaysBefore,
+                    string.IsNullOrWhiteSpace(item.StartMonth)
+                        ? DateTime.UtcNow.ToString("yyyy-MM", CultureInfo.InvariantCulture)
+                        : item.StartMonth,
+                    item.IsActive))
+                .ToArray();
+        }
+        catch
+        {
+            return [];
+        }
+    }
+
+    public async Task<PagedObligationResult> GetObligationsPageAsync(int pageNumber, int pageSize, CancellationToken cancellationToken)
+    {
+        var resolvedPageNumber = Math.Max(1, pageNumber);
+        var resolvedPageSize = pageSize is 10 or 20 ? pageSize : 5;
+
+        try
+        {
+            if (!await EnsureAuthenticatedAsync(cancellationToken))
+            {
+                return new PagedObligationResult([], 1, resolvedPageSize, 0, 1, false, false);
+            }
+
+            var data = await httpClient.GetFromJsonAsync<PagedObligationResponse>(
+                $"api/obligations/paged?pageNumber={resolvedPageNumber}&pageSize={resolvedPageSize}",
+                cancellationToken);
+
+            if (data is null)
+            {
+                return new PagedObligationResult([], 1, resolvedPageSize, 0, 1, false, false);
+            }
+
+            var mappedItems = (data.Items ?? [])
+                .Select(item => new ObligationItem(
+                    item.Id ?? string.Empty,
+                    item.Description ?? string.Empty,
+                    item.MovementType ?? string.Empty,
+                    item.PaymentMethod ?? string.Empty,
+                    item.DueDayOfMonth,
+                    item.MonthlyPayment,
+                    item.ReminderDaysBefore,
+                    string.IsNullOrWhiteSpace(item.StartMonth)
+                        ? DateTime.UtcNow.ToString("yyyy-MM", CultureInfo.InvariantCulture)
+                        : item.StartMonth,
+                    item.IsActive))
+                .ToArray();
+
+            var totalPages = data.TotalPages <= 0 ? 1 : data.TotalPages;
+            var currentPage = Math.Min(Math.Max(data.PageNumber, 1), totalPages);
+
+            return new PagedObligationResult(
+                mappedItems,
+                currentPage,
+                data.PageSize <= 0 ? resolvedPageSize : data.PageSize,
+                Math.Max(data.TotalCount, 0),
+                totalPages,
+                data.HasPreviousPage,
+                data.HasNextPage);
+        }
+        catch
+        {
+            return new PagedObligationResult([], 1, resolvedPageSize, 0, 1, false, false);
+        }
+    }
+
+    public async Task<OperationResult> SaveObligationAsync(string? id, ObligationUpsertRequest request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (!await EnsureAuthenticatedAsync(cancellationToken))
+            {
+                return new OperationResult(false, "Debes iniciar sesión antes de guardar obligaciones.");
+            }
+
+            using var obligationRequest = CreateObligationJsonRequest(
+                string.IsNullOrWhiteSpace(id) ? HttpMethod.Post : HttpMethod.Put,
+                string.IsNullOrWhiteSpace(id) ? "api/obligations" : $"api/obligations/{id}",
+                request);
+            var response = await httpClient.SendAsync(obligationRequest, cancellationToken);
+
+            if (response.IsSuccessStatusCode)
+            {
+                var result = await response.Content.ReadFromJsonAsync<OperationResult>(cancellationToken: cancellationToken);
+                return result ?? new OperationResult(true, "Obligación guardada correctamente.");
+            }
+
+            var message = await ReadFriendlyApiErrorAsync(response, "No fue posible guardar la obligación.", cancellationToken);
+            return new OperationResult(false, message);
+        }
+        catch (Exception ex)
+        {
+            return new OperationResult(false, $"No fue posible conectar con API: {ex.Message}");
+        }
+    }
+
+    public async Task<OperationResult> DeleteObligationAsync(string id, CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (!await EnsureAuthenticatedAsync(cancellationToken))
+            {
+                return new OperationResult(false, "Debes iniciar sesión antes de eliminar obligaciones.");
+            }
+
+            var response = await httpClient.DeleteAsync($"api/obligations/{id}", cancellationToken);
+            if (response.IsSuccessStatusCode)
+            {
+                var result = await response.Content.ReadFromJsonAsync<OperationResult>(cancellationToken: cancellationToken);
+                return result ?? new OperationResult(true, "Obligación eliminada correctamente.");
+            }
+
+            var message = await ReadFriendlyApiErrorAsync(response, "No fue posible eliminar la obligación.", cancellationToken);
+            return new OperationResult(false, message);
+        }
+        catch (Exception ex)
+        {
+            return new OperationResult(false, $"No fue posible conectar con API: {ex.Message}");
+        }
+    }
+
+    private async Task EnsureOfflineStoreInitializedAsync(CancellationToken cancellationToken)
+    {
+        if (offlineInitialized)
+        {
+            return;
+        }
+
+        await offlineInitLock.WaitAsync(cancellationToken);
+        try
+        {
+            if (offlineInitialized)
+            {
+                return;
+            }
+
+            await offlineDataStore.InitializeAsync(cancellationToken);
+            offlineInitialized = true;
+        }
+        finally
+        {
+            offlineInitLock.Release();
+        }
+    }
+
+    private string? GetCurrentUserId()
+    {
+        var userId = (authService.CurrentUserId ?? string.Empty).Trim();
+        return string.IsNullOrWhiteSpace(userId) ? null : userId;
+    }
+
+    private bool CanUseOfflineData(string? userId)
+    {
+        return !string.IsNullOrWhiteSpace(userId) && authService.IsCurrentUserPremium;
+    }
+
+    private async Task<ExpenseCatalog> GetOfflineCatalogOrFallbackAsync(string? userId, bool canUseOffline, CancellationToken cancellationToken)
+    {
+        if (!canUseOffline)
+        {
+            return FallbackCatalog;
+        }
+
+        var localCatalog = await offlineDataStore.GetCatalogAsync(userId!, cancellationToken);
+        return localCatalog ?? FallbackCatalog;
+    }
+
+    private async Task<IReadOnlyList<ExpenseItem>> GetOfflineExpensesOrEmptyAsync(string? userId, string monthKey, bool canUseOffline, CancellationToken cancellationToken)
+    {
+        if (!canUseOffline)
+        {
+            return [];
+        }
+
+        var localExpenses = await offlineDataStore.GetExpensesAsync(userId!, monthKey, cancellationToken);
+        _expensesCache[monthKey] = new CacheEntry<IReadOnlyList<ExpenseItem>>(DateTimeOffset.UtcNow, localExpenses);
+        return localExpenses;
+    }
+
+    private async Task<IReadOnlyList<string>> GetOfflineMonthsOrEmptyAsync(string? userId, bool canUseOffline, CancellationToken cancellationToken)
+    {
+        if (!canUseOffline)
+        {
+            return [];
+        }
+
+        var monthKeys = await offlineDataStore.GetAvailableMonthsAsync(userId!, cancellationToken);
+        _monthsCache = new CacheEntry<IReadOnlyList<string>>(DateTimeOffset.UtcNow, monthKeys);
+        return monthKeys;
+    }
+
+    private async Task<PagedExpenseResult> BuildOfflineExpensePageAsync(
+        string? userId,
+        string monthKey,
+        int pageNumber,
+        int pageSize,
+        string? movementType,
+        string? paymentMethod,
+        string? searchTerm,
+        bool canUseOffline,
+        CancellationToken cancellationToken)
+    {
+        if (!canUseOffline)
+        {
+            return new PagedExpenseResult([], 1, pageSize, 0, 0m, 1, false, false);
+        }
+
+        var localExpenses = await offlineDataStore.GetExpensesAsync(userId!, monthKey, cancellationToken);
+        var filtered = localExpenses
+            .Where(item => string.IsNullOrWhiteSpace(movementType) || string.Equals(item.MovementType, movementType, StringComparison.OrdinalIgnoreCase))
+            .Where(item => string.IsNullOrWhiteSpace(paymentMethod) || string.Equals(item.PaymentMethod, paymentMethod, StringComparison.OrdinalIgnoreCase))
+            .Where(item => string.IsNullOrWhiteSpace(searchTerm) || item.Description.Contains(searchTerm, StringComparison.OrdinalIgnoreCase))
+            .OrderByDescending(item => item.Date)
+            .ThenByDescending(item => item.UpdatedAt)
+            .ToList();
+
+        var totalCount = filtered.Count;
+        var totalAmount = filtered.Sum(item => item.Amount);
+        var totalPages = Math.Max(1, (int)Math.Ceiling(totalCount / (double)Math.Max(1, pageSize)));
+        var currentPage = Math.Min(Math.Max(pageNumber, 1), totalPages);
+        var skip = (currentPage - 1) * pageSize;
+        var items = filtered.Skip(skip).Take(pageSize).ToArray();
+
+        return new PagedExpenseResult(
+            items,
+            currentPage,
+            pageSize,
+            totalCount,
+            totalAmount,
+            totalPages,
+            currentPage > 1,
+            currentPage < totalPages);
+    }
+
+    private async Task<SaveExpenseResult> SaveExpenseOfflineAsync(string userId, ExpenseEntryRequest request, CancellationToken cancellationToken)
+    {
+        var monthKey = request.Date.ToString("yyyy-MM", CultureInfo.InvariantCulture);
+        var now = DateTimeOffset.UtcNow;
+        var localId = $"offline-{Guid.NewGuid():N}";
+        var clientMutationId = string.IsNullOrWhiteSpace(request.ClientMutationId) ? localId : request.ClientMutationId.Trim();
+        var requestForMutation = request with { ClientMutationId = clientMutationId };
+        var (isCredit, installments) = ResolveOfflineCreditSettings(request);
+
+        var localExpense = new ExpenseItem(
+            localId,
+            request.Date,
+            request.Description?.Trim() ?? string.Empty,
+            request.Amount,
+            request.MovementType?.Trim() ?? string.Empty,
+            request.PaymentMethod?.Trim() ?? string.Empty,
+            now,
+            now,
+            isCredit,
+            installments);
+
+        await offlineDataStore.UpsertExpenseAsync(userId, monthKey, localExpense, cancellationToken);
+
+        var mutation = new OfflineExpenseCreateMutationPayload(localId, monthKey, requestForMutation);
+        await offlineDataStore.EnqueueMutationAsync(
+            userId,
+            OfflineMutationTypes.ExpenseCreate,
+            monthKey,
+            JsonSerializer.Serialize(mutation, jsonOptions),
+            cancellationToken);
+
+        _expensesCache.TryRemove(monthKey, out _);
+        _dashboardCache.TryRemove(monthKey, out _);
+        _dashboardByPaymentMethodCache.TryRemove(monthKey, out _);
+        _monthsCache = null;
+
+        await offlineSyncService.TriggerSyncAsync(cancellationToken);
+        return new SaveExpenseResult(true, "Guardado offline. Se sincronizara automaticamente al reconectar.", 0);
+    }
+
+    private async Task<OperationResult> UpdateExpenseOfflineAsync(string userId, string id, ExpenseEntryRequest request, CancellationToken cancellationToken)
+    {
+        var monthKey = request.Date.ToString("yyyy-MM", CultureInfo.InvariantCulture);
+        var now = DateTimeOffset.UtcNow;
+        var (isCredit, installments) = ResolveOfflineCreditSettings(request);
+
+        var localExpense = new ExpenseItem(
+            id,
+            request.Date,
+            request.Description?.Trim() ?? string.Empty,
+            request.Amount,
+            request.MovementType?.Trim() ?? string.Empty,
+            request.PaymentMethod?.Trim() ?? string.Empty,
+            now,
+            now,
+            isCredit,
+            installments);
+
+        await offlineDataStore.UpsertExpenseAsync(userId, monthKey, localExpense, cancellationToken);
+
+        var mutation = new OfflineExpenseUpdateMutationPayload(id, monthKey, request);
+        await offlineDataStore.EnqueueMutationAsync(
+            userId,
+            OfflineMutationTypes.ExpenseUpdate,
+            monthKey,
+            JsonSerializer.Serialize(mutation, jsonOptions),
+            cancellationToken);
+
+        _expensesCache.TryRemove(monthKey, out _);
+        _dashboardCache.TryRemove(monthKey, out _);
+        _dashboardByPaymentMethodCache.TryRemove(monthKey, out _);
+
+        await offlineSyncService.TriggerSyncAsync(cancellationToken);
+        return new OperationResult(true, "Actualizacion guardada offline. Se sincronizara automaticamente al reconectar.");
+    }
+
+    private async Task<OperationResult> DeleteExpenseOfflineAsync(string userId, string expenseId, CancellationToken cancellationToken)
+    {
+        var monthKey = await ResolveExpenseMonthKeyAsync(userId, expenseId, cancellationToken);
+        if (string.IsNullOrWhiteSpace(monthKey))
+        {
+            monthKey = DateTime.UtcNow.ToString("yyyy-MM", CultureInfo.InvariantCulture);
+        }
+
+        await offlineDataStore.RemoveExpenseAsync(userId, monthKey, expenseId, cancellationToken);
+
+        if (IsOfflineLocalId(expenseId))
+        {
+            var droppedPendingCreate = await offlineDataStore.TryDropPendingCreateMutationAsync(userId, monthKey, expenseId, cancellationToken);
+            if (droppedPendingCreate)
+            {
+                _expensesCache.TryRemove(monthKey, out _);
+                _dashboardCache.TryRemove(monthKey, out _);
+                _dashboardByPaymentMethodCache.TryRemove(monthKey, out _);
+                _monthsCache = null;
+                await offlineSyncService.TriggerSyncAsync(cancellationToken);
+                return new OperationResult(true, "Eliminacion local aplicada sin pendientes de sincronizacion.");
+            }
+        }
+
+        var mutation = new OfflineExpenseDeleteMutationPayload(expenseId, monthKey);
+        await offlineDataStore.EnqueueMutationAsync(
+            userId,
+            OfflineMutationTypes.ExpenseDelete,
+            monthKey,
+            JsonSerializer.Serialize(mutation, jsonOptions),
+            cancellationToken);
+
+        _expensesCache.TryRemove(monthKey, out _);
+        _dashboardCache.TryRemove(monthKey, out _);
+        _dashboardByPaymentMethodCache.TryRemove(monthKey, out _);
+        _monthsCache = null;
+
+        await offlineSyncService.TriggerSyncAsync(cancellationToken);
+        return new OperationResult(true, "Eliminacion guardada offline. Se sincronizara automaticamente al reconectar.");
+    }
+
+    private async Task<string> ResolveExpenseMonthKeyAsync(string userId, string expenseId, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(expenseId))
+        {
+            return string.Empty;
+        }
+
+        var months = await offlineDataStore.GetAvailableMonthsAsync(userId, cancellationToken);
+        foreach (var month in months.OrderByDescending(item => item, StringComparer.Ordinal))
+        {
+            var expenses = await offlineDataStore.GetExpensesAsync(userId, month, cancellationToken);
+            if (expenses.Any(item => string.Equals(item.Id, expenseId, StringComparison.Ordinal)))
+            {
+                return month;
+            }
+        }
+
+        return string.Empty;
+    }
+
+    private async Task<IReadOnlyList<DashboardCategoryItem>> GetOfflineDashboardByCategoryOrEmptyAsync(string? userId, string monthKey, bool canUseOffline, CancellationToken cancellationToken)
+    {
+        if (!canUseOffline)
+        {
+            return [];
+        }
+
+        var stored = await offlineDataStore.GetDashboardByCategoryAsync(userId!, monthKey, cancellationToken);
+        if (stored.Count > 0)
+        {
+            _dashboardCache[monthKey] = new CacheEntry<IReadOnlyList<DashboardCategoryItem>>(DateTimeOffset.UtcNow, stored);
+            return stored;
+        }
+
+        var generated = await BuildOfflineDashboardByCategoryAsync(userId!, monthKey, cancellationToken);
+        _dashboardCache[monthKey] = new CacheEntry<IReadOnlyList<DashboardCategoryItem>>(DateTimeOffset.UtcNow, generated);
+        return generated;
+    }
+
+    private async Task<IReadOnlyList<DashboardCategoryItem>> BuildOfflineDashboardByCategoryAsync(string userId, string monthKey, CancellationToken cancellationToken)
+    {
+        var expenses = await offlineDataStore.GetExpensesAsync(userId, monthKey, cancellationToken);
+        if (expenses.Count == 0)
+        {
+            return [];
+        }
+
+        var previousSnapshot = await offlineDataStore.GetDashboardByCategoryAsync(userId, monthKey, cancellationToken);
+        var budgets = previousSnapshot
+            .GroupBy(item => item.MovementType, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(group => group.Key, group => group.First().BudgetTotal, StringComparer.OrdinalIgnoreCase);
+
+        var groupedExpenses = expenses
+            .GroupBy(item => item.MovementType, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(group => group.Key, group => group.Sum(item => item.Amount), StringComparer.OrdinalIgnoreCase);
+
+        var movementTypes = budgets.Keys.Union(groupedExpenses.Keys, StringComparer.OrdinalIgnoreCase);
+
+        return movementTypes
+            .Select(movementType =>
+            {
+                groupedExpenses.TryGetValue(movementType, out var expenseTotal);
+                budgets.TryGetValue(movementType, out var budgetTotal);
+                return new DashboardCategoryItem(movementType, expenseTotal, budgetTotal, budgetTotal - expenseTotal);
+            })
+            .OrderByDescending(item => item.ExpenseTotal)
+            .ToArray();
+    }
+
+    private async Task<IReadOnlyList<DashboardPaymentMethodItem>> GetOfflineDashboardByPaymentMethodOrEmptyAsync(string? userId, string monthKey, bool canUseOffline, CancellationToken cancellationToken)
+    {
+        if (!canUseOffline)
+        {
+            return [];
+        }
+
+        var stored = await offlineDataStore.GetDashboardByPaymentMethodAsync(userId!, monthKey, cancellationToken);
+        if (stored.Count > 0)
+        {
+            _dashboardByPaymentMethodCache[monthKey] = new CacheEntry<IReadOnlyList<DashboardPaymentMethodItem>>(DateTimeOffset.UtcNow, stored);
+            return stored;
+        }
+
+        var generated = await BuildOfflineDashboardByPaymentMethodAsync(userId!, monthKey, cancellationToken);
+        _dashboardByPaymentMethodCache[monthKey] = new CacheEntry<IReadOnlyList<DashboardPaymentMethodItem>>(DateTimeOffset.UtcNow, generated);
+        return generated;
+    }
+
+    private async Task<IReadOnlyList<DashboardPaymentMethodItem>> BuildOfflineDashboardByPaymentMethodAsync(string userId, string monthKey, CancellationToken cancellationToken)
+    {
+        var expenses = await offlineDataStore.GetExpensesAsync(userId, monthKey, cancellationToken);
+        if (expenses.Count == 0)
+        {
+            return [];
+        }
+
+        return expenses
+            .GroupBy(item => item.PaymentMethod, StringComparer.OrdinalIgnoreCase)
+            .Select(group => new DashboardPaymentMethodItem(group.Key, group.Sum(item => item.Amount)))
+            .OrderByDescending(item => item.ExpenseTotal)
+            .ToArray();
+    }
+
     private static bool TryGetCache<T>(ConcurrentDictionary<string, CacheEntry<T>> cache, string key, out T data)
     {
         if (cache.TryGetValue(key, out var entry) && DateTimeOffset.UtcNow - entry.CreatedAt <= CacheTtl)
@@ -607,15 +1307,6 @@ public sealed class ExpenseApiClient : IExpenseApiClient
 
     private async Task<bool> EnsureAuthenticatedAsync(CancellationToken cancellationToken)
     {
-#if DEBUG
-        // Local Functions allows anonymous dev-user; avoid stale/mismatched tokens hiding data.
-        if (IsLocalDevelopmentApi())
-        {
-            httpClient.DefaultRequestHeaders.Authorization = null;
-            return true;
-        }
-#endif
-
         var accessToken = await authService.GetAccessTokenAsync(cancellationToken);
         if (string.IsNullOrWhiteSpace(accessToken))
         {
@@ -628,19 +1319,6 @@ public sealed class ExpenseApiClient : IExpenseApiClient
         }
 
         return true;
-    }
-
-    private bool IsLocalDevelopmentApi()
-    {
-        var host = httpClient.BaseAddress?.Host;
-        if (string.IsNullOrWhiteSpace(host))
-        {
-            return false;
-        }
-
-        return string.Equals(host, "10.0.2.2", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(host, "localhost", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(host, "127.0.0.1", StringComparison.OrdinalIgnoreCase);
     }
 
     private sealed record CacheEntry<T>(DateTimeOffset CreatedAt, T Data);
@@ -658,6 +1336,26 @@ public sealed class ExpenseApiClient : IExpenseApiClient
 
     private sealed record PagedRecurringResponse(
         List<RecurringExpenseResponse>? Items,
+        int PageNumber,
+        int PageSize,
+        int TotalCount,
+        int TotalPages,
+        bool HasPreviousPage,
+        bool HasNextPage);
+
+    private sealed record ObligationResponse(
+        string? Id,
+        string? Description,
+        string? MovementType,
+        string? PaymentMethod,
+        int DueDayOfMonth,
+        decimal MonthlyPayment,
+        int ReminderDaysBefore,
+        string? StartMonth,
+        bool IsActive);
+
+    private sealed record PagedObligationResponse(
+        List<ObligationResponse>? Items,
         int PageNumber,
         int PageSize,
         int TotalCount,
@@ -821,7 +1519,10 @@ public sealed class ExpenseApiClient : IExpenseApiClient
             ["description"] = request.Description,
             ["amount"] = request.Amount,
             ["movementType"] = request.MovementType,
-            ["paymentMethod"] = request.PaymentMethod
+            ["paymentMethod"] = request.PaymentMethod,
+            ["isCredit"] = request.IsCredit,
+            ["installments"] = request.Installments,
+            ["clientMutationId"] = request.ClientMutationId
         };
 
         var json = JsonSerializer.Serialize(payload);
@@ -860,10 +1561,14 @@ public sealed class ExpenseApiClient : IExpenseApiClient
                 })
                 .ToArray(),
             ["paymentMethodConfigs"] = (request.PaymentMethodConfigs ?? [])
-                .Select(c => new Dictionary<string, string>
+                .Select(c => new Dictionary<string, object?>
                 {
                     ["name"] = c.Name,
-                    ["icon"] = c.Icon
+                    ["icon"] = c.Icon,
+                    ["isCredit"] = c.IsCredit,
+                    ["defaultInstallments"] = c.DefaultInstallments,
+                    ["dueDayOfMonth"] = c.DueDayOfMonth,
+                    ["reminderDaysBefore"] = c.ReminderDaysBefore
                 })
                 .ToArray()
         };
@@ -873,6 +1578,35 @@ public sealed class ExpenseApiClient : IExpenseApiClient
         {
             Content = new StringContent(json, Encoding.UTF8, "application/json")
         };
+    }
+
+    private static (bool IsCredit, int? Installments) ResolveOfflineCreditSettings(ExpenseEntryRequest request)
+    {
+        var installments = NormalizeInstallments(request.Installments);
+        var isCredit = request.IsCredit ?? (installments is > 1);
+
+        if (!isCredit)
+        {
+            return (false, null);
+        }
+
+        return (true, installments);
+    }
+
+    private static int? NormalizeInstallments(int? value)
+    {
+        if (value is null)
+        {
+            return null;
+        }
+
+        return Math.Clamp(value.Value, 1, 120);
+    }
+
+    private static bool IsOfflineLocalId(string? expenseId)
+    {
+        return !string.IsNullOrWhiteSpace(expenseId)
+            && expenseId.StartsWith("offline-", StringComparison.OrdinalIgnoreCase);
     }
 
     private static HttpRequestMessage CreateRecurringJsonRequest(HttpMethod method, string relativeUrl, RecurringExpenseUpsertRequest request)
@@ -888,6 +1622,27 @@ public sealed class ExpenseApiClient : IExpenseApiClient
             ["endMonth"] = null,
             ["startDate"] = request.StartDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
             ["endDate"] = null,
+            ["isActive"] = request.IsActive
+        };
+
+        var json = JsonSerializer.Serialize(payload);
+        return new HttpRequestMessage(method, relativeUrl)
+        {
+            Content = new StringContent(json, Encoding.UTF8, "application/json")
+        };
+    }
+
+    private static HttpRequestMessage CreateObligationJsonRequest(HttpMethod method, string relativeUrl, ObligationUpsertRequest request)
+    {
+        var payload = new Dictionary<string, object?>
+        {
+            ["description"] = request.Description,
+            ["movementType"] = request.MovementType,
+            ["paymentMethod"] = request.PaymentMethod,
+            ["dueDayOfMonth"] = request.DueDayOfMonth,
+            ["monthlyPayment"] = request.MonthlyPayment,
+            ["reminderDaysBefore"] = request.ReminderDaysBefore,
+            ["startMonth"] = request.StartMonth,
             ["isActive"] = request.IsActive
         };
 

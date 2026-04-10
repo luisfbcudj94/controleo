@@ -157,6 +157,15 @@ public sealed class AuthService(HttpClient httpClient) : IAuthService
         }
     }
 
+    public bool IsCurrentUserPremium
+    {
+        get
+        {
+            EnsureSessionLoaded();
+            return _session?.User?.IsPremium ?? false;
+        }
+    }
+
     public string ApiBaseUrl => httpClient.BaseAddress?.ToString() ?? "(sin base URL)";
 
     private void EnsureSessionLoaded()
@@ -242,6 +251,6 @@ public sealed class AuthService(HttpClient httpClient) : IAuthService
     }
 
     private sealed record OperationResult(bool IsSuccess, string Message);
-    private sealed record AuthUser(string UserId, string Name, string Email);
+    private sealed record AuthUser(string UserId, string Name, string Email, bool IsPremium = false);
     private sealed record AuthSession(string AccessToken, string ExpiresAt, AuthUser User);
 }

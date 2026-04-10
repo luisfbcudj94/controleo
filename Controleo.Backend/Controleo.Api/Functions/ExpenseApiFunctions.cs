@@ -19,22 +19,37 @@ public sealed class ExpenseApiFunctions
     private readonly IBudgetService _budgetService;
     private readonly IDashboardService _dashboardService;
     private readonly IRecurringExpenseService _recurringService;
+    private readonly IObligationService _obligationService;
     private readonly IAccessTokenValidator _tokenValidator;
     private readonly LocalAuthOptions _authOptions;
     private readonly IHostEnvironment _env;
 
     public ExpenseApiFunctions(
         IExpenseService expenseService, ICatalogService catalogService, IBudgetService budgetService,
-        IDashboardService dashboardService, IRecurringExpenseService recurringService,
+        IDashboardService dashboardService, IRecurringExpenseService recurringService, IObligationService obligationService,
         IAccessTokenValidator tokenValidator, IOptions<LocalAuthOptions> authOptions, IHostEnvironment env)
     {
         _expenseService = expenseService; _catalogService = catalogService; _budgetService = budgetService;
-        _dashboardService = dashboardService; _recurringService = recurringService;
+        _dashboardService = dashboardService; _recurringService = recurringService; _obligationService = obligationService;
         _tokenValidator = tokenValidator; _authOptions = authOptions.Value; _env = env;
     }
 
     private Task<(ApiUserContext? User, HttpResponseData? Response)> AuthAsync(HttpRequestData req, CancellationToken ct)
         => FunctionHelpers.AuthorizeAsync(req, _tokenValidator, _authOptions, _env.IsDevelopment(), ct);
+
+    private static async Task<HttpResponseData?> EnsurePremiumAsync(HttpRequestData req, ApiUserContext user, CancellationToken ct)
+    {
+        if (user.IsPremium)
+        {
+            return null;
+        }
+
+        return await FunctionHelpers.JsonAsync(
+            req,
+            HttpStatusCode.Forbidden,
+            new OperationResult(false, "Obligaciones está disponible solo para usuarios premium."),
+            ct);
+    }
 
     [Function("OptionsPreflight")]
     public HttpResponseData OptionsPreflight([HttpTrigger(AuthorizationLevel.Anonymous, "options", Route = "{*path}")] HttpRequestData req) => FunctionHelpers.NoContent(req);
@@ -237,6 +252,60 @@ public sealed class ExpenseApiFunctions
     {
         var (user, err) = await AuthAsync(req, ct); if (err is not null) return err;
         var result = await _recurringService.DeleteRecurringExpenseAsync(user!.UserId, id, ct);
+        return await FunctionHelpers.JsonAsync(req, result.IsSuccess ? HttpStatusCode.OK : HttpStatusCode.BadRequest, result, ct);
+    }
+
+    // ── Obligations ──
+
+    [Function("GetObligations")]
+    public async Task<HttpResponseData> GetObligationsAsync([HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "obligations")] HttpRequestData req, CancellationToken ct)
+    {
+        var (user, err) = await AuthAsync(req, ct); if (err is not null) return err;
+        var premiumErr = await EnsurePremiumAsync(req, user!, ct); if (premiumErr is not null) return premiumErr;
+        return await FunctionHelpers.JsonAsync(req, HttpStatusCode.OK, await _obligationService.GetObligationsAsync(user!.UserId, ct), ct);
+    }
+
+    [Function("GetObligationsPaged")]
+    public async Task<HttpResponseData> GetObligationsPagedAsync([HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "obligations/paged")] HttpRequestData req, CancellationToken ct)
+    {
+        var (user, err) = await AuthAsync(req, ct); if (err is not null) return err;
+        var premiumErr = await EnsurePremiumAsync(req, user!, ct); if (premiumErr is not null) return premiumErr;
+        var q = FunctionHelpers.ParseQuery(req);
+        var pn = q.TryGetValue("pageNumber", out var pnr) && int.TryParse(pnr, out var ppn) ? Math.Max(ppn, 1) : 1;
+        var ps = q.TryGetValue("pageSize", out var psr) && int.TryParse(psr, out var pps) ? FunctionHelpers.NormalizePageSize(pps) : 5;
+        return await FunctionHelpers.JsonAsync(req, HttpStatusCode.OK, await _obligationService.GetObligationsPageAsync(user!.UserId, pn, ps, ct), ct);
+    }
+
+    [Function("CreateObligation")]
+    public async Task<HttpResponseData> CreateObligationAsync([HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "obligations")] HttpRequestData req, CancellationToken ct)
+    {
+        var (user, err) = await AuthAsync(req, ct); if (err is not null) return err;
+        var premiumErr = await EnsurePremiumAsync(req, user!, ct); if (premiumErr is not null) return premiumErr;
+        var payload = await FunctionHelpers.ReadBodyAsync<ObligationUpsertRequest>(req, ct);
+        if (payload is null)
+            return await FunctionHelpers.JsonAsync(req, HttpStatusCode.BadRequest, new OperationResult(false, "Request inválido."), ct);
+        var result = await _obligationService.UpsertObligationAsync(user!.UserId, null, payload, ct);
+        return await FunctionHelpers.JsonAsync(req, result.IsSuccess ? HttpStatusCode.Created : HttpStatusCode.BadRequest, result, ct);
+    }
+
+    [Function("UpdateObligation")]
+    public async Task<HttpResponseData> UpdateObligationAsync([HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "obligations/{id}")] HttpRequestData req, string id, CancellationToken ct)
+    {
+        var (user, err) = await AuthAsync(req, ct); if (err is not null) return err;
+        var premiumErr = await EnsurePremiumAsync(req, user!, ct); if (premiumErr is not null) return premiumErr;
+        var payload = await FunctionHelpers.ReadBodyAsync<ObligationUpsertRequest>(req, ct);
+        if (payload is null)
+            return await FunctionHelpers.JsonAsync(req, HttpStatusCode.BadRequest, new OperationResult(false, "Request inválido."), ct);
+        var result = await _obligationService.UpsertObligationAsync(user!.UserId, id, payload, ct);
+        return await FunctionHelpers.JsonAsync(req, result.IsSuccess ? HttpStatusCode.OK : HttpStatusCode.BadRequest, result, ct);
+    }
+
+    [Function("DeleteObligation")]
+    public async Task<HttpResponseData> DeleteObligationAsync([HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "obligations/{id}")] HttpRequestData req, string id, CancellationToken ct)
+    {
+        var (user, err) = await AuthAsync(req, ct); if (err is not null) return err;
+        var premiumErr = await EnsurePremiumAsync(req, user!, ct); if (premiumErr is not null) return premiumErr;
+        var result = await _obligationService.DeleteObligationAsync(user!.UserId, id, ct);
         return await FunctionHelpers.JsonAsync(req, result.IsSuccess ? HttpStatusCode.OK : HttpStatusCode.BadRequest, result, ct);
     }
 }

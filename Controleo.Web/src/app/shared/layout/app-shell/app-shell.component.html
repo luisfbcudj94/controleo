@@ -31,6 +31,16 @@
 					<span class="nb-label">{{ item.label }}</span>
 				</a>
 			}
+
+			@if (isAdmin) {
+				<div class="sb-section-label spaced">Admin</div>
+				@for (item of adminNav; track item.path) {
+					<a [routerLink]="item.path" routerLinkActive="active" class="nav-btn" [class.active]="isActive(item.path)">
+						<span class="nb-icon">{{ item.icon }}</span>
+						<span class="nb-label">{{ item.label }}</span>
+					</a>
+				}
+			}
 		</nav>
 
 		<div class="sb-bottom">
@@ -63,6 +73,22 @@
 				<a class="tb-btn primary desktop-only" [routerLink]="'/registrar'">＋ Nuevo gasto</a>
 			</div>
 		</header>
+
+		@if (isImpersonating) {
+			<section class="impersonation-banner" aria-label="Modo suplantación">
+				<div class="ib-copy">
+					<strong>Actuando como {{ userName }}</strong>
+					<span>Admin origen: {{ impersonationActorName }}</span>
+				</div>
+				<button
+					class="btn btn-ghost"
+					type="button"
+					(click)="exitImpersonation()"
+					[disabled]="isEndingImpersonation">
+					{{ isEndingImpersonation ? 'Cerrando...' : 'Volver a admin' }}
+				</button>
+			</section>
+		}
 
 		<section class="page-content">
 			<router-outlet />

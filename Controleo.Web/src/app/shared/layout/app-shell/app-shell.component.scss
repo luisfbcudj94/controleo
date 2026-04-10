@@ -406,6 +406,40 @@
 	padding: 1rem 0.9rem 1.1rem;
 }
 
+.impersonation-banner {
+	margin: 0.85rem 0.9rem 0;
+	border: 1px solid rgba(201, 107, 0, 0.24);
+	background: #FFF4E5;
+	border-radius: var(--rs);
+	padding: 0.55rem 0.7rem;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.8rem;
+}
+
+.ib-copy {
+	display: grid;
+	gap: 0.1rem;
+	min-width: 0;
+}
+
+.ib-copy strong {
+	font-size: 0.82rem;
+	color: #8A4B00;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.ib-copy span {
+	font-size: 0.72rem;
+	color: #A85F00;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
 
 .bottom-nav {
 	position: fixed;
@@ -460,6 +494,10 @@
 @media (min-width: 768px) {
 	.topbar {
 		padding: 0 1.2rem;
+	}
+
+	.impersonation-banner {
+		margin: 1rem 1.2rem 0;
 	}
 
 	.page-content {
@@ -537,6 +575,10 @@
 
 	.page-content {
 		padding: 1.75rem 2rem 2.25rem;
+	}
+
+	.impersonation-banner {
+		margin: 1.15rem 2rem 0;
 	}
 
 	.bottom-nav {

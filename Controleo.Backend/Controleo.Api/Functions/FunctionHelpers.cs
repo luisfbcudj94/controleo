@@ -23,9 +23,6 @@ internal static class FunctionHelpers
     {
         var header = request.Headers.TryGetValues("Authorization", out var values) ? values.FirstOrDefault() : null;
 
-        if (authOptions.AllowAnonymousInDevelopment && isDevelopment && string.IsNullOrWhiteSpace(header))
-            return (new ApiUserContext("dev-user", "dev-user", "Dev User", "dev@controleo.local"), null);
-
         var validation = await validator.ValidateAsync(header, ct);
         if (!validation.IsValid || validation.User is null)
         {
@@ -124,7 +121,36 @@ internal static class FunctionHelpers
         {
             TryGetVal(kv, "description", out var d); TryGetVal(kv, "movementType", out var m); TryGetVal(kv, "paymentMethod", out var p);
             var a = TryGetVal(kv, "amount", out var ar) && TryFlexAmount(ar, out var pa) ? pa : 0;
-            return new ExpenseEntryRequest(kvDate, d, a, m, p);
+            int? kvInstallments = null;
+            if (TryGetVal(kv, "installments", out var installmentsRaw))
+            {
+                if (int.TryParse(installmentsRaw, NumberStyles.Integer, CultureInfo.InvariantCulture, out var parsedInstallmentsKv)
+                    || int.TryParse(installmentsRaw, out parsedInstallmentsKv))
+                {
+                    kvInstallments = parsedInstallmentsKv;
+                }
+            }
+
+            bool? kvIsCredit = null;
+            if (TryGetVal(kv, "isCredit", out var isCreditRaw))
+            {
+                if (bool.TryParse(isCreditRaw, out var parsedIsCreditKv))
+                {
+                    kvIsCredit = parsedIsCreditKv;
+                }
+                else if (int.TryParse(isCreditRaw, NumberStyles.Integer, CultureInfo.InvariantCulture, out var isCreditNumeric))
+                {
+                    kvIsCredit = isCreditNumeric != 0;
+                }
+            }
+
+            string? kvClientMutationId = null;
+            if (TryGetVal(kv, "clientMutationId", out var clientMutationIdRaw))
+            {
+                kvClientMutationId = clientMutationIdRaw;
+            }
+
+            return new ExpenseEntryRequest(kvDate, d, a, m, p, kvIsCredit, kvInstallments, kvClientMutationId);
         }
 
         JsonNode? root; try { root = JsonNode.Parse(norm); } catch { return null; }
@@ -137,8 +163,22 @@ internal static class FunctionHelpers
         if (root is not JsonObject payload) return null;
         if (!TryReadDate(payload, out var date)) return null;
         var desc = ReadStr(payload, "description"); var mt = ReadStr(payload, "movementType"); var pm = ReadStr(payload, "paymentMethod");
+        bool? isCredit = null;
+        int? installments = null;
+        var clientMutationId = ReadNullableStr(payload, "clientMutationId");
+
+        if (TryReadBool(payload, "isCredit", out var parsedIsCredit))
+        {
+            isCredit = parsedIsCredit;
+        }
+
+        if (TryReadInt(payload, "installments", out var parsedInstallments))
+        {
+            installments = parsedInstallments;
+        }
+
         TryReadAmount(payload, out var amount);
-        return new ExpenseEntryRequest(date, desc, amount, mt, pm);
+        return new ExpenseEntryRequest(date, desc, amount, mt, pm, isCredit, installments, clientMutationId);
     }
 
     public static async Task<RecurringExpenseUpsertRequest?> ReadRecurringExpenseRequestAsync(HttpRequestData request, CancellationToken ct)

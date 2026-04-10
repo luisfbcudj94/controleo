@@ -3,6 +3,8 @@ import { Injectable } from '@angular/core';
 import { Observable } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import {
+  AdminUserUpdateRequest,
+  AuthSessionResponse,
   BudgetItem,
   BudgetUpsertRequest,
   DashboardCategoryItem,
@@ -11,6 +13,7 @@ import {
   ExpenseEntryRequest,
   ExpenseItem,
   OperationResult,
+  PagedAdminUsersResult,
   PagedExpenseResult,
   RecurringExpenseItem,
   RecurringExpenseUpsertRequest,
@@ -103,5 +106,34 @@ export class ApiService {
 
   deleteRecurringExpense(id: string): Observable<OperationResult> {
     return this.http.delete<OperationResult>(`${this.baseUrl}/api/recurring-expenses/${id}`);
+  }
+
+  getAdminUsersPage(pageNumber: number, pageSize: number, searchTerm?: string): Observable<PagedAdminUsersResult> {
+    const query = searchTerm?.trim()
+      ? `&search=${encodeURIComponent(searchTerm.trim())}`
+      : '';
+
+    return this.http.get<PagedAdminUsersResult>(
+      `${this.baseUrl}/api/management/users?pageNumber=${pageNumber}&pageSize=${pageSize}${query}`
+    );
+  }
+
+  updateAdminUser(userId: string, request: AdminUserUpdateRequest): Observable<OperationResult> {
+    return this.http.put<OperationResult>(`${this.baseUrl}/api/management/users/${encodeURIComponent(userId)}`, request);
+  }
+
+  deleteAdminUser(userId: string): Observable<OperationResult> {
+    return this.http.delete<OperationResult>(`${this.baseUrl}/api/management/users/${encodeURIComponent(userId)}`);
+  }
+
+  impersonateUser(userId: string): Observable<AuthSessionResponse> {
+    return this.http.post<AuthSessionResponse>(
+      `${this.baseUrl}/api/management/users/${encodeURIComponent(userId)}/impersonate`,
+      {}
+    );
+  }
+
+  endImpersonation(): Observable<OperationResult> {
+    return this.http.post<OperationResult>(`${this.baseUrl}/api/management/impersonation/end`, {});
   }
 }

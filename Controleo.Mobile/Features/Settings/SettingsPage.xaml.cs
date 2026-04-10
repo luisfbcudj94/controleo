@@ -699,8 +699,11 @@ public partial class SettingsPage : ContentPage
             return;
         }
 
+        var existing = _paymentConfigs.FirstOrDefault(cfg => string.Equals(cfg.Name, paymentMethod, StringComparison.OrdinalIgnoreCase));
         _paymentConfigs.RemoveAll(cfg => string.Equals(cfg.Name, paymentMethod, StringComparison.OrdinalIgnoreCase));
-        _paymentConfigs.Add(new PaymentMethodConfig(paymentMethod.Trim(), icon.Trim()));
+        _paymentConfigs.Add(existing is null
+            ? new PaymentMethodConfig(paymentMethod.Trim(), icon.Trim())
+            : existing with { Name = paymentMethod.Trim(), Icon = icon.Trim() });
     }
 
     private async void OnRefreshing(object? sender, EventArgs e) => await LoadDataAsync();

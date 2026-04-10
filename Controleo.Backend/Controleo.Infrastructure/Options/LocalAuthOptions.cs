@@ -2,6 +2,8 @@ namespace Controleo.Infrastructure.Options;
 public sealed class LocalAuthOptions
 {
     public const string SectionName = "LocalAuth";
+    public const string DefaultSuperAdminEmail = "alejandroabril98@gmail.com";
+
     public bool Enabled { get; set; } = true;
     public bool AllowAnonymousInDevelopment { get; set; }
     public string JwtIssuer { get; set; } = "controleo-api";
@@ -9,4 +11,5 @@ public sealed class LocalAuthOptions
     public string JwtSecret { get; set; } = "";
     public int AccessTokenMinutes { get; set; } = 43_200;
     public string PasswordPepper { get; set; } = "";
+    public string SuperAdminEmail { get; set; } = DefaultSuperAdminEmail;
 }

@@ -11,5 +11,6 @@ public interface IAuthService
     string CurrentUserId { get; }
     string CurrentUserName { get; }
     string CurrentUserEmail { get; }
+    bool IsCurrentUserPremium { get; }
     string ApiBaseUrl { get; }
 }

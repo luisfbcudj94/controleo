@@ -145,6 +145,40 @@
                         </Border.GestureRecognizers>
                     </Border>
                 </VerticalStackLayout>
+
+                <Label Text="PREMIUM"
+                       FontSize="10"
+                       FontAttributes="Bold"
+                       CharacterSpacing="1"
+                       TextColor="{StaticResource AppHint}"
+                       Margin="4,2,0,0" />
+
+                <Border StrokeShape="RoundRectangle 14"
+                        StrokeThickness="0"
+                        BackgroundColor="{StaticResource White}"
+                        Padding="14,12">
+                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+                        <Label Text="🏦" FontSize="18" VerticalOptions="Center" />
+                        <Label Grid.Column="1" Text="Obligaciones"
+                               FontSize="16" FontAttributes="Bold"
+                               TextColor="{StaticResource AppText}"
+                               VerticalOptions="Center" />
+                        <Border Grid.Column="2"
+                                StrokeShape="RoundRectangle 10"
+                                StrokeThickness="0"
+                                BackgroundColor="{StaticResource AccentLight}"
+                                Padding="8,3"
+                                VerticalOptions="Center">
+                            <Label Text="Premium"
+                                   FontSize="10"
+                                   FontAttributes="Bold"
+                                   TextColor="{StaticResource PrimaryDark}" />
+                        </Border>
+                    </Grid>
+                    <Border.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnObligationsTapped" />
+                    </Border.GestureRecognizers>
+                </Border>
             </VerticalStackLayout>
         </ScrollView>
     </Grid>

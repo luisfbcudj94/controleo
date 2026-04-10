@@ -55,6 +55,12 @@ export interface AuthUserProfile {
   userId: string;
   name: string;
   email: string;
+  isPremium: boolean;
+  isAdmin: boolean;
+  isImpersonating?: boolean;
+  actorUserId?: string | null;
+  actorName?: string | null;
+  actorEmail?: string | null;
 }
 
 export interface AuthSessionResponse {
@@ -123,4 +129,33 @@ export interface RecurringExpenseUpsertRequest {
   dayOfMonth: number;
   startDate: string;
   isActive: boolean;
+}
+
+export interface AdminUserItem {
+  userId: string;
+  name: string;
+  email: string;
+  isPremium: boolean;
+  isAdmin: boolean;
+  isSuperAdmin: boolean;
+  isDisabled: boolean;
+  createdAt: string;
+  updatedAt: string;
+  lastLoginAt: string;
+}
+
+export interface AdminUserUpdateRequest {
+  isPremium: boolean;
+  isAdmin: boolean;
+  isDisabled: boolean;
+}
+
+export interface PagedAdminUsersResult {
+  items: AdminUserItem[];
+  pageNumber: number;
+  pageSize: number;
+  totalCount: number;
+  totalPages: number;
+  hasPreviousPage: boolean;
+  hasNextPage: boolean;
 }

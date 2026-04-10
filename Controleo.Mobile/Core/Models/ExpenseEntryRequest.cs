@@ -5,5 +5,8 @@ public sealed record ExpenseEntryRequest(
     string Description,
     decimal Amount,
     string MovementType,
-    string PaymentMethod
+    string PaymentMethod,
+    bool? IsCredit = null,
+    int? Installments = null,
+    string? ClientMutationId = null
 );

@@ -7,7 +7,8 @@ import { BudgetsPageComponent } from './features/budgets/budgets-page/budgets-pa
 import { SettingsPageComponent } from './features/settings/settings-page/settings-page.component';
 import { LoginPageComponent } from './features/auth/login-page/login-page.component';
 import { RecurringPageComponent } from './features/recurring/recurring-page/recurring-page.component';
-import { authChildGuard } from './core/guards/auth.guard';
+import { authChildGuard, adminGuard } from './core/guards/auth.guard';
+import { AdminUsersPageComponent } from './features/admin-users/admin-users-page/admin-users-page.component';
 
 export const routes: Routes = [
 	{ path: 'login', component: LoginPageComponent },
@@ -22,7 +23,8 @@ export const routes: Routes = [
 			{ path: 'dashboard', component: DashboardPageComponent },
 			{ path: 'presupuestos', component: BudgetsPageComponent },
 			{ path: 'recurrentes', component: RecurringPageComponent },
-			{ path: 'configuracion', component: SettingsPageComponent }
+			{ path: 'configuracion', component: SettingsPageComponent },
+			{ path: 'admin/usuarios', component: AdminUsersPageComponent, canActivate: [adminGuard] }
 		]
 	},
 	{ path: '**', redirectTo: 'login' }

@@ -24,4 +24,8 @@ public interface IExpenseApiClient
     Task<PagedRecurringResult> GetRecurringExpensesPageAsync(int pageNumber, int pageSize, CancellationToken cancellationToken);
     Task<OperationResult> SaveRecurringExpenseAsync(string? id, RecurringExpenseUpsertRequest request, CancellationToken cancellationToken);
     Task<OperationResult> DeleteRecurringExpenseAsync(string id, CancellationToken cancellationToken);
+    Task<IReadOnlyList<ObligationItem>> GetObligationsAsync(CancellationToken cancellationToken);
+    Task<PagedObligationResult> GetObligationsPageAsync(int pageNumber, int pageSize, CancellationToken cancellationToken);
+    Task<OperationResult> SaveObligationAsync(string? id, ObligationUpsertRequest request, CancellationToken cancellationToken);
+    Task<OperationResult> DeleteObligationAsync(string id, CancellationToken cancellationToken);
 }

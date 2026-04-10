@@ -140,6 +140,66 @@
             </Grid>
         </RefreshView>
 
+        <Grid x:Name="OfflineStatusBackdrop"
+              Grid.Row="0"
+              IsVisible="False"
+              ZIndex="14"
+              Margin="-24"
+              InputTransparent="False">
+            <BoxView x:Name="OfflineStatusBackdropShade" Color="#8A111111" />
+            <Border Margin="20" StrokeThickness="0" BackgroundColor="#33FFFFFF"
+                StrokeShape="RoundRectangle 24" />
+        </Grid>
+
+        <Border x:Name="OfflineStatusToast"
+            Grid.Row="0"
+            IsVisible="False"
+            ZIndex="15"
+            Margin="24"
+            MaximumWidthRequest="420"
+            HorizontalOptions="Center"
+            VerticalOptions="Center"
+            StrokeShape="RoundRectangle 20"
+            StrokeThickness="1"
+            Padding="16,14"
+            BackgroundColor="{StaticResource White}">
+            <Border.Shadow>
+                <Shadow Brush="Black" Offset="0,8" Radius="22" Opacity="0.18" />
+            </Border.Shadow>
+                 <Grid ColumnDefinitions="*" RowDefinitions="Auto,Auto,Auto,Auto"
+                  ColumnSpacing="8" RowSpacing="8">
+                <Label x:Name="OfflineStatusTitleLabel"
+                       TextColor="{StaticResource AppText}"
+                       FontSize="17"
+                       FontAttributes="Bold"
+                       VerticalOptions="Center" />
+
+                <Label Grid.Row="1"
+                       x:Name="OfflineStatusLabel"
+                       TextColor="{StaticResource AppText}"
+                       FontSize="13"
+                       LineBreakMode="WordWrap" />
+
+                <Label Grid.Row="2"
+                       x:Name="OfflineStatusBenefitsLabel"
+                       TextColor="{StaticResource AppHint}"
+                       FontSize="12"
+                       LineBreakMode="WordWrap" />
+
+                <Button Grid.Row="3"
+                        x:Name="OfflineStatusCtaButton"
+                        Text="Suscribirme por $0.99"
+                        FontAttributes="Bold"
+                        FontSize="12"
+                        HeightRequest="38"
+                        Padding="14,0"
+                        BackgroundColor="{StaticResource Primary}"
+                        TextColor="{StaticResource PrimaryDarkText}"
+                        CornerRadius="12"
+                        Clicked="OnOfflineStatusCtaClicked" />
+            </Grid>
+        </Border>
+
         <Grid x:Name="LoadingOverlay"
               Grid.Row="0"
               IsVisible="False"

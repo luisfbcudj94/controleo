@@ -5,6 +5,7 @@ using Controleo.Mobile.Features.Auth;
 using Controleo.Mobile.Features.Budgets;
 using Controleo.Mobile.Features.Dashboard;
 using Controleo.Mobile.Features.Expenses;
+using Controleo.Mobile.Features.Obligations;
 using Controleo.Mobile.Features.Recurring;
 using Controleo.Mobile.Features.Register;
 using Controleo.Mobile.Features.Settings;
@@ -211,8 +212,25 @@ public partial class App : Application
 			var apiClient = _serviceProvider.GetRequiredService<IExpenseApiClient>();
 			var authService = _serviceProvider.GetRequiredService<IAuthService>();
 			var monthContext = _serviceProvider.GetRequiredService<IMonthContextService>();
+			var obligationNotificationService = _serviceProvider.GetRequiredService<IObligationNotificationService>();
 			var colorService = _serviceProvider.GetRequiredService<ICatalogColorService>();
 			var paymentIconService = _serviceProvider.GetRequiredService<IPaymentIconService>();
+			var currentPage = _mainTabs?.CurrentPage ?? _mainFlyout?.Detail;
+
+			if (destination == SideMenuDestination.Obligations && !authService.IsCurrentUserPremium)
+			{
+				if (currentPage is not null)
+				{
+					await StyledResultModalPage.ShowAsync(
+						currentPage,
+						false,
+						"Funcionalidad Premium",
+						"Obligaciones está disponible solo para usuarios premium. Activa premium para usar calendario, detalle diario y recordatorios.",
+						autoCloseMilliseconds: 0);
+				}
+
+				return;
+			}
 
 			Page destinationPage = destination switch
 			{
@@ -221,13 +239,15 @@ public partial class App : Application
 				SideMenuDestination.PaymentMethods => new SettingsPage(apiClient, authService, colorService, paymentIconService, SettingsSectionMode.PaymentOnly),
 				SideMenuDestination.MovementTypes => new SettingsPage(apiClient, authService, colorService, paymentIconService, SettingsSectionMode.MovementOnly),
 				SideMenuDestination.Recurring => new RecurringPage(apiClient, colorService, paymentIconService),
+				SideMenuDestination.Obligations => new ObligationsPage(apiClient, authService, obligationNotificationService, colorService, paymentIconService),
 				_ => new ProfilePage(authService)
 			};
 
 			var usePageHeader = destination is SideMenuDestination.Budgets
 				or SideMenuDestination.PaymentMethods
 				or SideMenuDestination.MovementTypes
-				or SideMenuDestination.Recurring;
+				or SideMenuDestination.Recurring
+				or SideMenuDestination.Obligations;
 
 			// Use modal navigation — completely independent of tab stacks, no orphan/crash risk
 			var modalNav = new NavigationPage(destinationPage);
@@ -242,6 +262,7 @@ public partial class App : Application
 					SideMenuDestination.PaymentMethods => "Medios de pago",
 					SideMenuDestination.MovementTypes => "Tipos de gasto",
 					SideMenuDestination.Recurring => "Gastos recurrentes",
+					SideMenuDestination.Obligations => "Obligaciones",
 					_ => ""
 				};
 
@@ -253,7 +274,6 @@ public partial class App : Application
 				});
 			}
 
-			var currentPage = _mainTabs?.CurrentPage ?? _mainFlyout?.Detail;
 			if (currentPage is not null)
 			{
 				await currentPage.Navigation.PushModalAsync(modalNav);

@@ -26,6 +26,8 @@ public partial class ExpensesPage : ContentPage
 
     private readonly IExpenseApiClient _apiClient;
     private readonly IMonthContextService _monthContext;
+    private readonly IAuthService _authService;
+    private readonly IConnectivityService _connectivityService;
     private readonly ICatalogColorService _colorService;
     private readonly IPaymentIconService _paymentIconService;
     private readonly ObservableCollection<ExpenseViewItem> _expenses = [];
@@ -43,17 +45,29 @@ public partial class ExpensesPage : ContentPage
     private DateOnly _editSelectedDate = DateOnly.FromDateTime(DateTime.Today);
     private string? _editSelectedMovementType;
     private string? _editSelectedPaymentMethod;
+    private bool _offlineStatusToastDismissed;
+    private bool _lastConnectivityOnlineState;
 
-    public ExpensesPage(IExpenseApiClient apiClient, IMonthContextService monthContext, ICatalogColorService colorService, IPaymentIconService paymentIconService)
+    public ExpensesPage(
+        IExpenseApiClient apiClient,
+        IMonthContextService monthContext,
+        IAuthService authService,
+        IConnectivityService connectivityService,
+        ICatalogColorService colorService,
+        IPaymentIconService paymentIconService)
     {
         InitializeComponent();
         _apiClient = apiClient;
         _monthContext = monthContext;
+        _authService = authService;
+        _connectivityService = connectivityService;
+        _lastConnectivityOnlineState = _connectivityService.IsOnline;
         _colorService = colorService;
         _paymentIconService = paymentIconService;
         RefreshMonthPickerItems();
         _monthContext.MonthChanged += OnMonthChanged;
         _monthContext.MonthOptionsChanged += OnMonthOptionsChanged;
+        _connectivityService.ConnectivityChanged += OnConnectivityChanged;
         SyncMonthSelection();
         ExpensesCollection.ItemsSource = _expenses;
         PageSizePicker.ItemsSource = AllowedPageSizes.Select(item => item.ToString()).ToList();
@@ -64,12 +78,14 @@ public partial class ExpensesPage : ContentPage
         MoneyFormatHelper.Attach(EditAmountEntry);
         UpdateEditSelectorUi();
         UpdateFilterUi();
+        UpdateOfflineStatusToast();
     }
 
     protected override async void OnAppearing()
     {
         base.OnAppearing();
         _isActive = true;
+        UpdateOfflineStatusToast();
         await RefreshMonthOptionsAsync();
         await LoadDataAsync();
     }
@@ -356,6 +372,71 @@ public partial class ExpensesPage : ContentPage
     private void SetLoading(bool isLoading)
     {
         LoadingOverlay.IsVisible = isLoading;
+    }
+
+    private void OnConnectivityChanged(object? sender, bool isOnline)
+    {
+        if (isOnline != _lastConnectivityOnlineState)
+        {
+            _offlineStatusToastDismissed = false;
+            _lastConnectivityOnlineState = isOnline;
+        }
+
+        MainThread.BeginInvokeOnMainThread(UpdateOfflineStatusToast);
+    }
+
+    private void UpdateOfflineStatusToast()
+    {
+        if (_connectivityService.IsOnline || _offlineStatusToastDismissed)
+        {
+            OfflineStatusToast.IsVisible = false;
+            OfflineStatusBackdrop.IsVisible = false;
+            return;
+        }
+
+        OfflineStatusToast.IsVisible = true;
+        OfflineStatusBackdrop.IsVisible = true;
+        OfflineStatusToast.StrokeThickness = 1;
+        if (_authService.IsCurrentUserPremium)
+        {
+            OfflineStatusBackdropShade.Color = Color.FromArgb("#55000000");
+            OfflineStatusToast.BackgroundColor = Color.FromArgb("#E7F6EE");
+            OfflineStatusToast.Stroke = new SolidColorBrush(Color.FromArgb("#2D6A4F"));
+            OfflineStatusTitleLabel.TextColor = Color.FromArgb("#1F5B3E");
+            OfflineStatusTitleLabel.Text = "Modo offline premium activo";
+            OfflineStatusLabel.Text = "Sin internet, pero puedes seguir usando Gastos sin limites.";
+            OfflineStatusBenefitsLabel.Text = "Beneficios premium: registrar, editar y sincronizar automaticamente al reconectar.";
+            OfflineStatusCtaButton.Text = "Continuar usando la app";
+            OfflineStatusCtaButton.IsVisible = true;
+            return;
+        }
+
+        OfflineStatusBackdropShade.Color = Color.FromArgb("#55000000");
+        OfflineStatusToast.BackgroundColor = Color.FromArgb("#FDEBE9");
+        OfflineStatusToast.Stroke = new SolidColorBrush(Color.FromArgb("#C13A2E"));
+        OfflineStatusTitleLabel.TextColor = Color.FromArgb("#8E1D13");
+        OfflineStatusTitleLabel.Text = "Activa premium y usa offline completo";
+        OfflineStatusLabel.Text = "Sin internet. Tu plan actual no permite registrar ni editar gastos offline.";
+        OfflineStatusBenefitsLabel.Text = "Suscribete por solo $0.99 al mes para registro offline, edicion offline y sincronizacion automatica.";
+        OfflineStatusCtaButton.Text = "Ir a suscribirse";
+        OfflineStatusCtaButton.IsVisible = true;
+    }
+
+    private async void OnOfflineStatusCtaClicked(object? sender, EventArgs e)
+    {
+        if (_authService.IsCurrentUserPremium)
+        {
+            _offlineStatusToastDismissed = true;
+            OfflineStatusToast.IsVisible = false;
+            OfflineStatusBackdrop.IsVisible = false;
+            return;
+        }
+
+        await StyledResultModalPage.ShowAsync(
+            this,
+            false,
+            "Suscripcion premium",
+            "Oferta especial: suscribete por $0.99 y disfruta modo offline completo, edicion y sincronizacion automatica.");
     }
 
     private async void OnPageSizeChanged(object? sender, EventArgs e)

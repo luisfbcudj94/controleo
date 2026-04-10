@@ -1,0 +1,277 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Controleo.Mobile.Features.Obligations.ObligationsPage"
+             Title="Obligaciones"
+             BackgroundColor="{StaticResource AppBg}">
+
+    <Grid RowDefinitions="*">
+        <ScrollView>
+            <VerticalStackLayout Padding="16" Spacing="12">
+
+                <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,4">
+                    <Label Text="Obligaciones"
+                           FontSize="28"
+                           FontAttributes="Bold"
+                           FontFamily="OpenSansSemibold"
+                           TextColor="{StaticResource AppText}"
+                           VerticalOptions="Center" />
+                    <Button Grid.Column="1"
+                            Text="✕"
+                            WidthRequest="36"
+                            HeightRequest="36"
+                            CornerRadius="18"
+                            BackgroundColor="{StaticResource Gray200}"
+                            TextColor="{StaticResource AppText}"
+                            FontSize="14"
+                            Clicked="OnClosePageClicked" />
+                </Grid>
+
+                <Border StrokeShape="RoundRectangle 16" StrokeThickness="0" Padding="14"
+                        BackgroundColor="{StaticResource AccentLight}">
+                    <Border.Stroke>
+                        <LinearGradientBrush>
+                            <GradientStop Color="{StaticResource Primary}" Offset="0" />
+                            <GradientStop Color="{StaticResource AccentLight}" Offset="1" />
+                        </LinearGradientBrush>
+                    </Border.Stroke>
+                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                        <Label Text="🏦" FontSize="24" VerticalOptions="Start" />
+                        <VerticalStackLayout Grid.Column="1" Spacing="4">
+                            <Label Text="Gestiona tus deudas" FontSize="14" FontAttributes="Bold"
+                                   TextColor="{StaticResource PrimaryDark}" />
+                            <Label Text="Registra préstamos, cuotas de tarjeta y otras obligaciones mensuales con recordatorios y estado activo."
+                                   FontSize="12" TextColor="{StaticResource Gray600}" LineBreakMode="WordWrap" />
+                        </VerticalStackLayout>
+                    </Grid>
+                </Border>
+
+                <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                    <Button Text="➕ Agregar obligación"
+                        FontAttributes="Bold" FontSize="16"
+                        BackgroundColor="{StaticResource Primary}"
+                        TextColor="{StaticResource PrimaryDarkText}"
+                        CornerRadius="16" HeightRequest="52"
+                        Clicked="OnAddNewClicked" />
+                    <Button Grid.Column="1"
+                        Text="📋 Ver todas"
+                        FontAttributes="Bold" FontSize="16"
+                        BackgroundColor="{StaticResource AppSurface2}"
+                        TextColor="{StaticResource AppText}"
+                        CornerRadius="16" HeightRequest="52"
+                        Clicked="OnViewAllClicked" />
+                </Grid>
+
+                <Border Padding="12" StrokeShape="RoundRectangle 16" StrokeThickness="0"
+                        BackgroundColor="{StaticResource White}">
+                    <Border.Shadow>
+                        <Shadow Brush="Black" Offset="0,1" Radius="4" Opacity="0.05" />
+                    </Border.Shadow>
+                    <VerticalStackLayout Spacing="12">
+                        <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="8" VerticalOptions="Center">
+                            <Button Text="◀"
+                                    WidthRequest="38"
+                                    HeightRequest="38"
+                                    CornerRadius="19"
+                                    BackgroundColor="{StaticResource AppSurface2}"
+                                    Clicked="OnPrevMonthClicked" />
+                            <Label Grid.Column="1"
+                                   x:Name="MonthTitleLabel"
+                                   HorizontalTextAlignment="Center"
+                                   VerticalOptions="Center"
+                                   FontAttributes="Bold"
+                                   FontSize="16"
+                                   TextColor="{StaticResource AppText}" />
+                            <Button Grid.Column="2"
+                                    Text="Hoy"
+                                    HeightRequest="38"
+                                    CornerRadius="12"
+                                    Padding="12,0"
+                                    BackgroundColor="{StaticResource AccentLight}"
+                                    TextColor="{StaticResource PrimaryDark}"
+                                    FontSize="12"
+                                    FontAttributes="Bold"
+                                    Clicked="OnTodayClicked" />
+                            <Button Grid.Column="3"
+                                    Text="▶"
+                                    WidthRequest="38"
+                                    HeightRequest="38"
+                                    CornerRadius="19"
+                                    BackgroundColor="{StaticResource AppSurface2}"
+                                    Clicked="OnNextMonthClicked" />
+                        </Grid>
+
+                        <Grid ColumnDefinitions="*,*,*,*,*,*,*" ColumnSpacing="6">
+                            <Label Text="L" HorizontalTextAlignment="Center" FontSize="11" FontAttributes="Bold" TextColor="{StaticResource AppHint}" />
+                            <Label Grid.Column="1" Text="M" HorizontalTextAlignment="Center" FontSize="11" FontAttributes="Bold" TextColor="{StaticResource AppHint}" />
+                            <Label Grid.Column="2" Text="X" HorizontalTextAlignment="Center" FontSize="11" FontAttributes="Bold" TextColor="{StaticResource AppHint}" />
+                            <Label Grid.Column="3" Text="J" HorizontalTextAlignment="Center" FontSize="11" FontAttributes="Bold" TextColor="{StaticResource AppHint}" />
+                            <Label Grid.Column="4" Text="V" HorizontalTextAlignment="Center" FontSize="11" FontAttributes="Bold" TextColor="{StaticResource AppHint}" />
+                            <Label Grid.Column="5" Text="S" HorizontalTextAlignment="Center" FontSize="11" FontAttributes="Bold" TextColor="{StaticResource AppHint}" />
+                            <Label Grid.Column="6" Text="D" HorizontalTextAlignment="Center" FontSize="11" FontAttributes="Bold" TextColor="{StaticResource AppHint}" />
+                        </Grid>
+
+                        <CollectionView x:Name="CalendarCollection" SelectionMode="None" HeightRequest="360">
+                            <CollectionView.GestureRecognizers>
+                                <SwipeGestureRecognizer Direction="Left" Swiped="OnCalendarSwiped" />
+                                <SwipeGestureRecognizer Direction="Right" Swiped="OnCalendarSwiped" />
+                            </CollectionView.GestureRecognizers>
+                            <CollectionView.ItemsLayout>
+                                <GridItemsLayout Orientation="Vertical" Span="7" HorizontalItemSpacing="6" VerticalItemSpacing="6" />
+                            </CollectionView.ItemsLayout>
+                            <CollectionView.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Padding="8"
+                                            StrokeThickness="1"
+                                            Stroke="{Binding BorderBrush}"
+                                            BackgroundColor="{Binding BackgroundColor}"
+                                            StrokeShape="RoundRectangle 12"
+                                            HeightRequest="54"
+                                            MinimumHeightRequest="54">
+                                        <VerticalStackLayout Spacing="4">
+                                            <Label Text="{Binding DayNumberText}"
+                                                   FontSize="13"
+                                                   FontAttributes="Bold"
+                                                   HorizontalTextAlignment="Center"
+                                                   TextColor="{Binding DayTextColor}" />
+                                            <Border IsVisible="{Binding HasObligations}"
+                                                    StrokeThickness="0"
+                                                    BackgroundColor="{Binding CountBackgroundColor}"
+                                                    StrokeShape="RoundRectangle 9"
+                                                    Padding="6,1"
+                                                    HorizontalOptions="Center">
+                                                <Label Text="{Binding ObligationCountText}"
+                                                       FontSize="10"
+                                                       FontAttributes="Bold"
+                                                       TextColor="{Binding CountTextColor}" />
+                                            </Border>
+                                        </VerticalStackLayout>
+                                        <Border.GestureRecognizers>
+                                            <TapGestureRecognizer CommandParameter="{Binding .}" Tapped="OnCalendarDayTapped" />
+                                        </Border.GestureRecognizers>
+                                    </Border>
+                                </DataTemplate>
+                            </CollectionView.ItemTemplate>
+                        </CollectionView>
+
+                        <Label x:Name="CalendarSummaryLabel"
+                               FontSize="12"
+                               TextColor="{StaticResource AppHint}" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <Label x:Name="StatusLabel" TextColor="{StaticResource AppHint}" FontSize="12" />
+            </VerticalStackLayout>
+        </ScrollView>
+
+        <Grid x:Name="FormOverlay" Grid.Row="0" IsVisible="False"
+              BackgroundColor="#44000000" InputTransparent="False" ZIndex="20" Margin="-16">
+            <ScrollView VerticalOptions="Center" Margin="24">
+                <Border StrokeShape="RoundRectangle 20" Padding="18"
+                        BackgroundColor="{StaticResource White}" Stroke="{StaticResource AppBorder}">
+                    <VerticalStackLayout Spacing="12">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <Label x:Name="FormTitle" Text="Nueva obligación"
+                                   FontSize="18" FontAttributes="Bold" />
+                            <Button Grid.Column="1" Text="✕" WidthRequest="36" HeightRequest="36"
+                                    CornerRadius="18" BackgroundColor="{StaticResource Gray200}"
+                                    TextColor="{StaticResource AppText}" FontSize="14"
+                                    Clicked="OnCancelForm" />
+                        </Grid>
+
+                        <Label Text="Descripción" FontSize="11" FontAttributes="Bold"
+                               TextColor="{StaticResource AppHint}" CharacterSpacing="0.5" />
+                        <Entry x:Name="DescriptionEntry" Placeholder="Ej: Crédito Davivienda" MaxLength="120" />
+
+                        <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                            <VerticalStackLayout Spacing="4">
+                                <Label Text="Cuota mensual" FontSize="11" FontAttributes="Bold"
+                                       TextColor="{StaticResource AppHint}" CharacterSpacing="0.5" />
+                                <Entry x:Name="MonthlyPaymentEntry" Placeholder="$0" Keyboard="Numeric" />
+                            </VerticalStackLayout>
+                            <VerticalStackLayout Grid.Column="1" Spacing="4">
+                                <Label Text="Día de cobro" FontSize="11" FontAttributes="Bold"
+                                       TextColor="{StaticResource AppHint}" CharacterSpacing="0.5" />
+                                <Entry x:Name="DueDayEntry" Placeholder="1" Keyboard="Numeric" />
+                            </VerticalStackLayout>
+                        </Grid>
+
+                        <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                            <VerticalStackLayout Spacing="4">
+                                <Label Text="Tipo de gasto" FontSize="11" FontAttributes="Bold"
+                                       TextColor="{StaticResource AppHint}" CharacterSpacing="0.5" />
+                                <Border StrokeShape="RoundRectangle 12"
+                                        BackgroundColor="{StaticResource AppSurface2}"
+                                        Stroke="{StaticResource AppBorder}" Padding="12,10">
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <Label x:Name="SelectedTypeLabel" Text="Seleccionar"
+                                               VerticalOptions="Center" TextColor="{StaticResource AppText}" FontSize="13" />
+                                        <Label Grid.Column="1" Text="▼" FontSize="10"
+                                               TextColor="{StaticResource AppHint}" VerticalOptions="Center" />
+                                    </Grid>
+                                    <Border.GestureRecognizers>
+                                        <TapGestureRecognizer Tapped="OnTypeSelectorTapped" />
+                                    </Border.GestureRecognizers>
+                                </Border>
+                            </VerticalStackLayout>
+                            <VerticalStackLayout Grid.Column="1" Spacing="4">
+                                <Label Text="Medio de pago" FontSize="11" FontAttributes="Bold"
+                                       TextColor="{StaticResource AppHint}" CharacterSpacing="0.5" />
+                                <Border StrokeShape="RoundRectangle 12"
+                                        BackgroundColor="{StaticResource AppSurface2}"
+                                        Stroke="{StaticResource AppBorder}" Padding="12,10">
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <Label x:Name="SelectedPayLabel" Text="Seleccionar"
+                                               VerticalOptions="Center" TextColor="{StaticResource AppText}" FontSize="13" />
+                                        <Label Grid.Column="1" Text="▼" FontSize="10"
+                                               TextColor="{StaticResource AppHint}" VerticalOptions="Center" />
+                                    </Grid>
+                                    <Border.GestureRecognizers>
+                                        <TapGestureRecognizer Tapped="OnPaySelectorTapped" />
+                                    </Border.GestureRecognizers>
+                                </Border>
+                            </VerticalStackLayout>
+                        </Grid>
+
+                        <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                            <VerticalStackLayout Spacing="4">
+                                <Label Text="Recordar antes (días)" FontSize="11" FontAttributes="Bold"
+                                       TextColor="{StaticResource AppHint}" CharacterSpacing="0.5" />
+                                <Entry x:Name="ReminderDaysEntry" Placeholder="3" Keyboard="Numeric" />
+                            </VerticalStackLayout>
+                            <VerticalStackLayout Grid.Column="1" Spacing="4">
+                                <Label Text="Mes inicio" FontSize="11" FontAttributes="Bold"
+                                       TextColor="{StaticResource AppHint}" CharacterSpacing="0.5" />
+                                <Entry x:Name="StartMonthEntry" Placeholder="yyyy-MM" MaxLength="7" />
+                            </VerticalStackLayout>
+                        </Grid>
+
+                        <HorizontalStackLayout Spacing="8">
+                            <CheckBox x:Name="IsActiveCheck" IsChecked="True" />
+                            <Label Text="Activo" VerticalOptions="Center" />
+                        </HorizontalStackLayout>
+
+                        <Grid ColumnDefinitions="*,*" ColumnSpacing="8" Margin="0,4,0,0">
+                            <Button Text="Guardar" Clicked="OnSaveClicked"
+                                    x:Name="SaveButton"
+                                    BackgroundColor="{StaticResource Primary}"
+                                    TextColor="{StaticResource PrimaryDarkText}"
+                                    CornerRadius="14" HeightRequest="48" FontAttributes="Bold" />
+                            <Button Grid.Column="1" Text="Cancelar" Clicked="OnCancelForm"
+                                    BackgroundColor="{StaticResource AppSurface2}"
+                                    TextColor="{StaticResource AppText}"
+                                    CornerRadius="14" HeightRequest="48" />
+                        </Grid>
+                    </VerticalStackLayout>
+                </Border>
+            </ScrollView>
+        </Grid>
+
+        <Grid x:Name="LoadingOverlay" Grid.Row="0" IsVisible="False"
+              BackgroundColor="#33000000" InputTransparent="False" ZIndex="40" Margin="-16">
+            <ActivityIndicator IsRunning="True" WidthRequest="48" HeightRequest="48"
+                               Color="{StaticResource Tertiary}" HorizontalOptions="Center" VerticalOptions="Center" />
+        </Grid>
+
+    </Grid>
+</ContentPage>

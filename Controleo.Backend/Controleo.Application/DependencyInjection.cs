@@ -10,7 +10,9 @@ public static class DependencyInjection
         services.AddSingleton<ICatalogService, CatalogService>();
         services.AddSingleton<IBudgetService, BudgetService>();
         services.AddSingleton<IRecurringExpenseService, RecurringExpenseService>();
+        services.AddSingleton<IObligationService, ObligationService>();
         services.AddSingleton<IDashboardService, DashboardService>();
+        services.AddSingleton<IAdminUserService, AdminUserService>();
         return services;
     }
 }

@@ -57,7 +57,12 @@ public sealed class AuthApiFunctions
 
         var result = await _authService.LoginAsync(payload.Email, payload.Password, ct);
         if (!result.IsSuccess || result.Session is null)
-            return await FunctionHelpers.JsonAsync(req, HttpStatusCode.Unauthorized, new OperationResult(false, result.ErrorMessage), ct);
+        {
+            var status = string.Equals(result.ErrorMessage, "Cuenta inhabilitada por el administrador.", StringComparison.Ordinal)
+                ? HttpStatusCode.Forbidden
+                : HttpStatusCode.Unauthorized;
+            return await FunctionHelpers.JsonAsync(req, status, new OperationResult(false, result.ErrorMessage), ct);
+        }
 
         return await FunctionHelpers.JsonAsync(req, HttpStatusCode.OK, result.Session, ct);
     }

@@ -1,85 +1,142 @@
 # Controleo
 
-App móvil de control de gastos en .NET MAUI (Android/iOS) con API ASP.NET Core que guarda registros en Firebase (Cloud Firestore).
+**Tu app de control de gastos personales.** Registra, organiza y analiza tus finanzas desde tu celular o desde la web.
 
-## Estructura
+Disponible en **Android**, **iOS** y **Web** (Angular — solo para usuarios Premium).
 
-- `Controleo.Api`: API para registrar gastos y escribir en Firebase Firestore.
-- `Controleo.Mobile`: App MAUI con formulario móvil.
+---
 
-## Datos capturados
+## Funcionalidades
 
-- Fecha
-- Descripción
-- Valor
-- Tipo de movimiento
-- Medio de pago
+### Dashboard
 
-## Configuración Firebase (Firestore)
+- Navegación por mes (anterior, siguiente, selector de mes).
+- Dos vistas: **por categoría** (tipo de movimiento) o **por medio de pago**.
+- Gráfico donut con la distribución de tus gastos del mes.
+- Barras de progreso de presupuesto por categoría para ver cuánto llevas gastado vs. tu límite.
+- Detalle por sección: toca una categoría o medio de pago para ver los gastos asociados.
 
-La API usa `Controleo.Api/appsettings.Development.json`:
+### Registro rápido de gastos
 
-```json
-"FirebaseStorage": {
-   "ProjectId": "TU_FIREBASE_PROJECT_ID",
-   "CredentialsFilePath": "C:\\Users\\v-tgeethanat\\Desktop\\secrets\\firebase-service-account.json",
-   "CollectionName": "expenses"
-}
-```
+- Registra un gasto en segundos: fecha, descripción, monto, tipo de movimiento y medio de pago.
+- Fecha limitada al mes en curso.
+- Descripción de hasta 50 caracteres.
+- Monto máximo por gasto: **$10,000,000,000**.
+- Formato de monto en tiempo real mientras escribes.
 
-### Pasos en Firebase
+### Listado de gastos
 
-1. Crea un proyecto en Firebase y habilita Firestore en modo nativo.
-2. En Google Cloud Console, crea una Service Account para ese proyecto.
-3. Descarga la llave JSON y guárdala fuera del repo (ej. `C:\Users\...\secrets\firebase-service-account.json`).
-4. Dale al service account rol `Cloud Datastore User` (o `Editor` para pruebas).
-5. Configura `ProjectId` y `CredentialsFilePath` en `appsettings.Development.json`.
+- Consulta todos tus gastos del mes con paginación (5, 10 o 20 por página).
+- Filtra por tipo de movimiento, medio de pago o busca por texto.
+- Edita o elimina cualquier gasto registrado.
 
-## Ejecutar en VS Code
+### Presupuestos mensuales
 
-1. Restaurar paquetes:
-   - `dotnet restore Controleo.sln --ignore-failed-sources`
-2. Ejecutar API:
-   - task `API: Run`
-   - o `dotnet run --project Controleo.Api/Controleo.Api.csproj --launch-profile http`
-3. Ejecutar app MAUI en Windows (pruebas de UI):
-   - `dotnet build Controleo.Mobile/Controleo.Mobile.csproj -f net9.0-windows10.0.19041.0`
+- Crea un presupuesto por cada categoría de gasto (tipo de movimiento).
+- Visualiza cuánto llevas gastado vs. tu presupuesto asignado.
+- Integrado con el dashboard para seguimiento visual con indicadores de progreso.
 
-## Probar API
+### Gastos recurrentes
 
-- Catálogos: `GET http://localhost:5051/api/catalogs`
-- Guardar gasto: `POST http://localhost:5051/api/expenses`
+- Automatiza gastos que se repiten cada mes (arriendo, suscripciones, servicios, etc.).
+- Configura: descripción, monto, tipo de movimiento, medio de pago, día del mes (1-31).
+- Define mes de inicio y mes de fin (opcional).
+- Activa o desactiva cada recurrente en cualquier momento.
+- Los gastos se generan automáticamente en el día configurado.
 
-Ejemplo JSON:
+### Obligaciones
 
-```json
-{
-  "date": "2026-03-21",
-  "description": "Mercado",
-  "amount": 45000,
-  "movementType": "Hogar",
-  "paymentMethod": "Efectivo"
-}
-```
+- Lleva el control de préstamos, tarjetas de crédito y pagos mensuales.
+- Registra: descripción, pago mensual, monto total, saldo actual, tasa de interés.
+- Seguimiento de cuotas: cuotas totales y cuotas restantes.
+- Día de vencimiento (1-31) con recordatorio configurable (0 a 30 días antes).
+- Clasifica por tipo (General u otro) y asocia a una tarjeta si aplica.
 
-## Android APK
+### Configuración de catálogos
 
-Prerequisitos en Windows:
+- **Tipos de movimiento** (categorías): crea, edita y elimina categorías personalizadas. Asigna un emoji y un color a cada una.
+- **Medios de pago**: crea, edita y elimina medios de pago personalizados. Asigna un emoji a cada uno.
+- Tus catálogos se usan en gastos, presupuestos, recurrentes y obligaciones.
 
-- Android SDK instalado
-- JDK 17+ instalado
-- variables `ANDROID_HOME`/`AndroidSdkDirectory` y `JAVA_HOME` configuradas
+### Autenticación
 
-Comando APK:
+- Registro con email y contraseña (mínimo 8 caracteres).
+- Inicio de sesión con email y contraseña.
+- Sesión persistente con token seguro.
 
-- `dotnet publish Controleo.Mobile/Controleo.Mobile.csproj -f net9.0-android -c Release -p:AndroidPackageFormat=apk`
+---
 
-## iOS
+## Plan Premium
 
-Para compilar/publicar iOS (`.ipa`) necesitas Mac (local o remoto con Pair to Mac).
+La mayoría de funcionalidades están disponibles para todos los usuarios sin costo. El plan **Premium** desbloquea capacidades adicionales:
 
-## Entra External ID + Google
+### Modo offline completo (Premium)
 
-La configuración de autenticación para web/móvil y API está documentada en:
+- Crea, edita y consulta gastos sin conexión a internet.
+- Accede al dashboard, presupuestos, recurrentes y obligaciones sin conexión.
+- Los datos se almacenan en caché en tu dispositivo.
+- **Sincronización automática**: al recuperar conexión, todos los cambios se sincronizan con el servidor.
+- Los usuarios gratuitos pueden ver datos en caché cuando pierden conexión, pero no pueden crear ni editar registros offline.
 
-- `docs/entra-external-id-setup.md`
+### App Web (Premium)
+
+- Acceso a la **aplicación web** (Angular) con todas las funcionalidades disponibles desde el navegador.
+- Incluye: registro de gastos, listado, dashboard con gráficos, presupuestos, gastos recurrentes y configuración de catálogos.
+- Disponible exclusivamente para usuarios Premium.
+
+---
+
+## Comparativa Free vs. Premium
+
+| Funcionalidad | Free | Premium |
+|---|:---:|:---:|
+| Registro, edición y eliminación de gastos | ✅ | ✅ |
+| Dashboard con gráficos y distribución | ✅ | ✅ |
+| Presupuestos mensuales por categoría | ✅ | ✅ |
+| Gastos recurrentes (automatización mensual) | ✅ | ✅ |
+| Obligaciones (préstamos, cuotas, recordatorios) | ✅ | ✅ |
+| Catálogos personalizables (emojis + colores) | ✅ | ✅ |
+| Sin límite de cantidad de registros | ✅ | ✅ |
+| Modo offline (lectura + escritura sin conexión) | ❌ | ✅ |
+| Sincronización automática al reconectarse | ❌ | ✅ |
+| App Web (Angular) | ❌ | ✅ |
+
+---
+
+## Límites y restricciones
+
+Estos límites aplican a **todos los usuarios** (Free y Premium):
+
+| Concepto | Límite |
+|---|---|
+| Monto máximo por gasto | $10,000,000,000 |
+| Longitud máxima de descripción | 50 caracteres |
+| Cuotas por obligación | 1 – 120 |
+| Días de recordatorio antes de vencimiento | 0 – 30 |
+| Elementos por página (paginación) | 5, 10 o 20 |
+| Contraseña mínima | 8 caracteres |
+| Fecha de gastos | Solo mes en curso |
+| Cantidad de gastos, presupuestos, recurrentes u obligaciones | **Sin límite** |
+
+---
+
+## Plataformas
+
+| Plataforma | Disponibilidad |
+|---|---|
+| Android | Todos los usuarios |
+| iOS | Todos los usuarios |
+| Web (Angular) | Solo Premium |
+
+---
+
+## Panel de administración (Web)
+
+Disponible únicamente para usuarios con rol de **administrador** desde la app web:
+
+- Listado de usuarios con búsqueda y paginación.
+- Otorgar o revocar acceso **Premium**.
+- Otorgar o revocar rol de **administrador**.
+- Habilitar o inhabilitar cuentas de usuario.
+- Impersonar usuarios para soporte y diagnóstico.
+- Eliminar usuarios (purga completa de todos sus datos: gastos, presupuestos, recurrentes, obligaciones y configuración).

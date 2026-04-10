@@ -17,3 +17,19 @@ async function canActivateInternal(): Promise<boolean | ReturnType<Router['creat
 export const authGuard: CanActivateFn = () => canActivateInternal();
 
 export const authChildGuard: CanActivateChildFn = () => canActivateInternal();
+
+export const adminGuard: CanActivateFn = async () => {
+  const auth = inject(AuthService);
+  const router = inject(Router);
+
+  await auth.initialize();
+  if (!auth.isAuthenticated) {
+    return router.createUrlTree(['/login']);
+  }
+
+  if (auth.isAdmin) {
+    return true;
+  }
+
+  return router.createUrlTree(['/dashboard']);
+};

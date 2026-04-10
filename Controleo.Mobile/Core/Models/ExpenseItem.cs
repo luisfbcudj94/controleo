@@ -8,5 +8,7 @@ public sealed record ExpenseItem(
     string MovementType,
     string PaymentMethod,
     DateTimeOffset CreatedAt,
-    DateTimeOffset UpdatedAt
+    DateTimeOffset UpdatedAt,
+    bool IsCredit = false,
+    int? Installments = null
 );

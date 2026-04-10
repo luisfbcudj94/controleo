@@ -12,7 +12,9 @@ public static class DependencyInjection
         services.AddSingleton<ICatalogRepository, CosmosCatalogRepository>();
         services.AddSingleton<IBudgetRepository, CosmosBudgetRepository>();
         services.AddSingleton<IRecurringExpenseRepository, CosmosRecurringExpenseRepository>();
+        services.AddSingleton<IObligationRepository, CosmosObligationRepository>();
         services.AddSingleton<IDashboardRepository, CosmosDashboardRepository>();
+        services.AddSingleton<IAdminUserRepository, CosmosAdminUserRepository>();
         services.AddSingleton<IUserAuthService, LocalUserAuthService>();
         services.AddSingleton<IAccessTokenValidator, JwtAccessTokenValidator>();
         return services;

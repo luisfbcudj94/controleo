@@ -6,7 +6,8 @@ public enum SideMenuDestination
     Budgets,
     PaymentMethods,
     MovementTypes,
-    Recurring
+    Recurring,
+    Obligations
 }
 
 public partial class SideMenuPage : ContentPage
@@ -38,6 +39,9 @@ public partial class SideMenuPage : ContentPage
 
     private void OnRecurringTapped(object? sender, TappedEventArgs e)
         => DestinationSelected?.Invoke(this, SideMenuDestination.Recurring);
+
+    private void OnObligationsTapped(object? sender, TappedEventArgs e)
+        => DestinationSelected?.Invoke(this, SideMenuDestination.Obligations);
 
     private async void OnConfigurationTapped(object? sender, TappedEventArgs e)
     {

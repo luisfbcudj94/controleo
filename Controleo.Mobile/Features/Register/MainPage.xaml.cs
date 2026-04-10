@@ -16,6 +16,8 @@ public partial class MainPage : ContentPage
 
 	private readonly IExpenseApiClient _apiClient;
 	private readonly IMonthContextService _monthContext;
+	private readonly IAuthService _authService;
+	private readonly IConnectivityService _connectivityService;
 	private readonly ICatalogColorService _colorService;
 	private readonly IPaymentIconService _paymentIconService;
 	private readonly List<MovementTypeConfig> _movementTypeConfigs = [];
@@ -36,6 +38,8 @@ public partial class MainPage : ContentPage
 	private DateOnly _selectedExpenseDate = DateOnly.FromDateTime(DateTime.Today);
 	private DateOnly _minExpenseDate;
 	private DateOnly _maxExpenseDate;
+	private bool _offlineStatusToastDismissed;
+	private bool _lastConnectivityOnlineState;
 
 	private enum AddCatalogMode
 	{
@@ -43,24 +47,36 @@ public partial class MainPage : ContentPage
 		PaymentMethod,
 	}
 
-	public MainPage(IExpenseApiClient apiClient, IMonthContextService monthContext, ICatalogColorService colorService, IPaymentIconService paymentIconService)
+	public MainPage(
+		IExpenseApiClient apiClient,
+		IMonthContextService monthContext,
+		IAuthService authService,
+		IConnectivityService connectivityService,
+		ICatalogColorService colorService,
+		IPaymentIconService paymentIconService)
 	{
 		InitializeComponent();
 		_apiClient = apiClient;
 		_monthContext = monthContext;
+		_authService = authService;
+		_connectivityService = connectivityService;
+		_lastConnectivityOnlineState = _connectivityService.IsOnline;
 		_colorService = colorService;
 		_paymentIconService = paymentIconService;
 		_monthContext.MonthChanged += OnMonthChanged;
 		_monthContext.MonthOptionsChanged += OnMonthOptionsChanged;
+		_connectivityService.ConnectivityChanged += OnConnectivityChanged;
 		UpdateHeaderMonthBadge();
 		ApplyDateBoundsForSelectedMonth();
 		UpdateDescriptionCounter();
 		UpdateAmountFieldFontSize(string.Empty);
+		UpdateOfflineStatusToast();
 	}
 
 	protected override async void OnAppearing()
 	{
 		base.OnAppearing();
+		UpdateOfflineStatusToast();
 		await RefreshMonthOptionsAsync();
 		await LoadCatalogsAsync();
 
@@ -394,6 +410,71 @@ public partial class MainPage : ContentPage
 	private void SetLoading(bool isLoading)
 	{
 		LoadingOverlay.IsVisible = isLoading;
+	}
+
+	private void OnConnectivityChanged(object? sender, bool isOnline)
+	{
+		if (isOnline != _lastConnectivityOnlineState)
+		{
+			_offlineStatusToastDismissed = false;
+			_lastConnectivityOnlineState = isOnline;
+		}
+
+		MainThread.BeginInvokeOnMainThread(UpdateOfflineStatusToast);
+	}
+
+	private void UpdateOfflineStatusToast()
+	{
+		if (_connectivityService.IsOnline || _offlineStatusToastDismissed)
+		{
+			OfflineStatusToast.IsVisible = false;
+			OfflineStatusBackdrop.IsVisible = false;
+			return;
+		}
+
+		OfflineStatusToast.IsVisible = true;
+		OfflineStatusBackdrop.IsVisible = true;
+		OfflineStatusToast.StrokeThickness = 1;
+		if (_authService.IsCurrentUserPremium)
+		{
+			OfflineStatusBackdropShade.Color = Color.FromArgb("#55000000");
+			OfflineStatusToast.BackgroundColor = Color.FromArgb("#E7F6EE");
+			OfflineStatusToast.Stroke = new SolidColorBrush(Color.FromArgb("#2D6A4F"));
+			OfflineStatusTitleLabel.TextColor = Color.FromArgb("#1F5B3E");
+			OfflineStatusTitleLabel.Text = "Modo offline premium activo";
+			OfflineStatusLabel.Text = "Sin internet, pero puedes registrar y editar gastos sin limites.";
+			OfflineStatusBenefitsLabel.Text = "Beneficios premium: registro offline, edicion offline y sincronizacion automatica.";
+			OfflineStatusCtaButton.Text = "Continuar usando la app";
+			OfflineStatusCtaButton.IsVisible = true;
+			return;
+		}
+
+		OfflineStatusBackdropShade.Color = Color.FromArgb("#55000000");
+		OfflineStatusToast.BackgroundColor = Color.FromArgb("#FDEBE9");
+		OfflineStatusToast.Stroke = new SolidColorBrush(Color.FromArgb("#C13A2E"));
+		OfflineStatusTitleLabel.TextColor = Color.FromArgb("#8E1D13");
+		OfflineStatusTitleLabel.Text = "Activa premium y usa offline completo";
+		OfflineStatusLabel.Text = "Sin internet. Tu plan actual no permite guardar ni editar gastos offline.";
+		OfflineStatusBenefitsLabel.Text = "Suscribete por solo $0.99 al mes para desbloquear modo offline completo y sincronizacion automatica.";
+		OfflineStatusCtaButton.Text = "Ir a suscribirse";
+		OfflineStatusCtaButton.IsVisible = true;
+	}
+
+	private async void OnOfflineStatusCtaClicked(object? sender, EventArgs e)
+	{
+		if (_authService.IsCurrentUserPremium)
+		{
+			_offlineStatusToastDismissed = true;
+			OfflineStatusToast.IsVisible = false;
+			OfflineStatusBackdrop.IsVisible = false;
+			return;
+		}
+
+		await StyledResultModalPage.ShowAsync(
+			this,
+			false,
+			"Suscripcion premium",
+			"Oferta especial: suscribete por $0.99 y disfruta registro offline, edicion y sincronizacion automatica.");
 	}
 
 	private void ApplyDateBoundsForSelectedMonth()
@@ -1035,8 +1116,11 @@ public partial class MainPage : ContentPage
 			return;
 		}
 
+		var existing = _paymentMethodConfigs.FirstOrDefault(cfg => string.Equals(cfg.Name, paymentMethod, StringComparison.OrdinalIgnoreCase));
 		_paymentMethodConfigs.RemoveAll(cfg => string.Equals(cfg.Name, paymentMethod, StringComparison.OrdinalIgnoreCase));
-		_paymentMethodConfigs.Add(new PaymentMethodConfig(paymentMethod.Trim(), icon.Trim()));
+		_paymentMethodConfigs.Add(existing is null
+			? new PaymentMethodConfig(paymentMethod.Trim(), icon.Trim())
+			: existing with { Name = paymentMethod.Trim(), Icon = icon.Trim() });
 	}
 
 	private void OnDescriptionFieldTextChanged(object? sender, TextChangedEventArgs e)

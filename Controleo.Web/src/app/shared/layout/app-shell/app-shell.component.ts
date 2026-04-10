@@ -1,7 +1,9 @@
 import { Component, HostListener } from '@angular/core';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
-import { filter } from 'rxjs';
+import { filter, firstValueFrom } from 'rxjs';
+import { ApiService } from '../../../core/services/api.service';
+import { NotificationService } from '../../../core/services/notification.service';
 
 @Component({
   selector: 'app-app-shell',
@@ -28,13 +30,20 @@ export class AppShellComponent {
     { path: '/configuracion', icon: '⚙️', label: 'Configuración' }
   ];
 
+  readonly adminNav = [
+    { path: '/admin/usuarios', icon: '🛡️', label: 'Usuarios' }
+  ];
+
   currentMonthDate = new Date();
   isGirlMode = false;
   isSidebarOpen = false;
+  isEndingImpersonation = false;
 
   constructor(
     private readonly router: Router,
-    private readonly auth: AuthService
+    private readonly auth: AuthService,
+    private readonly api: ApiService,
+    private readonly notify: NotificationService
   ) {
     this.initializeTheme();
 
@@ -59,6 +68,18 @@ export class AppShellComponent {
 
   get pageTitle(): string {
     return this.getPageMeta().title;
+  }
+
+  get isAdmin(): boolean {
+    return this.auth.isAdmin;
+  }
+
+  get isImpersonating(): boolean {
+    return this.auth.isImpersonating;
+  }
+
+  get impersonationActorName(): string {
+    return this.auth.impersonationActorName || 'Administrador';
   }
 
   get pageCrumb(): string {
@@ -128,6 +149,10 @@ export class AppShellComponent {
       return { title: 'Configuración', crumb: 'Catálogos y preferencias' };
     }
 
+    if (routePath.startsWith('/admin/usuarios')) {
+      return { title: 'Administración', crumb: 'Usuarios y permisos' };
+    }
+
     return { title: 'Registrar gasto', crumb: 'Nuevo movimiento' };
   }
 
@@ -145,6 +170,43 @@ export class AppShellComponent {
   async logout(): Promise<void> {
     await this.auth.logout();
     await this.router.navigateByUrl('/login');
+  }
+
+  async exitImpersonation(): Promise<void> {
+    if (this.isEndingImpersonation) {
+      return;
+    }
+
+    this.isEndingImpersonation = true;
+    let auditErrorMessage = '';
+
+    try {
+      try {
+        const result = await firstValueFrom(this.api.endImpersonation());
+        if (!result.isSuccess) {
+          auditErrorMessage = result.message || 'No fue posible registrar el cierre de suplantación.';
+        }
+      } catch {
+        auditErrorMessage = 'No fue posible registrar el cierre de suplantación en backend.';
+      }
+
+      const restored = await this.auth.restoreOriginalSession();
+      if (!restored) {
+        await this.auth.logout();
+        await this.router.navigateByUrl('/login');
+        return;
+      }
+
+      if (auditErrorMessage) {
+        this.notify.warning(auditErrorMessage);
+      } else {
+        this.notify.success('Volviste a tu sesión de administrador.');
+      }
+
+      await this.router.navigateByUrl('/admin/usuarios');
+    } finally {
+      this.isEndingImpersonation = false;
+    }
   }
 
 }

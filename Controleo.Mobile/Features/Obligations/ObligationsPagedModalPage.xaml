@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:model="clr-namespace:Controleo.Mobile.Core.Models"
+             x:Class="Controleo.Mobile.Features.Obligations.ObligationsPagedModalPage"
+             BackgroundColor="{StaticResource AppBg}">
+
+    <Grid Padding="16" RowSpacing="10" RowDefinitions="Auto,Auto,Auto,*">
+
+        <HorizontalStackLayout Grid.Row="0" Spacing="8">
+            <Button Text="✕" WidthRequest="40" HeightRequest="40" CornerRadius="20"
+                    Clicked="OnCloseClicked" BackgroundColor="{StaticResource Gray200}"
+                    TextColor="{StaticResource AppText}" FontSize="14" />
+            <Label Text="Todas las obligaciones"
+                   VerticalOptions="Center"
+                   FontAttributes="Bold"
+                   FontSize="18" />
+        </HorizontalStackLayout>
+
+        <Label Grid.Row="1" x:Name="SummaryLabel" FontSize="13" TextColor="{StaticResource AppHint}" />
+
+        <Border Grid.Row="2" Padding="10" StrokeShape="RoundRectangle 14" StrokeThickness="0"
+                BackgroundColor="{StaticResource White}">
+            <Border.Shadow>
+                <Shadow Brush="Black" Offset="0,1" Radius="4" Opacity="0.05" />
+            </Border.Shadow>
+            <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto" ColumnSpacing="8" VerticalOptions="Center">
+                <Label Text="Mostrar" VerticalOptions="Center" FontSize="12" TextColor="{StaticResource AppHint}" />
+                <Border Grid.Column="1" StrokeShape="RoundRectangle 10"
+                        BackgroundColor="{StaticResource AppSurface2}" Stroke="{StaticResource AppBorder}" Padding="10,8">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <Label x:Name="PageSizeSelectorLabel" VerticalOptions="Center" HorizontalTextAlignment="Center" />
+                        <Label Grid.Column="1" Text="▼" FontSize="11" TextColor="{StaticResource AppHint}" VerticalOptions="Center" />
+                    </Grid>
+                    <Border.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnPageSizeSelectorTapped" />
+                    </Border.GestureRecognizers>
+                </Border>
+                <Label Grid.Column="2" x:Name="PaginationStatusLabel" HorizontalTextAlignment="Center"
+                       VerticalOptions="Center" FontSize="12" TextColor="{StaticResource AppHint}" />
+                <Button Grid.Column="3" x:Name="PrevPageButton" Text="◀" WidthRequest="38" HeightRequest="38"
+                        CornerRadius="19" BackgroundColor="{StaticResource AppSurface2}" Clicked="OnPrevPageClicked" />
+                <Button Grid.Column="4" x:Name="NextPageButton" Text="▶" WidthRequest="38" HeightRequest="38"
+                        CornerRadius="19" BackgroundColor="{StaticResource AppSurface2}" Clicked="OnNextPageClicked" />
+            </Grid>
+        </Border>
+
+        <CollectionView Grid.Row="3" x:Name="ObligationsCollection" SelectionMode="None">
+            <CollectionView.EmptyView>
+                <Label Text="No hay obligaciones registradas." HorizontalOptions="Center"
+                       VerticalOptions="Center" TextColor="{StaticResource AppHint}" />
+            </CollectionView.EmptyView>
+            <CollectionView.ItemTemplate>
+                <DataTemplate x:DataType="model:ObligationItem">
+                    <Border Padding="14" Margin="0,0,0,8" StrokeShape="RoundRectangle 14" StrokeThickness="0"
+                            BackgroundColor="{StaticResource White}">
+                        <Border.Shadow>
+                            <Shadow Brush="Black" Offset="0,1" Radius="4" Opacity="0.05" />
+                        </Border.Shadow>
+                        <VerticalStackLayout Spacing="6">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <Label Text="{Binding Description}" FontAttributes="Bold" />
+                                <Label Grid.Column="1"
+                                       Text="{Binding MonthlyPayment, StringFormat='${0:N0}'}"
+                                       TextColor="{StaticResource Tertiary}"
+                                       FontAttributes="Bold" />
+                            </Grid>
+                            <Label Text="{Binding DueDayOfMonth, StringFormat='Día de cobro: {0}'}"
+                                   FontSize="12"
+                                   TextColor="{StaticResource AppHint}" />
+                            <Label Text="{Binding PaymentMethod, StringFormat='Medio de pago: {0}'}"
+                                   FontSize="12"
+                                   TextColor="{StaticResource AppHint}" />
+                            <HorizontalStackLayout Spacing="8" HorizontalOptions="End">
+                                <Button Text="Editar"
+                                        FontSize="12"
+                                        FontAttributes="Bold"
+                                        CornerRadius="10"
+                                        HeightRequest="36"
+                                        Padding="10,0"
+                                        BackgroundColor="#D8F3DC"
+                                        TextColor="#1B4332"
+                                        Clicked="OnEditClicked" />
+                                <Button Text="Eliminar"
+                                        FontSize="12"
+                                        FontAttributes="Bold"
+                                        CornerRadius="10"
+                                        HeightRequest="36"
+                                        Padding="10,0"
+                                        BackgroundColor="#FDEBE9"
+                                        TextColor="#8E1D13"
+                                        Clicked="OnDeleteClicked" />
+                            </HorizontalStackLayout>
+                        </VerticalStackLayout>
+                    </Border>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+
+        <Picker x:Name="PageSizePicker" IsVisible="False" SelectedIndexChanged="OnPageSizeChanged" />
+    </Grid>
+</ContentPage>

@@ -1,0 +1,152 @@
+.admin-users-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.toolbar-card {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.toolbar-actions {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.search-field {
+  max-width: 360px;
+}
+
+.list-card {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.users-list {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.user-row {
+  border: 1px solid var(--b1);
+  border-radius: var(--rs);
+  background: var(--s2);
+  padding: 0.75rem;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.identity {
+  min-width: 0;
+}
+
+.name-line {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
+
+.email {
+  margin-top: 0.2rem;
+}
+
+.meta {
+  margin-top: 0.22rem;
+  font-size: 0.76rem;
+}
+
+.tag {
+  border-radius: 999px;
+  padding: 0.14rem 0.46rem;
+  font-size: 0.68rem;
+  letter-spacing: 0.01em;
+  border: 1px solid transparent;
+}
+
+.tag.super {
+  background: #FFE8D6;
+  color: #9C5520;
+  border-color: rgba(156, 85, 32, 0.25);
+}
+
+.tag.admin {
+  background: var(--inf2);
+  color: var(--info);
+  border-color: rgba(91, 141, 239, 0.35);
+}
+
+.tag.premium {
+  background: var(--ac2);
+  color: var(--primary);
+  border-color: rgba(45, 106, 79, 0.32);
+}
+
+.tag.disabled {
+  background: #FEE2E2;
+  color: #991B1B;
+  border-color: rgba(153, 27, 27, 0.28);
+}
+
+.access-controls {
+  display: flex;
+  gap: 0.85rem;
+  flex-wrap: wrap;
+}
+
+.switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.38rem;
+  font-size: 0.84rem;
+}
+
+.switch input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--primary);
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-start;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+}
+
+.footer-row {
+  margin-top: 0.7rem;
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.page-size {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.8rem;
+  color: var(--hint);
+}
+
+.page-size select {
+  border: 1px solid var(--b1);
+  background: var(--s2);
+  color: var(--text);
+  border-radius: var(--rs);
+  padding: 0.34rem 0.45rem;
+  font-size: 0.8rem;
+}
+
+@media (min-width: 960px) {
+  .user-row {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    align-items: center;
+  }
+
+  .actions {
+    justify-content: flex-end;
+  }
+}

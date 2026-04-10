@@ -16,11 +16,11 @@ function Ensure-Command([string]$Name) {
     }
 }
 
-function Wait-ApiReady([string]$Url, [int]$TimeoutSeconds = 40) {
+function Wait-ApiReady([string]$Url, [string]$Method = "Get", [int]$TimeoutSeconds = 40) {
     $sw = [System.Diagnostics.Stopwatch]::StartNew()
     while ($sw.Elapsed.TotalSeconds -lt $TimeoutSeconds) {
         try {
-            $null = Invoke-RestMethod -Uri $Url -Method Get -TimeoutSec 3
+            $null = Invoke-RestMethod -Uri $Url -Method $Method -TimeoutSec 3
             return
         }
         catch {
@@ -118,8 +118,8 @@ if (-not $UseCloudApi) {
         "`$env:COSMOS_DB_ENDPOINT='$cosmosEndpoint'; `$env:COSMOS_DB_KEY='$cosmosKey'; `$env:LocalAuth__JwtSecret='$localJwtSecret'; cd '$RepoRoot\Controleo.Backend\Controleo.Api'; Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force; func.cmd start --dotnet-isolated --port 5051"
     ) | Out-Null
 
-    Write-Step "Esperando API en http://localhost:5051/api/catalogs"
-    Wait-ApiReady -Url "http://localhost:5051/api/catalogs" -TimeoutSeconds 45
+    Write-Step "Esperando API en http://localhost:5051/api/catalogs (OPTIONS)"
+    Wait-ApiReady -Url "http://localhost:5051/api/catalogs" -Method "Options" -TimeoutSeconds 45
 }
 else {
     Write-Step "Usando API desplegada en Cloud Run (no se inicia API local)"

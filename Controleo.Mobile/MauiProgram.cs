@@ -5,6 +5,7 @@ using Controleo.Mobile.Features.Auth;
 using Controleo.Mobile.Features.Budgets;
 using Controleo.Mobile.Features.Dashboard;
 using Controleo.Mobile.Features.Expenses;
+using Controleo.Mobile.Features.Obligations;
 using Controleo.Mobile.Features.Recurring;
 using Controleo.Mobile.Features.Register;
 using Controleo.Mobile.Features.Settings;
@@ -15,6 +16,8 @@ public static class MauiProgram
 {
 	public static MauiApp CreateMauiApp()
 	{
+		SQLitePCL.Batteries_V2.Init();
+
 		var builder = MauiApp.CreateBuilder();
 		builder
 			.UseMauiApp<App>()
@@ -33,7 +36,11 @@ public static class MauiProgram
 		var apiBaseUrl = Environment.GetEnvironmentVariable("CONTROLEO_API_BASE_URL");
 		if (string.IsNullOrWhiteSpace(apiBaseUrl))
 		{
+		#if DEBUG && ANDROID
+			apiBaseUrl = "http://10.0.2.2:5051/";
+		#else
 			apiBaseUrl = "https://controleo-api.azurewebsites.net/";
+		#endif
 		}
 
 		if (!apiBaseUrl.EndsWith('/'))
@@ -44,6 +51,10 @@ public static class MauiProgram
 		// Core services - singleton, registered by interface
 		builder.Services.AddSingleton(new HttpClient { BaseAddress = new Uri(apiBaseUrl) });
 		builder.Services.AddSingleton<IAuthService, AuthService>();
+		builder.Services.AddSingleton<IConnectivityService, ConnectivityService>();
+		builder.Services.AddSingleton<IOfflineDataStore, OfflineDataStore>();
+		builder.Services.AddSingleton<IOfflineSyncService, OfflineSyncService>();
+		builder.Services.AddSingleton<IObligationNotificationService, ObligationNotificationService>();
 		builder.Services.AddSingleton<IMonthContextService, MonthContextService>();
 		builder.Services.AddSingleton<ICatalogColorService, PastelColorHelper>();
 		builder.Services.AddSingleton<IPaymentIconService, PaymentIconService>();
@@ -54,6 +65,7 @@ public static class MauiProgram
 		builder.Services.AddTransient<MainPage>();
 		builder.Services.AddTransient<ExpensesPage>();
 		builder.Services.AddTransient<RecurringPage>();
+		builder.Services.AddTransient<ObligationsPage>();
 		builder.Services.AddTransient<DashboardPage>();
 		builder.Services.AddTransient<BudgetsPage>();
 		builder.Services.AddTransient<SettingsPage>();

@@ -196,6 +196,10 @@ public sealed class CosmosCatalogRepository(CosmosContainerProvider p) : ICatalo
                     {
                         Name = c.Name.Trim(),
                         Icon = c.Icon,
+                        IsCredit = c.IsCredit,
+                        DefaultInstallments = c.DefaultInstallments,
+                        DueDayOfMonth = c.DueDayOfMonth,
+                        ReminderDaysBefore = c.ReminderDaysBefore,
                     })
                     .ToArray();
 
@@ -218,10 +222,15 @@ public sealed class CosmosCatalogRepository(CosmosContainerProvider p) : ICatalo
                 .Select(name =>
                 {
                     var existingConfig = incomingPaymentConfigs.FirstOrDefault(cfg => string.Equals(cfg.Name, name, StringComparison.OrdinalIgnoreCase));
+                    var normalizedConfig = NormalizePaymentConfig(existingConfig ?? new PaymentMethodConfigDoc { Name = name });
                     return new PaymentMethodConfigDoc
                     {
                         Name = name,
                         Icon = SanitizePaymentIcon(existingConfig?.Icon) ?? ResolvePaymentIcon(name),
+                        IsCredit = normalizedConfig.IsCredit,
+                        DefaultInstallments = normalizedConfig.DefaultInstallments,
+                        DueDayOfMonth = normalizedConfig.DueDayOfMonth,
+                        ReminderDaysBefore = normalizedConfig.ReminderDaysBefore,
                     };
                 })
                 .ToArray();
@@ -275,11 +284,67 @@ public sealed class CosmosCatalogRepository(CosmosContainerProvider p) : ICatalo
             .Select(name =>
             {
                 var config = source.FirstOrDefault(item => string.Equals(item.Name, name, StringComparison.OrdinalIgnoreCase));
+                var normalizedConfig = NormalizePaymentConfig(config ?? new PaymentMethodConfigDoc { Name = name });
                 return new PaymentMethodConfig(
                     name,
-                    SanitizePaymentIcon(config?.Icon) ?? ResolvePaymentIcon(name));
+                    SanitizePaymentIcon(config?.Icon) ?? ResolvePaymentIcon(name),
+                    normalizedConfig.IsCredit,
+                    normalizedConfig.DefaultInstallments,
+                    normalizedConfig.DueDayOfMonth,
+                    normalizedConfig.ReminderDaysBefore);
             })
             .ToList();
+    }
+
+    private static PaymentMethodConfigDoc NormalizePaymentConfig(PaymentMethodConfigDoc config)
+    {
+        var normalizedInstallments = NormalizeInstallments(config.DefaultInstallments);
+        var isCredit = config.IsCredit;
+
+        if (!isCredit && normalizedInstallments is > 1)
+        {
+            isCredit = true;
+        }
+
+        return new PaymentMethodConfigDoc
+        {
+            Name = config.Name,
+            Icon = config.Icon,
+            IsCredit = isCredit,
+            DefaultInstallments = isCredit ? normalizedInstallments : null,
+            DueDayOfMonth = NormalizeDayOfMonth(config.DueDayOfMonth),
+            ReminderDaysBefore = NormalizeReminderDays(config.ReminderDaysBefore),
+        };
+    }
+
+    private static int? NormalizeInstallments(int? value)
+    {
+        if (value is null)
+        {
+            return null;
+        }
+
+        return Math.Clamp(value.Value, 1, 120);
+    }
+
+    private static int? NormalizeDayOfMonth(int? value)
+    {
+        if (value is null)
+        {
+            return null;
+        }
+
+        return Math.Clamp(value.Value, 1, 31);
+    }
+
+    private static int? NormalizeReminderDays(int? value)
+    {
+        if (value is null)
+        {
+            return null;
+        }
+
+        return Math.Clamp(value.Value, 0, 30);
     }
 
     private static string ResolveMovementColor(string movementType)

@@ -1,0 +1,144 @@
+<section class="admin-users-grid">
+  <article class="card toolbar-card">
+    <div>
+      <h2 class="section-title">Usuarios</h2>
+      <p class="muted">Gestiona premium, permisos administrativos, estado de acceso y eliminación completa de cuentas.</p>
+    </div>
+
+    <div class="toolbar-actions">
+      <div class="field search-field">
+        <label>Buscar</label>
+        <input
+          type="text"
+          placeholder="Nombre o correo"
+          [(ngModel)]="searchTerm"
+          (keyup.enter)="applySearch()"
+          [disabled]="isRefreshing" />
+      </div>
+
+      <div class="row-actions">
+        <button class="btn btn-ghost" type="button" (click)="applySearch()" [disabled]="isRefreshing">Buscar</button>
+        <button class="btn btn-ghost" type="button" (click)="clearSearch()" [disabled]="isRefreshing || !searchTerm.trim()">Limpiar</button>
+        <button class="btn btn-save" type="button" (click)="refresh()" [disabled]="isRefreshing">
+          {{ isRefreshing ? 'Actualizando...' : 'Actualizar' }}
+        </button>
+      </div>
+    </div>
+  </article>
+
+  <article class="card list-card">
+    @if (isLoading) {
+      <p class="muted">Cargando usuarios...</p>
+    } @else if (!users.length) {
+      <p class="muted">No se encontraron usuarios para el filtro actual.</p>
+    } @else {
+      <div class="users-list">
+        @for (user of users; track trackByUserId($index, user)) {
+          <div class="user-row">
+            <div class="identity">
+              <div class="name-line">
+                <strong>{{ user.name || 'Sin nombre' }}</strong>
+                @if (user.isSuperAdmin) {
+                  <span class="tag super">Super admin</span>
+                }
+
+                @if (user.isDisabled) {
+                  <span class="tag disabled">Inhabilitado</span>
+                }
+
+                @if (!user.isSuperAdmin && user.isAdmin) {
+                  <span class="tag admin">Admin</span>
+                } @else if (user.isPremium) {
+                  <span class="tag premium">Premium</span>
+                }
+              </div>
+
+              <div class="muted email">{{ user.email }}</div>
+              <div class="meta muted">Creado: {{ formatDate(user.createdAt) }} · Actualizado: {{ formatDate(user.updatedAt) }} · Último login: {{ formatDate(user.lastLoginAt) }}</div>
+            </div>
+
+            <div class="access-controls">
+              <label class="switch">
+                <input
+                  type="checkbox"
+                  [(ngModel)]="user.draftIsPremium"
+                  [disabled]="user.isSaving || user.isDeleting || user.isSuperAdmin || user.draftIsAdmin" />
+                <span>Premium</span>
+              </label>
+
+              <label class="switch">
+                <input
+                  type="checkbox"
+                  [(ngModel)]="user.draftIsAdmin"
+                  (change)="onAdminToggle(user)"
+                  [disabled]="user.isSaving || user.isDeleting || user.isSuperAdmin" />
+                <span>Admin</span>
+              </label>
+
+              <label class="switch">
+                <input
+                  type="checkbox"
+                  [(ngModel)]="user.draftIsDisabled"
+                  [disabled]="user.isSaving || user.isDeleting || user.isSuperAdmin" />
+                <span>Inhabilitado</span>
+              </label>
+            </div>
+
+            <div class="actions">
+              <button class="btn btn-save" type="button" (click)="save(user)" [disabled]="user.isSaving || user.isDeleting || !hasChanges(user)">
+                {{ user.isSaving ? 'Guardando...' : 'Guardar' }}
+              </button>
+
+              <button
+                class="btn btn-danger"
+                type="button"
+                (click)="requestDelete(user)"
+                [disabled]="user.isSaving || user.isDeleting || user.isSuperAdmin">
+                {{ user.isDeleting ? 'Eliminando...' : 'Eliminar' }}
+              </button>
+
+              <button
+                class="btn btn-ghost"
+                type="button"
+                (click)="startImpersonation(user)"
+                [disabled]="
+                  user.isSaving ||
+                  user.isDeleting ||
+                  user.isSuperAdmin ||
+                  user.isDisabled ||
+                  !!impersonatingUserId
+                ">
+                {{ impersonatingUserId === user.userId ? 'Entrando...' : 'Entrar como' }}
+              </button>
+            </div>
+          </div>
+        }
+      </div>
+
+      <div class="footer-row">
+        <p class="muted">{{ paginationText }}</p>
+        <div class="row-actions">
+          <label class="page-size">
+            Mostrar
+            <select [ngModel]="pageSize" (ngModelChange)="setPageSize($event)" [disabled]="isRefreshing">
+              @for (size of allowedPageSizes; track size) {
+                <option [ngValue]="size">{{ size }}</option>
+              }
+            </select>
+          </label>
+          <button class="btn btn-ghost" type="button" [disabled]="isRefreshing || pageNumber <= 1" (click)="prevPage()">Anterior</button>
+          <button class="btn btn-ghost" type="button" [disabled]="isRefreshing || pageNumber >= totalPages" (click)="nextPage()">Siguiente</button>
+        </div>
+      </div>
+    }
+  </article>
+
+  <app-confirm-modal
+    [isOpen]="confirmDeleteOpen"
+    title="Eliminar usuario"
+    [message]="pendingDelete ? 'Esta acción eliminará al usuario ' + pendingDelete.email + ' y todos sus datos. ¿Deseas continuar?' : ''"
+    confirmLabel="Eliminar"
+    [danger]="true"
+    (confirm)="confirmDelete()"
+    (cancel)="cancelDelete()" />
+</section>
