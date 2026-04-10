@@ -28,4 +28,7 @@ public interface IExpenseApiClient
     Task<PagedObligationResult> GetObligationsPageAsync(int pageNumber, int pageSize, CancellationToken cancellationToken);
     Task<OperationResult> SaveObligationAsync(string? id, ObligationUpsertRequest request, CancellationToken cancellationToken);
     Task<OperationResult> DeleteObligationAsync(string id, CancellationToken cancellationToken);
+    Task<ReportPreviewResult> GetReportPreviewAsync(DateOnly startDate, DateOnly endDate, CancellationToken cancellationToken);
+    Task<ReportFileDownloadResult> DownloadReportCsvAsync(DateOnly startDate, DateOnly endDate, CancellationToken cancellationToken);
+    Task<ReportFileDownloadResult> DownloadReportPdfAsync(DateOnly startDate, DateOnly endDate, CancellationToken cancellationToken);
 }

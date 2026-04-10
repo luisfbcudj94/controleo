@@ -1,0 +1,496 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Controleo.Mobile.Features.Reports.ReportsPage"
+             Title="Analitica avanzada"
+             BackgroundColor="{StaticResource AppBg}">
+
+    <Grid RowDefinitions="*">
+        <ScrollView>
+            <VerticalStackLayout Padding="16" Spacing="12">
+
+                <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,4">
+                    <Label Text="Analitica Avanzada"
+                           FontSize="28"
+                           FontAttributes="Bold"
+                           FontFamily="OpenSansSemibold"
+                           TextColor="{StaticResource AppText}"
+                           VerticalOptions="Center" />
+                    <Button Grid.Column="1"
+                            Text="✕"
+                            WidthRequest="36"
+                            HeightRequest="36"
+                            CornerRadius="18"
+                            BackgroundColor="{StaticResource Gray200}"
+                            TextColor="{StaticResource AppText}"
+                            FontSize="14"
+                            Clicked="OnClosePageClicked" />
+                </Grid>
+
+                <Border StrokeShape="RoundRectangle 16" StrokeThickness="0" Padding="14"
+                        BackgroundColor="{StaticResource AccentLight}">
+                    <Border.Stroke>
+                        <LinearGradientBrush>
+                            <GradientStop Color="{StaticResource Primary}" Offset="0" />
+                            <GradientStop Color="{StaticResource AccentLight}" Offset="1" />
+                        </LinearGradientBrush>
+                    </Border.Stroke>
+                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                        <Label Text="📊" FontSize="24" VerticalOptions="Start" />
+                        <VerticalStackLayout Grid.Column="1" Spacing="4">
+                            <Label Text="Tus finanzas en formato ejecutivo"
+                                   FontSize="14"
+                                   FontAttributes="Bold"
+                                   TextColor="{StaticResource PrimaryDark}" />
+                            <Label Text="Define un rango, revisa el resumen y descarga CSV o PDF para compartir tus avances mensuales."
+                                   FontSize="12"
+                                   TextColor="{StaticResource Gray600}"
+                                   LineBreakMode="WordWrap" />
+                        </VerticalStackLayout>
+                    </Grid>
+                </Border>
+
+                <Border StrokeShape="RoundRectangle 16" StrokeThickness="0"
+                        BackgroundColor="{StaticResource White}" Padding="12">
+                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                        <Border WidthRequest="52" HeightRequest="52"
+                                StrokeShape="RoundRectangle 14"
+                                StrokeThickness="0"
+                                BackgroundColor="#EAF6EE"
+                                VerticalOptions="Start">
+                            <VerticalStackLayout Spacing="0"
+                                                 HorizontalOptions="Center"
+                                                 VerticalOptions="Center">
+                                <Label Text="Pulse"
+                                       FontSize="10"
+                                       FontAttributes="Bold"
+                                       HorizontalTextAlignment="Center"
+                                       TextColor="{StaticResource AppHint}" />
+                                <Label x:Name="PulseScoreLabel"
+                                       FontSize="16"
+                                       FontAttributes="Bold"
+                                       HorizontalTextAlignment="Center"
+                                       TextColor="{StaticResource PrimaryDark}" />
+                            </VerticalStackLayout>
+                        </Border>
+                        <VerticalStackLayout Grid.Column="1" Spacing="3" VerticalOptions="Center">
+                            <Label Text="Lectura inteligente"
+                                   FontSize="12"
+                                   FontAttributes="Bold"
+                                   TextColor="{StaticResource AppText}" />
+                            <Label x:Name="PremiumNarrativeLabel"
+                                   FontSize="12"
+                                   TextColor="{StaticResource AppHint}"
+                                   LineBreakMode="WordWrap" />
+                        </VerticalStackLayout>
+                    </Grid>
+                </Border>
+
+                <Border Padding="12" StrokeShape="RoundRectangle 16" StrokeThickness="0"
+                        BackgroundColor="{StaticResource White}">
+                    <VerticalStackLayout Spacing="10">
+                        <Label Text="Rango del reporte"
+                               FontSize="13"
+                               FontAttributes="Bold"
+                               TextColor="{StaticResource AppText}" />
+
+                        <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                            <Border StrokeShape="RoundRectangle 12"
+                                    BackgroundColor="{StaticResource AppSurface2}"
+                                    Stroke="{StaticResource AppBorder}"
+                                    Padding="12,10">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <VerticalStackLayout Spacing="2">
+                                        <Label Text="Desde" FontSize="11" TextColor="{StaticResource AppHint}" />
+                                        <Label x:Name="StartDateLabel"
+                                               FontSize="14"
+                                               FontAttributes="Bold"
+                                               TextColor="{StaticResource AppText}" />
+                                    </VerticalStackLayout>
+                                    <Label Grid.Column="1"
+                                           Text="📅"
+                                           FontSize="16"
+                                           VerticalOptions="Center" />
+                                </Grid>
+                                <Border.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="OnPickStartDateTapped" />
+                                </Border.GestureRecognizers>
+                            </Border>
+
+                            <Border Grid.Column="1"
+                                    StrokeShape="RoundRectangle 12"
+                                    BackgroundColor="{StaticResource AppSurface2}"
+                                    Stroke="{StaticResource AppBorder}"
+                                    Padding="12,10">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <VerticalStackLayout Spacing="2">
+                                        <Label Text="Hasta" FontSize="11" TextColor="{StaticResource AppHint}" />
+                                        <Label x:Name="EndDateLabel"
+                                               FontSize="14"
+                                               FontAttributes="Bold"
+                                               TextColor="{StaticResource AppText}" />
+                                    </VerticalStackLayout>
+                                    <Label Grid.Column="1"
+                                           Text="🗓️"
+                                           FontSize="16"
+                                           VerticalOptions="Center" />
+                                </Grid>
+                                <Border.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="OnPickEndDateTapped" />
+                                </Border.GestureRecognizers>
+                            </Border>
+                        </Grid>
+
+                        <Button Text="Actualizar vista previa"
+                                FontAttributes="Bold"
+                                BackgroundColor="{StaticResource Primary}"
+                                TextColor="{StaticResource PrimaryDarkText}"
+                                HeightRequest="46"
+                                CornerRadius="14"
+                                Clicked="OnRefreshPreviewClicked" />
+
+                        <Grid ColumnDefinitions="*,*,*,*" ColumnSpacing="6">
+                            <Button Text="7d"
+                                HeightRequest="36"
+                                CornerRadius="12"
+                                FontSize="12"
+                                BackgroundColor="{StaticResource AppSurface2}"
+                                TextColor="{StaticResource AppText}"
+                                Clicked="OnPreset7DaysClicked" />
+                            <Button Grid.Column="1"
+                                Text="30d"
+                                HeightRequest="36"
+                                CornerRadius="12"
+                                FontSize="12"
+                                BackgroundColor="{StaticResource AppSurface2}"
+                                TextColor="{StaticResource AppText}"
+                                Clicked="OnPreset30DaysClicked" />
+                            <Button Grid.Column="2"
+                                Text="Este mes"
+                                HeightRequest="36"
+                                CornerRadius="12"
+                                FontSize="12"
+                                BackgroundColor="{StaticResource AppSurface2}"
+                                TextColor="{StaticResource AppText}"
+                                Clicked="OnPresetCurrentMonthClicked" />
+                            <Button Grid.Column="3"
+                                Text="Mes ant"
+                                HeightRequest="36"
+                                CornerRadius="12"
+                                FontSize="12"
+                                BackgroundColor="{StaticResource AppSurface2}"
+                                TextColor="{StaticResource AppText}"
+                                Clicked="OnPresetPreviousMonthClicked" />
+                        </Grid>
+                    </VerticalStackLayout>
+                </Border>
+
+                <Grid ColumnDefinitions="*,*,*" ColumnSpacing="8">
+                    <Border StrokeShape="RoundRectangle 12" StrokeThickness="0"
+                            BackgroundColor="#EAF6EE" Padding="10">
+                        <VerticalStackLayout Spacing="2">
+                            <Label Text="Movimientos" FontSize="11" TextColor="{StaticResource AppHint}" />
+                            <Label x:Name="TotalTransactionsLabel"
+                                   FontSize="16"
+                                   FontAttributes="Bold"
+                                   TextColor="{StaticResource PrimaryDark}" />
+                        </VerticalStackLayout>
+                    </Border>
+
+                    <Border Grid.Column="1" StrokeShape="RoundRectangle 12" StrokeThickness="0"
+                            BackgroundColor="#E9F3FD" Padding="10">
+                        <VerticalStackLayout Spacing="2">
+                            <Label Text="Total" FontSize="11" TextColor="{StaticResource AppHint}" />
+                            <Label x:Name="TotalAmountLabel"
+                                   FontSize="16"
+                                   FontAttributes="Bold"
+                                   TextColor="#0D4A7A" />
+                        </VerticalStackLayout>
+                    </Border>
+
+                    <Border Grid.Column="2" StrokeShape="RoundRectangle 12" StrokeThickness="0"
+                            BackgroundColor="#FFF5E9" Padding="10">
+                        <VerticalStackLayout Spacing="2">
+                            <Label Text="Promedio día" FontSize="11" TextColor="{StaticResource AppHint}" />
+                            <Label x:Name="AverageDailyLabel"
+                                   FontSize="16"
+                                   FontAttributes="Bold"
+                                   TextColor="#8A4D11" />
+                        </VerticalStackLayout>
+                    </Border>
+                </Grid>
+
+                <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                    <Border StrokeShape="RoundRectangle 12" StrokeThickness="0"
+                            BackgroundColor="#EFF3F1" Padding="10">
+                        <VerticalStackLayout Spacing="2">
+                            <Label Text="Vs periodo anterior"
+                                   FontSize="11"
+                                   TextColor="{StaticResource AppHint}" />
+                            <Label x:Name="AmountChangeLabel"
+                                   FontSize="16"
+                                   FontAttributes="Bold"
+                                   TextColor="{StaticResource AppText}" />
+                            <Label x:Name="AmountChangeDetailLabel"
+                                   FontSize="11"
+                                   TextColor="{StaticResource AppHint}" />
+                        </VerticalStackLayout>
+                    </Border>
+
+                    <Border Grid.Column="1" StrokeShape="RoundRectangle 12" StrokeThickness="0"
+                            BackgroundColor="#EFF3F1" Padding="10">
+                        <VerticalStackLayout Spacing="2">
+                            <Label Text="Cambio de movimientos"
+                                   FontSize="11"
+                                   TextColor="{StaticResource AppHint}" />
+                            <Label x:Name="TransactionsChangeLabel"
+                                   FontSize="16"
+                                   FontAttributes="Bold"
+                                   TextColor="{StaticResource AppText}" />
+                            <Label x:Name="TransactionsChangeDetailLabel"
+                                   FontSize="11"
+                                   TextColor="{StaticResource AppHint}" />
+                        </VerticalStackLayout>
+                    </Border>
+                </Grid>
+
+                <Label Text="Pulso diario"
+                       FontSize="15"
+                       FontAttributes="Bold"
+                       TextColor="{StaticResource AppText}" />
+
+                <CollectionView x:Name="DailyTrendCollection" SelectionMode="None" HeightRequest="120">
+                    <CollectionView.ItemsLayout>
+                        <LinearItemsLayout Orientation="Horizontal" ItemSpacing="6" />
+                    </CollectionView.ItemsLayout>
+                    <CollectionView.EmptyView>
+                        <Label Text="No hay datos diarios para mostrar."
+                               FontSize="12"
+                               TextColor="{StaticResource AppHint}" />
+                    </CollectionView.EmptyView>
+                    <CollectionView.ItemTemplate>
+                        <DataTemplate>
+                            <Border StrokeShape="RoundRectangle 10"
+                                    StrokeThickness="0"
+                                    BackgroundColor="{StaticResource White}"
+                                    Padding="6"
+                                    WidthRequest="30">
+                                <VerticalStackLayout VerticalOptions="End" Spacing="4">
+                                    <BoxView Color="{Binding BarColor}"
+                                             HeightRequest="{Binding BarHeight}"
+                                             WidthRequest="16"
+                                             HorizontalOptions="Center"
+                                             CornerRadius="6" />
+                                    <Label Text="{Binding DayLabel}"
+                                           FontSize="10"
+                                           HorizontalTextAlignment="Center"
+                                           TextColor="{StaticResource AppHint}" />
+                                </VerticalStackLayout>
+                            </Border>
+                        </DataTemplate>
+                    </CollectionView.ItemTemplate>
+                </CollectionView>
+
+                <Label Text="Insights premium"
+                       FontSize="15"
+                       FontAttributes="Bold"
+                       TextColor="{StaticResource AppText}" />
+
+                <CollectionView x:Name="InsightsCollection" SelectionMode="None">
+                    <CollectionView.EmptyView>
+                        <Label Text="Sin insights para este rango."
+                               FontSize="12"
+                               TextColor="{StaticResource AppHint}" />
+                    </CollectionView.EmptyView>
+                    <CollectionView.ItemTemplate>
+                        <DataTemplate>
+                            <Border StrokeShape="RoundRectangle 14" StrokeThickness="0"
+                                    BackgroundColor="#F7FAF8" Padding="12" Margin="0,0,0,8">
+                                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                                    <Label Text="✨"
+                                           FontSize="14"
+                                           VerticalOptions="Start" />
+                                    <Label Grid.Column="1"
+                                           Text="{Binding Text}"
+                                           FontSize="12"
+                                           TextColor="{StaticResource AppText}"
+                                           LineBreakMode="WordWrap" />
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </CollectionView.ItemTemplate>
+                </CollectionView>
+
+                <Label Text="Distribución por categoría"
+                       FontSize="15"
+                       FontAttributes="Bold"
+                       TextColor="{StaticResource AppText}" />
+
+                <CollectionView x:Name="CategoryCollection" SelectionMode="None">
+                    <CollectionView.EmptyView>
+                        <Label Text="Sin datos en el rango seleccionado."
+                               FontSize="12"
+                               TextColor="{StaticResource AppHint}" />
+                    </CollectionView.EmptyView>
+                    <CollectionView.ItemTemplate>
+                        <DataTemplate>
+                            <Border StrokeShape="RoundRectangle 14" StrokeThickness="0"
+                                    BackgroundColor="{StaticResource White}" Padding="12" Margin="0,0,0,8">
+                                <VerticalStackLayout Spacing="6">
+                                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                        <Label Text="{Binding Name}"
+                                               FontSize="13"
+                                               FontAttributes="Bold"
+                                               TextColor="{StaticResource AppText}" />
+                                        <Label Grid.Column="1"
+                                               Text="{Binding AmountText}"
+                                               FontSize="13"
+                                               FontAttributes="Bold"
+                                               TextColor="{StaticResource PrimaryDark}" />
+                                    </Grid>
+                                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                        <ProgressBar Progress="{Binding Share}"
+                                                     ProgressColor="{Binding BarColor}"
+                                                     BackgroundColor="{StaticResource AppSurface2}"
+                                                     HeightRequest="8"
+                                                     VerticalOptions="Center" />
+                                        <Label Grid.Column="1"
+                                               Text="{Binding ShareText}"
+                                               FontSize="11"
+                                               TextColor="{StaticResource AppHint}"
+                                               VerticalOptions="Center" />
+                                    </Grid>
+                                    <Label Text="{Binding DetailText}"
+                                           FontSize="11"
+                                           TextColor="{StaticResource AppHint}" />
+                                </VerticalStackLayout>
+                            </Border>
+                        </DataTemplate>
+                    </CollectionView.ItemTemplate>
+                </CollectionView>
+
+                <Label Text="Distribución por medio de pago"
+                       FontSize="15"
+                       FontAttributes="Bold"
+                       TextColor="{StaticResource AppText}" />
+
+                <CollectionView x:Name="PaymentMethodCollection" SelectionMode="None">
+                    <CollectionView.EmptyView>
+                        <Label Text="Sin datos en el rango seleccionado."
+                               FontSize="12"
+                               TextColor="{StaticResource AppHint}" />
+                    </CollectionView.EmptyView>
+                    <CollectionView.ItemTemplate>
+                        <DataTemplate>
+                            <Border StrokeShape="RoundRectangle 14" StrokeThickness="0"
+                                    BackgroundColor="{StaticResource White}" Padding="12" Margin="0,0,0,8">
+                                <VerticalStackLayout Spacing="6">
+                                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                        <Label Text="{Binding Name}"
+                                               FontSize="13"
+                                               FontAttributes="Bold"
+                                               TextColor="{StaticResource AppText}" />
+                                        <Label Grid.Column="1"
+                                               Text="{Binding AmountText}"
+                                               FontSize="13"
+                                               FontAttributes="Bold"
+                                               TextColor="{StaticResource PrimaryDark}" />
+                                    </Grid>
+                                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                        <ProgressBar Progress="{Binding Share}"
+                                                     ProgressColor="{Binding BarColor}"
+                                                     BackgroundColor="{StaticResource AppSurface2}"
+                                                     HeightRequest="8"
+                                                     VerticalOptions="Center" />
+                                        <Label Grid.Column="1"
+                                               Text="{Binding ShareText}"
+                                               FontSize="11"
+                                               TextColor="{StaticResource AppHint}"
+                                               VerticalOptions="Center" />
+                                    </Grid>
+                                    <Label Text="{Binding DetailText}"
+                                           FontSize="11"
+                                           TextColor="{StaticResource AppHint}" />
+                                </VerticalStackLayout>
+                            </Border>
+                        </DataTemplate>
+                    </CollectionView.ItemTemplate>
+                </CollectionView>
+
+                <Label Text="Top gastos del periodo"
+                       FontSize="15"
+                       FontAttributes="Bold"
+                       TextColor="{StaticResource AppText}" />
+
+                <CollectionView x:Name="TopExpensesCollection" SelectionMode="None">
+                    <CollectionView.EmptyView>
+                        <Label Text="Sin movimientos para mostrar."
+                               FontSize="12"
+                               TextColor="{StaticResource AppHint}" />
+                    </CollectionView.EmptyView>
+                    <CollectionView.ItemTemplate>
+                        <DataTemplate>
+                            <Border StrokeShape="RoundRectangle 14" StrokeThickness="0"
+                                    BackgroundColor="{StaticResource White}" Padding="12" Margin="0,0,0,8">
+                                <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+                                    <Border StrokeShape="RoundRectangle 10"
+                                            BackgroundColor="{StaticResource AppSurface2}"
+                                            StrokeThickness="0"
+                                            Padding="8,6">
+                                        <Label Text="{Binding DayText}"
+                                               FontSize="11"
+                                               FontAttributes="Bold"
+                                               TextColor="{StaticResource AppText}" />
+                                    </Border>
+                                    <VerticalStackLayout Grid.Column="1" Spacing="2">
+                                        <Label Text="{Binding Description}"
+                                               FontSize="13"
+                                               FontAttributes="Bold"
+                                               TextColor="{StaticResource AppText}" />
+                                        <Label Text="{Binding Meta}"
+                                               FontSize="11"
+                                               TextColor="{StaticResource AppHint}" />
+                                    </VerticalStackLayout>
+                                    <Label Grid.Column="2"
+                                           Text="{Binding AmountText}"
+                                           FontSize="13"
+                                           FontAttributes="Bold"
+                                           TextColor="{StaticResource PrimaryDark}"
+                                           VerticalOptions="Center" />
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </CollectionView.ItemTemplate>
+                </CollectionView>
+
+                <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                    <Button Text="⬇️ CSV"
+                            FontAttributes="Bold"
+                            HeightRequest="48"
+                            CornerRadius="14"
+                            BackgroundColor="{StaticResource AppSurface2}"
+                            TextColor="{StaticResource AppText}"
+                            Clicked="OnDownloadCsvClicked" />
+                    <Button Grid.Column="1"
+                            Text="⬇️ PDF"
+                            FontAttributes="Bold"
+                            HeightRequest="48"
+                            CornerRadius="14"
+                            BackgroundColor="{StaticResource Primary}"
+                            TextColor="{StaticResource PrimaryDarkText}"
+                            Clicked="OnDownloadPdfClicked" />
+                </Grid>
+
+                <Label x:Name="StatusLabel"
+                       FontSize="12"
+                       TextColor="{StaticResource AppHint}" />
+            </VerticalStackLayout>
+        </ScrollView>
+
+        <Grid x:Name="LoadingOverlay" Grid.Row="0" IsVisible="False"
+              BackgroundColor="#33000000" InputTransparent="False" ZIndex="40" Margin="-16">
+            <ActivityIndicator IsRunning="True" WidthRequest="48" HeightRequest="48"
+                               Color="{StaticResource Tertiary}" HorizontalOptions="Center" VerticalOptions="Center" />
+        </Grid>
+    </Grid>
+</ContentPage>

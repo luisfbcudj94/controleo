@@ -11,6 +11,7 @@ public static class DependencyInjection
         services.AddSingleton<IBudgetService, BudgetService>();
         services.AddSingleton<IRecurringExpenseService, RecurringExpenseService>();
         services.AddSingleton<IObligationService, ObligationService>();
+        services.AddSingleton<IReportExportService, ReportExportService>();
         services.AddSingleton<IDashboardService, DashboardService>();
         services.AddSingleton<IAdminUserService, AdminUserService>();
         return services;

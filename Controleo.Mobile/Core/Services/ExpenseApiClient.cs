@@ -960,6 +960,136 @@ public sealed class ExpenseApiClient : IExpenseApiClient
         }
     }
 
+    public async Task<ReportPreviewResult> GetReportPreviewAsync(DateOnly startDate, DateOnly endDate, CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (!await EnsureAuthenticatedAsync(cancellationToken))
+            {
+                return ReportPreviewResult.Failure(startDate, endDate, "Debes iniciar sesión para consultar analitica avanzada.");
+            }
+
+            var response = await httpClient.GetAsync(
+                $"api/reports/preview?from={startDate:yyyy-MM-dd}&to={endDate:yyyy-MM-dd}",
+                cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var message = await ReadFriendlyApiErrorAsync(response, "No fue posible obtener la vista previa del reporte.", cancellationToken);
+                return ReportPreviewResult.Failure(startDate, endDate, message);
+            }
+
+            var data = await response.Content.ReadFromJsonAsync<ReportPreviewResponse>(cancellationToken: cancellationToken);
+            if (data is null)
+            {
+                return ReportPreviewResult.Failure(startDate, endDate, "No se recibió información del reporte.");
+            }
+
+            return new ReportPreviewResult(
+                true,
+                string.Empty,
+                data.StartDate,
+                data.EndDate,
+                data.TotalTransactions,
+                data.TotalAmount,
+                data.AverageDailyAmount,
+                data.PreviousPeriodTransactions,
+                data.PreviousPeriodAmount,
+                data.AmountChangePercentage,
+                data.TransactionsChangePercentage,
+                (data.CategoryBreakdown ?? [])
+                    .Select(item => new ReportBreakdownItem(
+                        item.Name ?? string.Empty,
+                        item.Amount,
+                        item.Count,
+                        item.Percentage))
+                    .ToArray(),
+                (data.PaymentMethodBreakdown ?? [])
+                    .Select(item => new ReportBreakdownItem(
+                        item.Name ?? string.Empty,
+                        item.Amount,
+                        item.Count,
+                        item.Percentage))
+                    .ToArray(),
+                (data.TopExpenses ?? [])
+                    .Select(item => new ReportTopExpenseItem(
+                        item.Date,
+                        item.Description ?? string.Empty,
+                        item.MovementType ?? string.Empty,
+                        item.PaymentMethod ?? string.Empty,
+                        item.Amount))
+                    .ToArray(),
+                (data.DailyTrend ?? [])
+                    .Select(item => new ReportDailyTrendPoint(
+                        item.Date,
+                        item.Amount,
+                        item.Transactions))
+                    .ToArray(),
+                (data.Insights ?? [])
+                    .Where(item => !string.IsNullOrWhiteSpace(item))
+                    .Select(item => item.Trim())
+                    .ToArray());
+        }
+        catch (Exception ex)
+        {
+            return ReportPreviewResult.Failure(startDate, endDate, $"No fue posible conectar con API: {ex.Message}");
+        }
+    }
+
+    public Task<ReportFileDownloadResult> DownloadReportCsvAsync(DateOnly startDate, DateOnly endDate, CancellationToken cancellationToken)
+    {
+        return DownloadReportFileAsync("csv", "text/csv; charset=utf-8", startDate, endDate, cancellationToken);
+    }
+
+    public Task<ReportFileDownloadResult> DownloadReportPdfAsync(DateOnly startDate, DateOnly endDate, CancellationToken cancellationToken)
+    {
+        return DownloadReportFileAsync("pdf", "application/pdf", startDate, endDate, cancellationToken);
+    }
+
+    private async Task<ReportFileDownloadResult> DownloadReportFileAsync(
+        string format,
+        string fallbackContentType,
+        DateOnly startDate,
+        DateOnly endDate,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (!await EnsureAuthenticatedAsync(cancellationToken))
+            {
+                return new ReportFileDownloadResult(false, "Debes iniciar sesión para descargar reportes de analitica avanzada.", null);
+            }
+
+            var response = await httpClient.GetAsync(
+                $"api/reports/export/{format}?from={startDate:yyyy-MM-dd}&to={endDate:yyyy-MM-dd}",
+                cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var message = await ReadFriendlyApiErrorAsync(response, "No fue posible descargar el reporte.", cancellationToken);
+                return new ReportFileDownloadResult(false, message, null);
+            }
+
+            var bytes = await response.Content.ReadAsByteArrayAsync(cancellationToken);
+            if (bytes.Length == 0)
+            {
+                return new ReportFileDownloadResult(false, "El reporte llegó vacío.", null);
+            }
+
+            var contentType = response.Content.Headers.ContentType?.ToString();
+            var fileName = ResolveReportFileName(response, format, startDate, endDate);
+
+            return new ReportFileDownloadResult(
+                true,
+                "Reporte generado correctamente.",
+                new ReportFilePayload(bytes, string.IsNullOrWhiteSpace(contentType) ? fallbackContentType : contentType, fileName));
+        }
+        catch (Exception ex)
+        {
+            return new ReportFileDownloadResult(false, $"No fue posible conectar con API: {ex.Message}", null);
+        }
+    }
+
     private async Task EnsureOfflineStoreInitializedAsync(CancellationToken cancellationToken)
     {
         if (offlineInitialized)
@@ -1363,6 +1493,40 @@ public sealed class ExpenseApiClient : IExpenseApiClient
         bool HasPreviousPage,
         bool HasNextPage);
 
+    private sealed record ReportPreviewResponse(
+        DateOnly StartDate,
+        DateOnly EndDate,
+        int TotalTransactions,
+        decimal TotalAmount,
+        decimal AverageDailyAmount,
+        int PreviousPeriodTransactions,
+        decimal PreviousPeriodAmount,
+        decimal AmountChangePercentage,
+        decimal TransactionsChangePercentage,
+        List<ReportBreakdownResponse>? CategoryBreakdown,
+        List<ReportBreakdownResponse>? PaymentMethodBreakdown,
+        List<ReportTopExpenseResponse>? TopExpenses,
+        List<ReportDailyTrendResponse>? DailyTrend,
+        List<string>? Insights);
+
+    private sealed record ReportBreakdownResponse(
+        string? Name,
+        decimal Amount,
+        int Count,
+        decimal Percentage);
+
+    private sealed record ReportTopExpenseResponse(
+        DateOnly Date,
+        string? Description,
+        string? MovementType,
+        string? PaymentMethod,
+        decimal Amount);
+
+    private sealed record ReportDailyTrendResponse(
+        DateOnly Date,
+        decimal Amount,
+        int Transactions);
+
     private static DateOnly ResolveRecurringStartDate(DateOnly? startDate, string? startMonth, int dayOfMonth)
     {
         if (startDate is { } explicitStartDate && explicitStartDate != DateOnly.MinValue)
@@ -1607,6 +1771,77 @@ public sealed class ExpenseApiClient : IExpenseApiClient
     {
         return !string.IsNullOrWhiteSpace(expenseId)
             && expenseId.StartsWith("offline-", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string ResolveReportFileName(HttpResponseMessage response, string format, DateOnly startDate, DateOnly endDate)
+    {
+        var fromContentHeader = response.Content.Headers.ContentDisposition;
+        var candidate = fromContentHeader?.FileNameStar ?? fromContentHeader?.FileName;
+
+        if (string.IsNullOrWhiteSpace(candidate)
+            && response.Headers.TryGetValues("Content-Disposition", out var values))
+        {
+            var raw = values.FirstOrDefault();
+            candidate = ParseFilenameFromRawContentDisposition(raw);
+        }
+
+        if (string.IsNullOrWhiteSpace(candidate))
+        {
+            return $"controleo-reporte-{startDate:yyyyMMdd}-{endDate:yyyyMMdd}.{format}";
+        }
+
+        var normalized = candidate.Trim().Trim('"');
+        if (normalized.StartsWith("UTF-8''", StringComparison.OrdinalIgnoreCase))
+        {
+            normalized = normalized[7..];
+        }
+
+        try
+        {
+            normalized = Uri.UnescapeDataString(normalized);
+        }
+        catch
+        {
+        }
+
+        foreach (var invalidChar in Path.GetInvalidFileNameChars())
+        {
+            normalized = normalized.Replace(invalidChar, '_');
+        }
+
+        return string.IsNullOrWhiteSpace(normalized)
+            ? $"controleo-reporte-{startDate:yyyyMMdd}-{endDate:yyyyMMdd}.{format}"
+            : normalized;
+    }
+
+    private static string? ParseFilenameFromRawContentDisposition(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return null;
+        }
+
+        var filenameStarMarker = "filename*=";
+        var filenameMarker = "filename=";
+        var token = raw;
+
+        var filenameStarIndex = token.IndexOf(filenameStarMarker, StringComparison.OrdinalIgnoreCase);
+        if (filenameStarIndex >= 0)
+        {
+            var segment = token[(filenameStarIndex + filenameStarMarker.Length)..];
+            var semicolon = segment.IndexOf(';');
+            return semicolon >= 0 ? segment[..semicolon].Trim() : segment.Trim();
+        }
+
+        var filenameIndex = token.IndexOf(filenameMarker, StringComparison.OrdinalIgnoreCase);
+        if (filenameIndex < 0)
+        {
+            return null;
+        }
+
+        var filenameSegment = token[(filenameIndex + filenameMarker.Length)..];
+        var filenameSemicolon = filenameSegment.IndexOf(';');
+        return filenameSemicolon >= 0 ? filenameSegment[..filenameSemicolon].Trim() : filenameSegment.Trim();
     }
 
     private static HttpRequestMessage CreateRecurringJsonRequest(HttpMethod method, string relativeUrl, RecurringExpenseUpsertRequest request)

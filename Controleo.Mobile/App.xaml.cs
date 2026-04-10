@@ -7,6 +7,7 @@ using Controleo.Mobile.Features.Dashboard;
 using Controleo.Mobile.Features.Expenses;
 using Controleo.Mobile.Features.Obligations;
 using Controleo.Mobile.Features.Recurring;
+using Controleo.Mobile.Features.Reports;
 using Controleo.Mobile.Features.Register;
 using Controleo.Mobile.Features.Settings;
 using Controleo.Mobile.Shared.Modals;
@@ -217,15 +218,20 @@ public partial class App : Application
 			var paymentIconService = _serviceProvider.GetRequiredService<IPaymentIconService>();
 			var currentPage = _mainTabs?.CurrentPage ?? _mainFlyout?.Detail;
 
-			if (destination == SideMenuDestination.Obligations && !authService.IsCurrentUserPremium)
+			if ((destination == SideMenuDestination.Obligations || destination == SideMenuDestination.Reports)
+				&& !authService.IsCurrentUserPremium)
 			{
+				var featureName = destination == SideMenuDestination.Reports
+					? "Analitica avanzada"
+					: "Obligaciones";
+
 				if (currentPage is not null)
 				{
 					await StyledResultModalPage.ShowAsync(
 						currentPage,
 						false,
 						"Funcionalidad Premium",
-						"Obligaciones está disponible solo para usuarios premium. Activa premium para usar calendario, detalle diario y recordatorios.",
+						$"{featureName} está disponible solo para usuarios premium. Activa premium para desbloquear esta funcionalidad.",
 						autoCloseMilliseconds: 0);
 				}
 
@@ -239,6 +245,7 @@ public partial class App : Application
 				SideMenuDestination.PaymentMethods => new SettingsPage(apiClient, authService, colorService, paymentIconService, SettingsSectionMode.PaymentOnly),
 				SideMenuDestination.MovementTypes => new SettingsPage(apiClient, authService, colorService, paymentIconService, SettingsSectionMode.MovementOnly),
 				SideMenuDestination.Recurring => new RecurringPage(apiClient, colorService, paymentIconService),
+				SideMenuDestination.Reports => new ReportsPage(apiClient),
 				SideMenuDestination.Obligations => new ObligationsPage(apiClient, authService, obligationNotificationService, colorService, paymentIconService),
 				_ => new ProfilePage(authService)
 			};
@@ -247,6 +254,7 @@ public partial class App : Application
 				or SideMenuDestination.PaymentMethods
 				or SideMenuDestination.MovementTypes
 				or SideMenuDestination.Recurring
+				or SideMenuDestination.Reports
 				or SideMenuDestination.Obligations;
 
 			// Use modal navigation — completely independent of tab stacks, no orphan/crash risk
@@ -262,6 +270,7 @@ public partial class App : Application
 					SideMenuDestination.PaymentMethods => "Medios de pago",
 					SideMenuDestination.MovementTypes => "Tipos de gasto",
 					SideMenuDestination.Recurring => "Gastos recurrentes",
+					SideMenuDestination.Reports => "Analitica avanzada",
 					SideMenuDestination.Obligations => "Obligaciones",
 					_ => ""
 				};

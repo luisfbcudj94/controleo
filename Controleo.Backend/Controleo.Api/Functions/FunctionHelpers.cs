@@ -63,6 +63,8 @@ internal static class FunctionHelpers
             response.Headers.Add("Access-Control-Allow-Headers", "authorization, content-type, x-requested-with");
         if (!response.Headers.TryGetValues("Access-Control-Allow-Methods", out _))
             response.Headers.Add("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
+        if (!response.Headers.TryGetValues("Access-Control-Expose-Headers", out _))
+            response.Headers.Add("Access-Control-Expose-Headers", "Content-Disposition");
     }
 
     public static bool TryResolveMonth(string? month, out string monthKey)

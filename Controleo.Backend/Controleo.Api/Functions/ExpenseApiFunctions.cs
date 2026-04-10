@@ -1,4 +1,5 @@
 using System.Net;
+using System.Globalization;
 using Controleo.Application.DTOs;
 using Controleo.Application.Interfaces;
 using Controleo.Application.Validation;
@@ -20,6 +21,7 @@ public sealed class ExpenseApiFunctions
     private readonly IDashboardService _dashboardService;
     private readonly IRecurringExpenseService _recurringService;
     private readonly IObligationService _obligationService;
+    private readonly IReportExportService _reportExportService;
     private readonly IAccessTokenValidator _tokenValidator;
     private readonly LocalAuthOptions _authOptions;
     private readonly IHostEnvironment _env;
@@ -27,17 +29,19 @@ public sealed class ExpenseApiFunctions
     public ExpenseApiFunctions(
         IExpenseService expenseService, ICatalogService catalogService, IBudgetService budgetService,
         IDashboardService dashboardService, IRecurringExpenseService recurringService, IObligationService obligationService,
+        IReportExportService reportExportService,
         IAccessTokenValidator tokenValidator, IOptions<LocalAuthOptions> authOptions, IHostEnvironment env)
     {
         _expenseService = expenseService; _catalogService = catalogService; _budgetService = budgetService;
         _dashboardService = dashboardService; _recurringService = recurringService; _obligationService = obligationService;
+        _reportExportService = reportExportService;
         _tokenValidator = tokenValidator; _authOptions = authOptions.Value; _env = env;
     }
 
     private Task<(ApiUserContext? User, HttpResponseData? Response)> AuthAsync(HttpRequestData req, CancellationToken ct)
         => FunctionHelpers.AuthorizeAsync(req, _tokenValidator, _authOptions, _env.IsDevelopment(), ct);
 
-    private static async Task<HttpResponseData?> EnsurePremiumAsync(HttpRequestData req, ApiUserContext user, CancellationToken ct)
+    private static async Task<HttpResponseData?> EnsurePremiumAsync(HttpRequestData req, ApiUserContext user, string featureName, CancellationToken ct)
     {
         if (user.IsPremium)
         {
@@ -47,8 +51,62 @@ public sealed class ExpenseApiFunctions
         return await FunctionHelpers.JsonAsync(
             req,
             HttpStatusCode.Forbidden,
-            new OperationResult(false, "Obligaciones está disponible solo para usuarios premium."),
+            new OperationResult(false, $"{featureName} está disponible solo para usuarios premium."),
             ct);
+    }
+
+    private static bool TryResolveDateRange(
+        Dictionary<string, string> query,
+        out DateOnly startDate,
+        out DateOnly endDate,
+        out string error)
+    {
+        startDate = default;
+        endDate = default;
+
+        var fromRaw = query.TryGetValue("from", out var fromToken)
+            ? fromToken
+            : query.TryGetValue("startDate", out var startToken)
+                ? startToken
+                : null;
+        var toRaw = query.TryGetValue("to", out var toToken)
+            ? toToken
+            : query.TryGetValue("endDate", out var endToken)
+                ? endToken
+                : null;
+
+        if (string.IsNullOrWhiteSpace(fromRaw) || string.IsNullOrWhiteSpace(toRaw))
+        {
+            error = "Debes enviar from y to en formato yyyy-MM-dd.";
+            return false;
+        }
+
+        if (!DateOnly.TryParseExact(fromRaw.Trim(), "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out startDate)
+            || !DateOnly.TryParseExact(toRaw.Trim(), "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out endDate))
+        {
+            error = "Formato de fecha inválido. Usa yyyy-MM-dd.";
+            return false;
+        }
+
+        if (startDate > endDate)
+        {
+            error = "La fecha inicial no puede ser mayor que la fecha final.";
+            return false;
+        }
+
+        error = string.Empty;
+        return true;
+    }
+
+    private static async Task<HttpResponseData> FileAsync(HttpRequestData req, ReportExportFile file, CancellationToken ct)
+    {
+        var response = req.CreateResponse(HttpStatusCode.OK);
+        response.Headers.Add("Content-Type", file.ContentType);
+        response.Headers.Add("Content-Disposition", $"attachment; filename*=UTF-8''{Uri.EscapeDataString(file.FileName)}");
+        response.Headers.Add("Access-Control-Expose-Headers", "Content-Disposition");
+        FunctionHelpers.AddCorsHeaders(response);
+        await response.Body.WriteAsync(file.Content, ct);
+        return response;
     }
 
     [Function("OptionsPreflight")]
@@ -207,6 +265,71 @@ public sealed class ExpenseApiFunctions
         return await FunctionHelpers.JsonAsync(req, HttpStatusCode.OK, await _dashboardService.GetDashboardByPaymentMethodAsync(user!.UserId, mk, ct), ct);
     }
 
+    // ── Reports (Premium) ──
+
+    [Function("GetReportPreview")]
+    public async Task<HttpResponseData> GetReportPreviewAsync([HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "reports/preview")] HttpRequestData req, CancellationToken ct)
+    {
+        var (user, err) = await AuthAsync(req, ct); if (err is not null) return err;
+        var premiumErr = await EnsurePremiumAsync(req, user!, "Analitica avanzada", ct); if (premiumErr is not null) return premiumErr;
+
+        var q = FunctionHelpers.ParseQuery(req);
+        if (!TryResolveDateRange(q, out var startDate, out var endDate, out var dateError))
+            return await FunctionHelpers.JsonAsync(req, HttpStatusCode.BadRequest, new OperationResult(false, dateError), ct);
+
+        try
+        {
+            var preview = await _reportExportService.BuildPreviewAsync(user!.UserId, startDate, endDate, ct);
+            return await FunctionHelpers.JsonAsync(req, HttpStatusCode.OK, preview, ct);
+        }
+        catch (ArgumentException ex)
+        {
+            return await FunctionHelpers.JsonAsync(req, HttpStatusCode.BadRequest, new OperationResult(false, ex.Message), ct);
+        }
+    }
+
+    [Function("ExportReportCsv")]
+    public async Task<HttpResponseData> ExportReportCsvAsync([HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "reports/export/csv")] HttpRequestData req, CancellationToken ct)
+    {
+        var (user, err) = await AuthAsync(req, ct); if (err is not null) return err;
+        var premiumErr = await EnsurePremiumAsync(req, user!, "Analitica avanzada", ct); if (premiumErr is not null) return premiumErr;
+
+        var q = FunctionHelpers.ParseQuery(req);
+        if (!TryResolveDateRange(q, out var startDate, out var endDate, out var dateError))
+            return await FunctionHelpers.JsonAsync(req, HttpStatusCode.BadRequest, new OperationResult(false, dateError), ct);
+
+        try
+        {
+            var file = await _reportExportService.BuildCsvAsync(user!.UserId, startDate, endDate, ct);
+            return await FileAsync(req, file, ct);
+        }
+        catch (ArgumentException ex)
+        {
+            return await FunctionHelpers.JsonAsync(req, HttpStatusCode.BadRequest, new OperationResult(false, ex.Message), ct);
+        }
+    }
+
+    [Function("ExportReportPdf")]
+    public async Task<HttpResponseData> ExportReportPdfAsync([HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "reports/export/pdf")] HttpRequestData req, CancellationToken ct)
+    {
+        var (user, err) = await AuthAsync(req, ct); if (err is not null) return err;
+        var premiumErr = await EnsurePremiumAsync(req, user!, "Analitica avanzada", ct); if (premiumErr is not null) return premiumErr;
+
+        var q = FunctionHelpers.ParseQuery(req);
+        if (!TryResolveDateRange(q, out var startDate, out var endDate, out var dateError))
+            return await FunctionHelpers.JsonAsync(req, HttpStatusCode.BadRequest, new OperationResult(false, dateError), ct);
+
+        try
+        {
+            var file = await _reportExportService.BuildPdfAsync(user!.UserId, startDate, endDate, ct);
+            return await FileAsync(req, file, ct);
+        }
+        catch (ArgumentException ex)
+        {
+            return await FunctionHelpers.JsonAsync(req, HttpStatusCode.BadRequest, new OperationResult(false, ex.Message), ct);
+        }
+    }
+
     // ── Recurring ──
 
     [Function("GetRecurringExpenses")]
@@ -261,7 +384,7 @@ public sealed class ExpenseApiFunctions
     public async Task<HttpResponseData> GetObligationsAsync([HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "obligations")] HttpRequestData req, CancellationToken ct)
     {
         var (user, err) = await AuthAsync(req, ct); if (err is not null) return err;
-        var premiumErr = await EnsurePremiumAsync(req, user!, ct); if (premiumErr is not null) return premiumErr;
+        var premiumErr = await EnsurePremiumAsync(req, user!, "Obligaciones", ct); if (premiumErr is not null) return premiumErr;
         return await FunctionHelpers.JsonAsync(req, HttpStatusCode.OK, await _obligationService.GetObligationsAsync(user!.UserId, ct), ct);
     }
 
@@ -269,7 +392,7 @@ public sealed class ExpenseApiFunctions
     public async Task<HttpResponseData> GetObligationsPagedAsync([HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "obligations/paged")] HttpRequestData req, CancellationToken ct)
     {
         var (user, err) = await AuthAsync(req, ct); if (err is not null) return err;
-        var premiumErr = await EnsurePremiumAsync(req, user!, ct); if (premiumErr is not null) return premiumErr;
+        var premiumErr = await EnsurePremiumAsync(req, user!, "Obligaciones", ct); if (premiumErr is not null) return premiumErr;
         var q = FunctionHelpers.ParseQuery(req);
         var pn = q.TryGetValue("pageNumber", out var pnr) && int.TryParse(pnr, out var ppn) ? Math.Max(ppn, 1) : 1;
         var ps = q.TryGetValue("pageSize", out var psr) && int.TryParse(psr, out var pps) ? FunctionHelpers.NormalizePageSize(pps) : 5;
@@ -280,7 +403,7 @@ public sealed class ExpenseApiFunctions
     public async Task<HttpResponseData> CreateObligationAsync([HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = "obligations")] HttpRequestData req, CancellationToken ct)
     {
         var (user, err) = await AuthAsync(req, ct); if (err is not null) return err;
-        var premiumErr = await EnsurePremiumAsync(req, user!, ct); if (premiumErr is not null) return premiumErr;
+        var premiumErr = await EnsurePremiumAsync(req, user!, "Obligaciones", ct); if (premiumErr is not null) return premiumErr;
         var payload = await FunctionHelpers.ReadBodyAsync<ObligationUpsertRequest>(req, ct);
         if (payload is null)
             return await FunctionHelpers.JsonAsync(req, HttpStatusCode.BadRequest, new OperationResult(false, "Request inválido."), ct);
@@ -292,7 +415,7 @@ public sealed class ExpenseApiFunctions
     public async Task<HttpResponseData> UpdateObligationAsync([HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "obligations/{id}")] HttpRequestData req, string id, CancellationToken ct)
     {
         var (user, err) = await AuthAsync(req, ct); if (err is not null) return err;
-        var premiumErr = await EnsurePremiumAsync(req, user!, ct); if (premiumErr is not null) return premiumErr;
+        var premiumErr = await EnsurePremiumAsync(req, user!, "Obligaciones", ct); if (premiumErr is not null) return premiumErr;
         var payload = await FunctionHelpers.ReadBodyAsync<ObligationUpsertRequest>(req, ct);
         if (payload is null)
             return await FunctionHelpers.JsonAsync(req, HttpStatusCode.BadRequest, new OperationResult(false, "Request inválido."), ct);
@@ -304,7 +427,7 @@ public sealed class ExpenseApiFunctions
     public async Task<HttpResponseData> DeleteObligationAsync([HttpTrigger(AuthorizationLevel.Anonymous, "delete", Route = "obligations/{id}")] HttpRequestData req, string id, CancellationToken ct)
     {
         var (user, err) = await AuthAsync(req, ct); if (err is not null) return err;
-        var premiumErr = await EnsurePremiumAsync(req, user!, ct); if (premiumErr is not null) return premiumErr;
+        var premiumErr = await EnsurePremiumAsync(req, user!, "Obligaciones", ct); if (premiumErr is not null) return premiumErr;
         var result = await _obligationService.DeleteObligationAsync(user!.UserId, id, ct);
         return await FunctionHelpers.JsonAsync(req, result.IsSuccess ? HttpStatusCode.OK : HttpStatusCode.BadRequest, result, ct);
     }
