@@ -159,3 +159,84 @@ export interface PagedAdminUsersResult {
   hasPreviousPage: boolean;
   hasNextPage: boolean;
 }
+
+// ── Goals ──
+
+export interface SavingsGoalItem {
+  id: string;
+  name: string;
+  icon: string;
+  targetAmount: number;
+  currentAmount: number;
+  targetDate: string;
+  status: string;
+  priority: string;
+  progressPercent: number;
+  suggestedMonthlyContribution: number;
+  projectedCompletionDate: string | null;
+  daysRemaining: number;
+  isOnTrack: boolean;
+  monthlyAvailableSavings: number | null;
+  contributions: GoalContributionItem[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface GoalContributionItem {
+  id: string;
+  goalId: string;
+  amount: number;
+  date: string;
+  note: string | null;
+  createdAt: string;
+}
+
+export interface GoalUpsertRequest {
+  name: string;
+  icon: string;
+  targetAmount: number;
+  targetDate: string;
+  priority: string;
+  status?: string;
+}
+
+export interface GoalContributionRequest {
+  amount: number;
+  date: string;
+  note?: string;
+}
+
+export interface GoalSimulationRequest {
+  scenarioType: string;
+  newValue: number;
+}
+
+export interface GoalSimulationResponse {
+  projectedDate: string | null;
+  requiredMonthlyAmount: number;
+  feasibility: string;
+  description: string;
+}
+
+export interface GoalAlertItem {
+  goalId: string;
+  goalName: string;
+  message: string;
+  severity: string;
+}
+
+// ── Coach IA ──
+
+export interface ChatMessageItem {
+  role: string;
+  content: string;
+  createdAt: string;
+}
+
+export interface ChatHistoryResult {
+  messages: ChatMessageItem[];
+}
+
+export interface CoachSuggestionsResult {
+  suggestions: string[];
+}

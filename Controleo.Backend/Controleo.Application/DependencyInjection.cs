@@ -12,8 +12,11 @@ public static class DependencyInjection
         services.AddSingleton<IRecurringExpenseService, RecurringExpenseService>();
         services.AddSingleton<IObligationService, ObligationService>();
         services.AddSingleton<IReportExportService, ReportExportService>();
+        services.AddSingleton<IFinancialInsightsService, FinancialInsightsService>();
         services.AddSingleton<IDashboardService, DashboardService>();
         services.AddSingleton<IAdminUserService, AdminUserService>();
+        services.AddSingleton<ISavingsGoalService, SavingsGoalService>();
+        services.AddSingleton<IMoneyCoachService, MoneyCoachService>();
         return services;
     }
 }

@@ -9,7 +9,8 @@ public sealed record AuthUserProfile(
     bool IsImpersonating = false,
     string? ActorUserId = null,
     string? ActorName = null,
-    string? ActorEmail = null);
+    string? ActorEmail = null,
+    decimal? MonthlyIncome = null);
 public interface IUserAuthService
 {
     Task<(bool IsSuccess, string ErrorMessage, AuthSessionResponse? Session)> RegisterAsync(string name, string email, string password, CancellationToken ct);

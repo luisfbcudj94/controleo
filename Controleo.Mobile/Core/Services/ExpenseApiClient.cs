@@ -960,6 +960,80 @@ public sealed class ExpenseApiClient : IExpenseApiClient
         }
     }
 
+    public async Task<UserProfileResult> GetUserProfileAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (!await EnsureAuthenticatedAsync(cancellationToken))
+            {
+                return UserProfileResult.Failure("Debes iniciar sesión para consultar tu perfil.");
+            }
+
+            var response = await httpClient.GetAsync("api/profile", cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                var message = await ReadFriendlyApiErrorAsync(response, "No fue posible consultar el perfil.", cancellationToken);
+                return UserProfileResult.Failure(message);
+            }
+
+            var data = await response.Content.ReadFromJsonAsync<UserProfileResponse>(cancellationToken: cancellationToken);
+            if (data is null)
+            {
+                return UserProfileResult.Failure("No se recibió información del perfil.");
+            }
+
+            return new UserProfileResult(
+                true,
+                string.Empty,
+                data.UserId ?? string.Empty,
+                data.Name ?? string.Empty,
+                data.Email ?? string.Empty,
+                data.IsPremium,
+                data.IsAdmin,
+                data.MonthlyIncome,
+                data.UpdatedAt);
+        }
+        catch (Exception ex)
+        {
+            return UserProfileResult.Failure($"No fue posible conectar con API: {ex.Message}");
+        }
+    }
+
+    public async Task<OperationResult> UpdateMonthlyIncomeAsync(decimal? monthlyIncome, CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (!await EnsureAuthenticatedAsync(cancellationToken))
+            {
+                return new OperationResult(false, "Debes iniciar sesión para actualizar tu ingreso.");
+            }
+
+            var payload = new Dictionary<string, object?>
+            {
+                ["monthlyIncome"] = monthlyIncome
+            };
+
+            using var request = new HttpRequestMessage(HttpMethod.Put, "api/profile/monthly-income")
+            {
+                Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json")
+            };
+
+            var response = await httpClient.SendAsync(request, cancellationToken);
+            if (response.IsSuccessStatusCode)
+            {
+                var result = await response.Content.ReadFromJsonAsync<OperationResult>(cancellationToken: cancellationToken);
+                return result ?? new OperationResult(true, "Ingreso actualizado.");
+            }
+
+            var message = await ReadFriendlyApiErrorAsync(response, "No fue posible actualizar el ingreso.", cancellationToken);
+            return new OperationResult(false, message);
+        }
+        catch (Exception ex)
+        {
+            return new OperationResult(false, $"No fue posible conectar con API: {ex.Message}");
+        }
+    }
+
     public async Task<ReportPreviewResult> GetReportPreviewAsync(DateOnly startDate, DateOnly endDate, CancellationToken cancellationToken)
     {
         try
@@ -1033,6 +1107,144 @@ public sealed class ExpenseApiClient : IExpenseApiClient
         catch (Exception ex)
         {
             return ReportPreviewResult.Failure(startDate, endDate, $"No fue posible conectar con API: {ex.Message}");
+        }
+    }
+
+    public async Task<FinancialScoreResult> GetFinancialScoreAsync(DateOnly startDate, DateOnly endDate, CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (!await EnsureAuthenticatedAsync(cancellationToken))
+            {
+                return FinancialScoreResult.Failure(startDate, endDate, "Debes iniciar sesión para consultar el score financiero.");
+            }
+
+            var response = await httpClient.GetAsync(
+                $"api/reports/financial-score?from={startDate:yyyy-MM-dd}&to={endDate:yyyy-MM-dd}",
+                cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var message = await ReadFriendlyApiErrorAsync(response, "No fue posible consultar el score financiero.", cancellationToken);
+                return FinancialScoreResult.Failure(startDate, endDate, message);
+            }
+
+            var data = await response.Content.ReadFromJsonAsync<FinancialScoreResponse>(cancellationToken: cancellationToken);
+            if (data is null)
+            {
+                return FinancialScoreResult.Failure(startDate, endDate, "No se recibió información del score financiero.");
+            }
+
+            return new FinancialScoreResult(
+                true,
+                string.Empty,
+                data.PeriodStart,
+                data.PeriodEnd,
+                data.Score,
+                data.Trend ?? "stable",
+                data.Confidence,
+                data.AlgorithmVersion ?? string.Empty,
+                data.TotalSpent,
+                data.MonthlyIncome,
+                data.SpendingToIncomeRatio,
+                data.ObligationsToIncomeRatio,
+                data.BudgetUtilizationRatio,
+                data.AmountChangePercentage,
+                (data.Components ?? [])
+                    .Select(item => new FinancialScoreComponent(
+                        item.Key ?? string.Empty,
+                        item.Name ?? string.Empty,
+                        item.Score,
+                        item.Weight,
+                        item.Detail ?? string.Empty))
+                    .ToArray(),
+                (data.Drivers ?? [])
+                    .Where(item => !string.IsNullOrWhiteSpace(item))
+                    .Select(item => item.Trim())
+                    .ToArray());
+        }
+        catch (Exception ex)
+        {
+            return FinancialScoreResult.Failure(startDate, endDate, $"No fue posible conectar con API: {ex.Message}");
+        }
+    }
+
+    public async Task<IReadOnlyList<FinancialScoreHistoryItem>> GetFinancialScoreHistoryAsync(int limit, CancellationToken cancellationToken)
+    {
+        var safeLimit = Math.Clamp(limit, 1, 24);
+        try
+        {
+            if (!await EnsureAuthenticatedAsync(cancellationToken))
+            {
+                return [];
+            }
+
+            var data = await httpClient.GetFromJsonAsync<List<FinancialScoreHistoryResponse>>(
+                $"api/reports/financial-score/history?limit={safeLimit}",
+                cancellationToken);
+
+            return (data ?? [])
+                .Select(item => new FinancialScoreHistoryItem(
+                    item.PeriodStart,
+                    item.PeriodEnd,
+                    item.Score,
+                    item.Trend ?? "stable",
+                    item.Confidence,
+                    item.GeneratedAtUtc))
+                .ToArray();
+        }
+        catch
+        {
+            return [];
+        }
+    }
+
+    public async Task<FinancialRecommendationsResult> GetFinancialRecommendationsAsync(DateOnly startDate, DateOnly endDate, bool forceRefresh, CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (!await EnsureAuthenticatedAsync(cancellationToken))
+            {
+                return FinancialRecommendationsResult.Failure("Debes iniciar sesión para consultar recomendaciones.");
+            }
+
+            var response = await httpClient.GetAsync(
+                $"api/reports/recommendations?from={startDate:yyyy-MM-dd}&to={endDate:yyyy-MM-dd}&forceRefresh={forceRefresh.ToString().ToLowerInvariant()}",
+                cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var message = await ReadFriendlyApiErrorAsync(response, "No fue posible consultar recomendaciones financieras.", cancellationToken);
+                return FinancialRecommendationsResult.Failure(message);
+            }
+
+            var data = await response.Content.ReadFromJsonAsync<FinancialRecommendationsResponse>(cancellationToken: cancellationToken);
+            if (data is null)
+            {
+                return FinancialRecommendationsResult.Failure("No se recibieron recomendaciones del servidor.");
+            }
+
+            return new FinancialRecommendationsResult(
+                true,
+                string.Empty,
+                data.SourceLabel ?? string.Empty,
+                data.Priority ?? string.Empty,
+                (data.Recommendations ?? [])
+                    .Where(item => !string.IsNullOrWhiteSpace(item))
+                    .Select(item => item.Trim())
+                    .ToArray(),
+                data.ScoreReference,
+                data.Trend ?? "stable",
+                data.Confidence,
+                (data.Drivers ?? [])
+                    .Where(item => !string.IsNullOrWhiteSpace(item))
+                    .Select(item => item.Trim())
+                    .ToArray(),
+                data.GeneratedAtUtc);
+        }
+        catch (Exception ex)
+        {
+            return FinancialRecommendationsResult.Failure($"No fue posible conectar con API: {ex.Message}");
         }
     }
 
@@ -1493,6 +1705,56 @@ public sealed class ExpenseApiClient : IExpenseApiClient
         bool HasPreviousPage,
         bool HasNextPage);
 
+    private sealed record UserProfileResponse(
+        string? UserId,
+        string? Name,
+        string? Email,
+        bool IsPremium,
+        bool IsAdmin,
+        decimal? MonthlyIncome,
+        DateTimeOffset UpdatedAt);
+
+    private sealed record FinancialScoreResponse(
+        DateOnly PeriodStart,
+        DateOnly PeriodEnd,
+        int Score,
+        string? Trend,
+        decimal Confidence,
+        string? AlgorithmVersion,
+        decimal TotalSpent,
+        decimal? MonthlyIncome,
+        decimal? SpendingToIncomeRatio,
+        decimal? ObligationsToIncomeRatio,
+        decimal BudgetUtilizationRatio,
+        decimal AmountChangePercentage,
+        List<FinancialScoreComponentResponse>? Components,
+        List<string>? Drivers);
+
+    private sealed record FinancialScoreComponentResponse(
+        string? Key,
+        string? Name,
+        int Score,
+        decimal Weight,
+        string? Detail);
+
+    private sealed record FinancialScoreHistoryResponse(
+        DateOnly PeriodStart,
+        DateOnly PeriodEnd,
+        int Score,
+        string? Trend,
+        decimal Confidence,
+        DateTimeOffset GeneratedAtUtc);
+
+    private sealed record FinancialRecommendationsResponse(
+        string? SourceLabel,
+        string? Priority,
+        List<string>? Recommendations,
+        int ScoreReference,
+        string? Trend,
+        decimal Confidence,
+        List<string>? Drivers,
+        DateTimeOffset GeneratedAtUtc);
+
     private sealed record ReportPreviewResponse(
         DateOnly StartDate,
         DateOnly EndDate,
@@ -1886,5 +2148,243 @@ public sealed class ExpenseApiClient : IExpenseApiClient
         {
             Content = new StringContent(json, Encoding.UTF8, "application/json")
         };
+    }
+
+    // ──── Goals ────
+
+    public async Task<IReadOnlyList<SavingsGoalItem>> GetGoalsAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (!await EnsureAuthenticatedAsync(cancellationToken)) return [];
+            var data = await httpClient.GetFromJsonAsync<List<SavingsGoalItem>>("api/goals", cancellationToken);
+            return data ?? [];
+        }
+        catch { return []; }
+    }
+
+    public async Task<SavingsGoalItem?> GetGoalDetailAsync(string goalId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (!await EnsureAuthenticatedAsync(cancellationToken)) return null;
+            return await httpClient.GetFromJsonAsync<SavingsGoalItem>($"api/goals/{Uri.EscapeDataString(goalId)}", cancellationToken);
+        }
+        catch { return null; }
+    }
+
+    public async Task<OperationResult> CreateGoalAsync(GoalUpsertRequest request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (!await EnsureAuthenticatedAsync(cancellationToken))
+                return new OperationResult(false, "Debes iniciar sesión.");
+            var payload = new Dictionary<string, object?>
+            {
+                ["name"] = request.Name,
+                ["icon"] = request.Icon,
+                ["targetAmount"] = request.TargetAmount,
+                ["targetDate"] = request.TargetDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+                ["priority"] = request.Priority
+            };
+            using var msg = new HttpRequestMessage(HttpMethod.Post, "api/goals")
+            {
+                Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json")
+            };
+            var response = await httpClient.SendAsync(msg, cancellationToken);
+            if (response.IsSuccessStatusCode)
+            {
+                var result = await response.Content.ReadFromJsonAsync<OperationResult>(cancellationToken: cancellationToken);
+                return result ?? new OperationResult(true, "Meta creada.");
+            }
+            var message = await ReadFriendlyApiErrorAsync(response, "No fue posible crear la meta.", cancellationToken);
+            return new OperationResult(false, message);
+        }
+        catch (Exception ex) { return new OperationResult(false, $"No fue posible conectar con API: {ex.Message}"); }
+    }
+
+    public async Task<OperationResult> UpdateGoalAsync(string goalId, GoalUpsertRequest request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (!await EnsureAuthenticatedAsync(cancellationToken))
+                return new OperationResult(false, "Debes iniciar sesión.");
+            var payload = new Dictionary<string, object?>
+            {
+                ["name"] = request.Name,
+                ["icon"] = request.Icon,
+                ["targetAmount"] = request.TargetAmount,
+                ["targetDate"] = request.TargetDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+                ["priority"] = request.Priority,
+                ["status"] = request.Status
+            };
+            using var msg = new HttpRequestMessage(HttpMethod.Put, $"api/goals/{Uri.EscapeDataString(goalId)}")
+            {
+                Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json")
+            };
+            var response = await httpClient.SendAsync(msg, cancellationToken);
+            if (response.IsSuccessStatusCode)
+            {
+                var result = await response.Content.ReadFromJsonAsync<OperationResult>(cancellationToken: cancellationToken);
+                return result ?? new OperationResult(true, "Meta actualizada.");
+            }
+            var message = await ReadFriendlyApiErrorAsync(response, "No fue posible actualizar la meta.", cancellationToken);
+            return new OperationResult(false, message);
+        }
+        catch (Exception ex) { return new OperationResult(false, $"No fue posible conectar con API: {ex.Message}"); }
+    }
+
+    public async Task<OperationResult> DeleteGoalAsync(string goalId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (!await EnsureAuthenticatedAsync(cancellationToken))
+                return new OperationResult(false, "Debes iniciar sesión.");
+            var response = await httpClient.DeleteAsync($"api/goals/{Uri.EscapeDataString(goalId)}", cancellationToken);
+            if (response.IsSuccessStatusCode)
+            {
+                var result = await response.Content.ReadFromJsonAsync<OperationResult>(cancellationToken: cancellationToken);
+                return result ?? new OperationResult(true, "Meta eliminada.");
+            }
+            var message = await ReadFriendlyApiErrorAsync(response, "No fue posible eliminar la meta.", cancellationToken);
+            return new OperationResult(false, message);
+        }
+        catch (Exception ex) { return new OperationResult(false, $"No fue posible conectar con API: {ex.Message}"); }
+    }
+
+    public async Task<OperationResult> AddGoalContributionAsync(string goalId, GoalContributionRequest request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (!await EnsureAuthenticatedAsync(cancellationToken))
+                return new OperationResult(false, "Debes iniciar sesión.");
+            var payload = new Dictionary<string, object?>
+            {
+                ["amount"] = request.Amount,
+                ["date"] = request.Date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
+                ["note"] = request.Note
+            };
+            using var msg = new HttpRequestMessage(HttpMethod.Post, $"api/goals/{Uri.EscapeDataString(goalId)}/contributions")
+            {
+                Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json")
+            };
+            var response = await httpClient.SendAsync(msg, cancellationToken);
+            if (response.IsSuccessStatusCode)
+            {
+                var result = await response.Content.ReadFromJsonAsync<OperationResult>(cancellationToken: cancellationToken);
+                return result ?? new OperationResult(true, "Aporte registrado.");
+            }
+            var message = await ReadFriendlyApiErrorAsync(response, "No fue posible registrar el aporte.", cancellationToken);
+            return new OperationResult(false, message);
+        }
+        catch (Exception ex) { return new OperationResult(false, $"No fue posible conectar con API: {ex.Message}"); }
+    }
+
+    public async Task<OperationResult> DeleteGoalContributionAsync(string goalId, string contributionId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (!await EnsureAuthenticatedAsync(cancellationToken))
+                return new OperationResult(false, "Debes iniciar sesión.");
+            var response = await httpClient.DeleteAsync($"api/goals/{Uri.EscapeDataString(goalId)}/contributions/{Uri.EscapeDataString(contributionId)}", cancellationToken);
+            if (response.IsSuccessStatusCode)
+            {
+                var result = await response.Content.ReadFromJsonAsync<OperationResult>(cancellationToken: cancellationToken);
+                return result ?? new OperationResult(true, "Aporte eliminado.");
+            }
+            var message = await ReadFriendlyApiErrorAsync(response, "No fue posible eliminar el aporte.", cancellationToken);
+            return new OperationResult(false, message);
+        }
+        catch (Exception ex) { return new OperationResult(false, $"No fue posible conectar con API: {ex.Message}"); }
+    }
+
+    public async Task<GoalSimulationResult?> SimulateGoalAsync(string goalId, GoalSimulationRequest request, CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (!await EnsureAuthenticatedAsync(cancellationToken)) return null;
+            var payload = new Dictionary<string, object?>
+            {
+                ["scenarioType"] = request.ScenarioType,
+                ["newValue"] = request.NewValue
+            };
+            using var msg = new HttpRequestMessage(HttpMethod.Post, $"api/goals/{Uri.EscapeDataString(goalId)}/simulate")
+            {
+                Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json")
+            };
+            var response = await httpClient.SendAsync(msg, cancellationToken);
+            if (!response.IsSuccessStatusCode) return null;
+            return await response.Content.ReadFromJsonAsync<GoalSimulationResult>(cancellationToken: cancellationToken);
+        }
+        catch { return null; }
+    }
+
+    public async Task<IReadOnlyList<GoalAlertItem>> GetGoalAlertsAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (!await EnsureAuthenticatedAsync(cancellationToken)) return [];
+            var data = await httpClient.GetFromJsonAsync<List<GoalAlertItem>>("api/goals/alerts", cancellationToken);
+            return data ?? [];
+        }
+        catch { return []; }
+    }
+
+    // ──── Coach IA ────
+
+    public async Task<ChatMessageItem?> SendCoachMessageAsync(string content, CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (!await EnsureAuthenticatedAsync(cancellationToken)) return null;
+            var payload = new Dictionary<string, object?> { ["content"] = content };
+            using var msg = new HttpRequestMessage(HttpMethod.Post, "api/coach/message")
+            {
+                Content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json")
+            };
+            var response = await httpClient.SendAsync(msg, cancellationToken);
+            if (!response.IsSuccessStatusCode) return null;
+            return await response.Content.ReadFromJsonAsync<ChatMessageItem>(cancellationToken: cancellationToken);
+        }
+        catch { return null; }
+    }
+
+    public async Task<ChatHistoryResult> GetCoachHistoryAsync(int limit, CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (!await EnsureAuthenticatedAsync(cancellationToken)) return new ChatHistoryResult([]);
+            var data = await httpClient.GetFromJsonAsync<ChatHistoryResult>($"api/coach/history?limit={limit}", cancellationToken);
+            return data ?? new ChatHistoryResult([]);
+        }
+        catch { return new ChatHistoryResult([]); }
+    }
+
+    public async Task<OperationResult> ClearCoachHistoryAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (!await EnsureAuthenticatedAsync(cancellationToken))
+                return new OperationResult(false, "Debes iniciar sesión.");
+            var response = await httpClient.DeleteAsync("api/coach/history", cancellationToken);
+            if (response.IsSuccessStatusCode)
+            {
+                var result = await response.Content.ReadFromJsonAsync<OperationResult>(cancellationToken: cancellationToken);
+                return result ?? new OperationResult(true, "Historial eliminado.");
+            }
+            return new OperationResult(false, "No fue posible limpiar el historial.");
+        }
+        catch (Exception ex) { return new OperationResult(false, $"Error: {ex.Message}"); }
+    }
+
+    public async Task<CoachSuggestionsResult> GetCoachSuggestionsAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            if (!await EnsureAuthenticatedAsync(cancellationToken)) return new CoachSuggestionsResult([]);
+            var data = await httpClient.GetFromJsonAsync<CoachSuggestionsResult>("api/coach/suggestions", cancellationToken);
+            return data ?? new CoachSuggestionsResult([]);
+        }
+        catch { return new CoachSuggestionsResult([]); }
     }
 }

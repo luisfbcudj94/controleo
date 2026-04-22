@@ -1,0 +1,204 @@
+<div class="goals-page">
+  <div class="page-header">
+    <h1>Metas de Ahorro 🎯</h1>
+  </div>
+
+  <!-- Alerts -->
+  @for (alert of alerts; track alert.goalId) {
+    <div class="alert-card" [class.alert-high]="alert.severity === 'high'" [class.alert-medium]="alert.severity === 'medium'">
+      ⚠️ {{ alert.message }}
+    </div>
+  }
+
+  <!-- Hero Summary -->
+  <div class="hero-card">
+    <div class="hero-ring">
+      <svg viewBox="0 0 100 100" width="80" height="80">
+        <circle cx="50" cy="50" r="42" fill="none" stroke="#DCE5DF" stroke-width="8"/>
+        <circle cx="50" cy="50" r="42" fill="none" [attr.stroke]="progressColor(overallPercent)"
+                stroke-width="8" stroke-linecap="round"
+                [attr.stroke-dasharray]="(overallPercent / 100 * 264) + ' 264'"
+                transform="rotate(-90 50 50)"/>
+      </svg>
+      <span class="hero-percent">{{ overallPercent }}%</span>
+    </div>
+    <div class="hero-info">
+      @if (goals.length > 0) {
+        <strong>{{ onTrackCount }} de {{ activeGoals.length }} metas en camino</strong>
+        <span class="hero-sub">${{ totalSaved | number:'1.0-0' }} ahorrados de ${{ totalTarget | number:'1.0-0' }}</span>
+      } @else {
+        <strong>Sin metas aún</strong>
+        <span class="hero-sub">Crea tu primera meta y empieza a ahorrar</span>
+      }
+    </div>
+  </div>
+
+  <!-- CTA -->
+  <button class="btn-primary" (click)="openCreate()">➕ Nueva Meta</button>
+
+  <!-- Goals List -->
+  @if (loading) {
+    <p class="loading-text">Cargando metas...</p>
+  }
+
+  @if (!loading && goals.length === 0) {
+    <div class="empty-state">
+      <span class="empty-icon">🏦</span>
+      <h3>¡Empieza tu primera meta!</h3>
+      <p>Define cuánto quieres ahorrar y cuándo lo quieres lograr.</p>
+    </div>
+  }
+
+  <div class="goals-grid">
+    @for (goal of goals; track goal.id; let i = $index) {
+      <div class="goal-card" [style.background-color]="cardColor(i)" (click)="selectGoal(goal)"
+           [class.selected]="selectedGoal?.id === goal.id">
+        <div class="goal-header">
+          <span class="goal-icon">{{ goal.icon }}</span>
+          <div class="goal-title-area">
+            <strong>{{ goal.name }}</strong>
+            <span class="goal-amounts">${{ goal.currentAmount | number:'1.0-0' }} de ${{ goal.targetAmount | number:'1.0-0' }}</span>
+          </div>
+          <div class="goal-actions">
+            <button class="btn-icon" (click)="openEdit(goal); $event.stopPropagation()">✏️</button>
+            <button class="btn-icon btn-delete" (click)="requestDelete(goal.id); $event.stopPropagation()">🗑️</button>
+          </div>
+        </div>
+        <div class="goal-progress">
+          <div class="progress-track">
+            <div class="progress-fill" [style.width.%]="goal.progressPercent" [style.background-color]="progressColor(goal.progressPercent)"></div>
+          </div>
+          <span class="progress-label" [style.color]="progressColor(goal.progressPercent)">{{ goal.progressPercent | number:'1.0-0' }}%</span>
+        </div>
+        <div class="goal-footer">
+          <span class="goal-time">{{ goal.status === 'Completed' ? 'Completada' : 'Faltan ' + goal.daysRemaining + ' días' }}</span>
+          <span class="badge" [ngClass]="statusBadgeClass(goal)">{{ statusBadge(goal) }}</span>
+        </div>
+      </div>
+    }
+  </div>
+
+  <!-- Detail Panel -->
+  @if (selectedGoal) {
+    <div class="detail-panel">
+      <h2>{{ selectedGoal.icon }} {{ selectedGoal.name }}</h2>
+      <div class="detail-stats">
+        <div class="stat-card stat-green">
+          <span class="stat-label">Sugerido/mes</span>
+          <strong>${{ selectedGoal.suggestedMonthlyContribution | number:'1.0-0' }}</strong>
+        </div>
+        <div class="stat-card stat-blue">
+          <span class="stat-label">Proyección</span>
+          <strong>{{ selectedGoal.projectedCompletionDate || 'Sin datos' }}</strong>
+        </div>
+        <div class="stat-card stat-orange">
+          <span class="stat-label">Prioridad</span>
+          <strong>{{ selectedGoal.priority }}</strong>
+        </div>
+      </div>
+
+      <!-- Simulator -->
+      <div class="simulator-card">
+        <h3>🧪 Simulador</h3>
+        <p>¿Qué pasa si ahorro un monto diferente al mes?</p>
+        <div class="sim-input-row">
+          <input type="number" [(ngModel)]="simAmount" placeholder="Monto mensual" />
+          <button class="btn-primary btn-sm" (click)="simulate()">Simular</button>
+        </div>
+        @if (simResult) {
+          <div class="sim-result" [class.sim-viable]="simResult.feasibility === 'Viable'" [class.sim-warning]="simResult.feasibility !== 'Viable'">
+            {{ simResult.description }}
+          </div>
+        }
+      </div>
+
+      <!-- Contribution -->
+      <button class="btn-primary" (click)="openContribution()" [disabled]="selectedGoal.status !== 'Active'">💰 Registrar Aporte</button>
+
+      <!-- Contributions List -->
+      <div class="contributions-section">
+        <h3>📋 Historial de aportes</h3>
+        @if (selectedGoal.contributions.length === 0) {
+          <p class="empty-text">Aún no hay aportes registrados.</p>
+        }
+        @for (c of selectedGoal.contributions; track c.id) {
+          <div class="contribution-row">
+            <span>💵 ${{ c.amount | number:'1.0-0' }}</span>
+            <span class="contribution-date">{{ c.date }}{{ c.note ? ' • ' + c.note : '' }}</span>
+            <button class="btn-icon btn-delete" (click)="deleteContribution(c.id)">✕</button>
+          </div>
+        }
+      </div>
+    </div>
+  }
+
+  <!-- Create/Edit Editor Modal -->
+  @if (editorOpen) {
+    <div class="modal-backdrop" (click)="closeEditor()">
+      <div class="modal-content" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <h2>{{ editingGoalId ? 'Editar Meta' : 'Nueva Meta' }}</h2>
+          <button class="btn-close" (click)="closeEditor()">✕</button>
+        </div>
+        <div class="form-group">
+          <label>Nombre</label>
+          <input [(ngModel)]="goalName" placeholder="Ej: Viaje a Europa" maxlength="100" />
+        </div>
+        <div class="form-group">
+          <label>Icono</label>
+          <div class="icon-grid">
+            @for (icon of iconOptions; track icon) {
+              <button class="icon-btn" [class.selected]="goalIcon === icon" (click)="goalIcon = icon">{{ icon }}</button>
+            }
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Monto objetivo ($)</label>
+          <input type="number" [(ngModel)]="goalAmount" placeholder="500000" />
+        </div>
+        <div class="form-group">
+          <label>Fecha objetivo</label>
+          <input type="date" [(ngModel)]="goalDate" />
+        </div>
+        <div class="form-group">
+          <label>Prioridad</label>
+          <div class="priority-row">
+            @for (p of priorityOptions; track p) {
+              <button class="priority-btn" [class.selected]="goalPriority === p" (click)="goalPriority = p">{{ p }}</button>
+            }
+          </div>
+        </div>
+        <button class="btn-primary" (click)="saveGoal()">Guardar</button>
+      </div>
+    </div>
+  }
+
+  <!-- Contribution Modal -->
+  @if (contributionOpen) {
+    <div class="modal-backdrop" (click)="closeContribution()">
+      <div class="modal-content modal-sm" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <h2>Registrar Aporte</h2>
+          <button class="btn-close" (click)="closeContribution()">✕</button>
+        </div>
+        <div class="form-group">
+          <label>Monto ($)</label>
+          <input type="number" [(ngModel)]="contributionAmount" placeholder="50000" />
+        </div>
+        <div class="form-group">
+          <label>Nota (opcional)</label>
+          <input [(ngModel)]="contributionNote" placeholder="Ej: Ahorro quincenal" maxlength="200" />
+        </div>
+        <button class="btn-primary" (click)="saveContribution()">💰 Aportar</button>
+      </div>
+    </div>
+  }
+
+  <app-confirm-modal
+    [isOpen]="confirmDeleteOpen"
+    title="Eliminar meta"
+    message="¿Eliminar esta meta? Esta acción no se puede deshacer."
+    (confirm)="confirmDelete()"
+    (cancel)="cancelDelete()">
+  </app-confirm-modal>
+</div>

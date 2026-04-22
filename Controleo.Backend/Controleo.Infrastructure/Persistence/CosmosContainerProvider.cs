@@ -8,6 +8,7 @@ public sealed class CosmosContainerProvider
     public Container Budgets { get; }
     public Container Recurring { get; }
     public Container Settings { get; }
+    public Container Goals { get; }
     public CosmosStorageOptions Options { get; }
     public CosmosContainerProvider(IOptions<CosmosStorageOptions> options)
     {
@@ -21,6 +22,12 @@ public sealed class CosmosContainerProvider
         Budgets = db.GetContainer(Options.BudgetsContainerName);
         Recurring = db.GetContainer(Options.RecurringExpensesContainerName);
         Settings = db.GetContainer(Options.SettingsContainerName);
+        Goals = EnsureContainer(db, Options.GoalsContainerName, "/userId");
+    }
+    private static Container EnsureContainer(Database db, string name, string partitionKeyPath)
+    {
+        db.CreateContainerIfNotExistsAsync(name, partitionKeyPath).GetAwaiter().GetResult();
+        return db.GetContainer(name);
     }
     private static string Resolve(string configured, params string[] envVars)
     {

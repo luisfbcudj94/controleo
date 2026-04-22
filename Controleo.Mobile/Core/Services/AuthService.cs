@@ -157,6 +157,15 @@ public sealed class AuthService(HttpClient httpClient) : IAuthService
         }
     }
 
+    public decimal? CurrentMonthlyIncome
+    {
+        get
+        {
+            EnsureSessionLoaded();
+            return _session?.User?.MonthlyIncome;
+        }
+    }
+
     public bool IsCurrentUserPremium
     {
         get
@@ -164,6 +173,26 @@ public sealed class AuthService(HttpClient httpClient) : IAuthService
             EnsureSessionLoaded();
             return _session?.User?.IsPremium ?? false;
         }
+    }
+
+    public void UpdateCurrentMonthlyIncome(decimal? monthlyIncome)
+    {
+        EnsureSessionLoaded();
+        if (_session is null || _session.User is null)
+        {
+            return;
+        }
+
+        _session = _session with
+        {
+            User = _session.User with
+            {
+                MonthlyIncome = monthlyIncome
+            }
+        };
+
+        var raw = System.Text.Json.JsonSerializer.Serialize(_session);
+        Preferences.Default.Set(SessionKey, raw);
     }
 
     public string ApiBaseUrl => httpClient.BaseAddress?.ToString() ?? "(sin base URL)";
@@ -251,6 +280,6 @@ public sealed class AuthService(HttpClient httpClient) : IAuthService
     }
 
     private sealed record OperationResult(bool IsSuccess, string Message);
-    private sealed record AuthUser(string UserId, string Name, string Email, bool IsPremium = false);
+    private sealed record AuthUser(string UserId, string Name, string Email, bool IsPremium = false, decimal? MonthlyIncome = null);
     private sealed record AuthSession(string AccessToken, string ExpiresAt, AuthUser User);
 }

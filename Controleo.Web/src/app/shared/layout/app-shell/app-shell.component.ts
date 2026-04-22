@@ -4,6 +4,7 @@ import { AuthService } from '../../../core/services/auth.service';
 import { filter, firstValueFrom } from 'rxjs';
 import { ApiService } from '../../../core/services/api.service';
 import { NotificationService } from '../../../core/services/notification.service';
+import { PushNotificationService } from '../../../core/services/push-notification.service';
 
 @Component({
   selector: 'app-app-shell',
@@ -27,6 +28,8 @@ export class AppShellComponent {
   readonly analysisNav = [
     { path: '/presupuestos', icon: '🎯', label: 'Presupuestos' },
     { path: '/recurrentes', icon: '🔁', label: 'Recurrentes' },
+    { path: '/metas', icon: '🏦', label: 'Metas de Ahorro' },
+    { path: '/coach', icon: '🤖', label: 'Coach IA' },
     { path: '/configuracion', icon: '⚙️', label: 'Configuración' }
   ];
 
@@ -43,7 +46,8 @@ export class AppShellComponent {
     private readonly router: Router,
     private readonly auth: AuthService,
     private readonly api: ApiService,
-    private readonly notify: NotificationService
+    private readonly notify: NotificationService,
+    readonly pushNotif: PushNotificationService
   ) {
     this.initializeTheme();
 
@@ -118,6 +122,14 @@ export class AppShellComponent {
   onResize(): void {
     if (window.innerWidth >= 1024 && this.isSidebarOpen) {
       this.isSidebarOpen = false;
+    }
+  }
+
+  togglePushNotifications(): void {
+    if (this.pushNotif.isActive()) {
+      this.pushNotif.stop();
+    } else {
+      this.pushNotif.start();
     }
   }
 

@@ -11,6 +11,8 @@ public interface IAuthService
     string CurrentUserId { get; }
     string CurrentUserName { get; }
     string CurrentUserEmail { get; }
+    decimal? CurrentMonthlyIncome { get; }
     bool IsCurrentUserPremium { get; }
+    void UpdateCurrentMonthlyIncome(decimal? monthlyIncome);
     string ApiBaseUrl { get; }
 }

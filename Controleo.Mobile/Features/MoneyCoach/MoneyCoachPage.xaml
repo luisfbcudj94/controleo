@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Controleo.Mobile.Features.MoneyCoach.MoneyCoachPage"
+             BackgroundColor="{StaticResource AppBg}">
+
+    <Grid RowDefinitions="Auto,*,Auto">
+
+        <!-- Header -->
+        <Grid Grid.Row="0" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8" Padding="16,14,16,10">
+            <Label Text="Coach IA 🤖" FontSize="24" FontAttributes="Bold"
+                   TextColor="{StaticResource AppText}" VerticalOptions="Center" />
+            <Button Grid.Column="1" Text="🗑️" WidthRequest="36" HeightRequest="36"
+                    CornerRadius="18" FontSize="14" Padding="0"
+                    BackgroundColor="{StaticResource AppSurface2}"
+                    TextColor="{StaticResource AppHint}"
+                    Clicked="OnClearHistoryClicked" />
+            <Button Grid.Column="2" Text="✕" WidthRequest="36" HeightRequest="36"
+                    CornerRadius="18" FontSize="16" Padding="0"
+                    BackgroundColor="{StaticResource AppSurface2}"
+                    TextColor="{StaticResource AppText}"
+                    Clicked="OnCloseClicked" />
+        </Grid>
+
+        <!-- Chat Area -->
+        <Grid Grid.Row="1">
+            <!-- Loading -->
+            <ActivityIndicator x:Name="ChatLoadingIndicator" IsRunning="False" IsVisible="False"
+                               Color="{StaticResource Primary}" VerticalOptions="Center" HorizontalOptions="Center" />
+
+            <!-- Empty state / Welcome -->
+            <VerticalStackLayout x:Name="WelcomeContainer" VerticalOptions="Center" HorizontalOptions="Center"
+                                 Spacing="12" Padding="24" IsVisible="True">
+                <Label Text="🤖" FontSize="52" HorizontalTextAlignment="Center" />
+                <Label Text="¡Hola! Soy tu Coach Financiero" FontSize="20" FontAttributes="Bold"
+                       TextColor="{StaticResource AppText}" HorizontalTextAlignment="Center" />
+                <Label Text="Pregúntame lo que quieras sobre tus finanzas.&#10;Tengo acceso a tus datos reales para darte&#10;consejos personalizados."
+                       FontSize="13" TextColor="{StaticResource AppHint}"
+                       HorizontalTextAlignment="Center" LineBreakMode="WordWrap" />
+            </VerticalStackLayout>
+
+            <!-- Messages -->
+            <CollectionView x:Name="MessagesCollection" SelectionMode="None" IsVisible="False"
+                            Margin="8,0">
+                <CollectionView.ItemTemplate>
+                    <DataTemplate>
+                        <Grid Padding="8,4">
+                            <!-- User bubble (right) -->
+                            <Border IsVisible="{Binding IsUser}"
+                                    StrokeShape="RoundRectangle 16,4,16,16" StrokeThickness="0"
+                                    BackgroundColor="#1A1917" Padding="14,10"
+                                    HorizontalOptions="End" MaximumWidthRequest="280">
+                                <Label Text="{Binding Content}" FontSize="14" TextColor="White"
+                                       LineBreakMode="WordWrap" />
+                            </Border>
+                            <!-- Coach bubble (left) -->
+                            <Grid IsVisible="{Binding IsCoach}" HorizontalOptions="Start" MaximumWidthRequest="300">
+                                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                                    <Border WidthRequest="28" HeightRequest="28" StrokeShape="RoundRectangle 14"
+                                            StrokeThickness="0" BackgroundColor="#E8F4FF" VerticalOptions="Start">
+                                        <Label Text="🤖" FontSize="14" HorizontalTextAlignment="Center"
+                                               VerticalTextAlignment="Center" HorizontalOptions="Center" VerticalOptions="Center" />
+                                    </Border>
+                                    <Border Grid.Column="1" StrokeShape="RoundRectangle 4,16,16,16"
+                                            StrokeThickness="1" Stroke="#14000000"
+                                            BackgroundColor="White" Padding="14,10">
+                                        <Label Text="{Binding Content}" FontSize="14"
+                                               TextColor="{StaticResource AppText}" LineBreakMode="WordWrap" />
+                                    </Border>
+                                </Grid>
+                            </Grid>
+                        </Grid>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+        </Grid>
+
+        <!-- Suggestions + Input -->
+        <VerticalStackLayout Grid.Row="2" Spacing="8" Padding="12,8,12,12">
+
+            <!-- Typing indicator -->
+            <Border x:Name="TypingIndicator" StrokeShape="RoundRectangle 12" StrokeThickness="0"
+                    BackgroundColor="White" Padding="12,8" HorizontalOptions="Start"
+                    Margin="8,0" IsVisible="False">
+                <HorizontalStackLayout Spacing="6">
+                    <Border WidthRequest="22" HeightRequest="22" StrokeShape="RoundRectangle 11"
+                            StrokeThickness="0" BackgroundColor="#E8F4FF">
+                        <Label Text="🤖" FontSize="11" HorizontalTextAlignment="Center"
+                               VerticalTextAlignment="Center" HorizontalOptions="Center" VerticalOptions="Center" />
+                    </Border>
+                    <Label Text="Coach está escribiendo..." FontSize="12" TextColor="{StaticResource AppHint}"
+                           FontAttributes="Italic" VerticalOptions="Center" />
+                </HorizontalStackLayout>
+            </Border>
+
+            <!-- Suggestion chips -->
+            <ScrollView x:Name="SuggestionsScroll" Orientation="Horizontal" HorizontalScrollBarVisibility="Never">
+                <HorizontalStackLayout x:Name="SuggestionsContainer" Spacing="8" Padding="4,0">
+                </HorizontalStackLayout>
+            </ScrollView>
+
+            <!-- Input bar -->
+            <Border StrokeShape="RoundRectangle 22" BackgroundColor="White"
+                    Stroke="#14000000" StrokeThickness="1" Padding="4">
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="4">
+                    <Entry x:Name="MessageEntry" Placeholder="Escribe tu pregunta..."
+                           FontSize="14" ReturnType="Send" Completed="OnSendClicked"
+                           Margin="12,0,0,0" />
+                    <Button Grid.Column="1" x:Name="SendButton" Text="➤" FontSize="18"
+                            WidthRequest="42" HeightRequest="42" CornerRadius="21"
+                            BackgroundColor="{StaticResource Primary}" TextColor="White"
+                            Padding="0" Clicked="OnSendClicked" />
+                </Grid>
+            </Border>
+        </VerticalStackLayout>
+    </Grid>
+</ContentPage>

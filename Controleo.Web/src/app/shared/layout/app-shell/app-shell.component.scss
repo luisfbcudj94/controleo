@@ -390,6 +390,17 @@
 	font-weight: 700;
 }
 
+.tb-btn.notif-active {
+	border-color: #2D6A4F;
+	background: #D8F3DC;
+	animation: notif-pulse 2s infinite;
+}
+
+@keyframes notif-pulse {
+	0%, 100% { box-shadow: 0 0 0 0 rgba(45, 106, 79, 0.25); }
+	50% { box-shadow: 0 0 0 6px rgba(45, 106, 79, 0); }
+}
+
 .desktop-only {
 	display: none;
 }

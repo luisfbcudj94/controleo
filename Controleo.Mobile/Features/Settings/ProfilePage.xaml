@@ -42,6 +42,51 @@
                     </Grid>
                 </VerticalStackLayout>
             </Border>
+
+            <Border StrokeShape="RoundRectangle 18"
+                    StrokeThickness="0"
+                    Padding="16"
+                    BackgroundColor="{StaticResource White}">
+                <VerticalStackLayout Spacing="10">
+                    <Label Text="Ingreso mensual (opcional)"
+                           FontSize="15"
+                           FontAttributes="Bold"
+                           TextColor="{StaticResource AppText}" />
+                    <Label Text="Este dato mejora la precision del score financiero y las recomendaciones premium."
+                           FontSize="12"
+                           TextColor="{StaticResource AppHint}"
+                           LineBreakMode="WordWrap" />
+
+                    <Border StrokeShape="RoundRectangle 12"
+                            Stroke="{StaticResource AppBorder}"
+                            BackgroundColor="{StaticResource AppSurface2}"
+                            Padding="12,10">
+                        <Entry x:Name="MonthlyIncomeEntry"
+                               Placeholder="Ejemplo: 3500000"
+                               Keyboard="Numeric"
+                               FontSize="14"
+                               TextColor="{StaticResource AppText}" />
+                    </Border>
+
+                    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                        <Label x:Name="IncomeStatusLabel"
+                               Text=""
+                               FontSize="11"
+                               VerticalOptions="Center"
+                               TextColor="{StaticResource AppHint}" />
+
+                        <Button Grid.Column="1"
+                                Text="Guardar"
+                                HeightRequest="42"
+                                CornerRadius="12"
+                                Padding="18,0"
+                                FontAttributes="Bold"
+                                BackgroundColor="{StaticResource Primary}"
+                                TextColor="{StaticResource PrimaryDarkText}"
+                                Clicked="OnSaveIncomeClicked" />
+                    </Grid>
+                </VerticalStackLayout>
+            </Border>
         </VerticalStackLayout>
 
         <Button Grid.Row="1"

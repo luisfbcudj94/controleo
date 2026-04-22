@@ -1,0 +1,48 @@
+<div class="coach-page">
+  <div class="coach-header">
+    <h1>Coach IA 🤖</h1>
+    <button class="btn-clear" (click)="clearHistory()">🗑️ Limpiar</button>
+  </div>
+
+  <div class="chat-messages" [class.empty]="messages.length === 0 && !loading">
+    @if (loading) {
+      <p class="loading-text">Cargando conversación...</p>
+    }
+
+    @if (!loading && messages.length === 0) {
+      <div class="welcome">
+        <span class="welcome-icon">🤖</span>
+        <h2>¡Hola! Soy tu Coach Financiero</h2>
+        <p>Pregúntame lo que quieras sobre tus finanzas. Tengo acceso a tus datos reales para darte consejos personalizados.</p>
+      </div>
+    }
+
+    @for (msg of messages; track msg.createdAt) {
+      <div class="msg" [class.msg-user]="isUser(msg)" [class.msg-coach]="!isUser(msg)">
+        @if (!isUser(msg)) { <span class="coach-avatar">🤖</span> }
+        <div class="bubble">{{ msg.content }}</div>
+      </div>
+    }
+
+    @if (sending) {
+      <div class="msg msg-coach">
+        <span class="coach-avatar">🤖</span>
+        <div class="bubble typing">Coach está escribiendo...</div>
+      </div>
+    }
+  </div>
+
+  <div class="chat-footer">
+    @if (suggestions.length > 0) {
+      <div class="suggestions">
+        @for (s of suggestions; track s) {
+          <button class="chip" (click)="sendMessage(s)">{{ s }}</button>
+        }
+      </div>
+    }
+    <div class="input-row">
+      <input [(ngModel)]="messageText" placeholder="Escribe tu pregunta..." (keyup.enter)="sendMessage()" [disabled]="sending" />
+      <button class="btn-send" (click)="sendMessage()" [disabled]="sending || !messageText.trim()">➤</button>
+    </div>
+  </div>
+</div>

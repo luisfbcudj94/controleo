@@ -1,0 +1,248 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Controleo.Mobile.Features.Goals.GoalsPage"
+             BackgroundColor="{StaticResource AppBg}">
+
+    <Grid RowDefinitions="Auto,Auto,Auto,*" Padding="16" RowSpacing="12">
+
+        <!-- Header -->
+        <Grid Grid.Row="0" ColumnDefinitions="*,Auto">
+            <Label Text="Mis Metas 🎯" FontSize="28" FontAttributes="Bold"
+                   TextColor="{StaticResource AppText}" VerticalOptions="Center" />
+            <Button Grid.Column="1" Text="✕" WidthRequest="38" HeightRequest="38"
+                    CornerRadius="19" FontSize="16" Padding="0"
+                    BackgroundColor="{StaticResource AppSurface2}"
+                    TextColor="{StaticResource AppText}"
+                    Clicked="OnCloseClicked" />
+        </Grid>
+
+        <!-- Hero Summary Card -->
+        <Border Grid.Row="1" StrokeShape="RoundRectangle 18" Padding="16,14"
+                BackgroundColor="{StaticResource AccentLight}">
+            <Border.Stroke>
+                <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                    <GradientStop Color="{StaticResource Primary}" Offset="0" />
+                    <GradientStop Color="{StaticResource AccentLight}" Offset="1" />
+                </LinearGradientBrush>
+            </Border.Stroke>
+            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="14">
+                <Grid WidthRequest="72" HeightRequest="72">
+                    <GraphicsView x:Name="HeroRingView" WidthRequest="72" HeightRequest="72" />
+                    <Border WidthRequest="48" HeightRequest="48" StrokeShape="RoundRectangle 24"
+                            BackgroundColor="White" StrokeThickness="0"
+                            HorizontalOptions="Center" VerticalOptions="Center">
+                        <Label x:Name="HeroPercentLabel" Text="0%" FontSize="13" FontAttributes="Bold"
+                               TextColor="{StaticResource PrimaryDark}"
+                               HorizontalTextAlignment="Center" VerticalTextAlignment="Center" />
+                    </Border>
+                </Grid>
+                <VerticalStackLayout Grid.Column="1" Spacing="3" VerticalOptions="Center">
+                    <Label x:Name="HeroTitleLabel" Text="Sin metas aún" FontSize="15" FontAttributes="Bold"
+                           TextColor="{StaticResource PrimaryDark}" />
+                    <Label x:Name="HeroSubtitleLabel" Text="Crea tu primera meta y empieza a ahorrar"
+                           FontSize="12" TextColor="{StaticResource Tertiary}" LineBreakMode="WordWrap" />
+                    <Label x:Name="HeroAmountLabel" Text="" FontSize="11"
+                           TextColor="{StaticResource AppHint}" />
+                </VerticalStackLayout>
+            </Grid>
+        </Border>
+
+        <!-- Alerts Section (if any) -->
+        <VerticalStackLayout Grid.Row="2" x:Name="AlertsContainer" Spacing="6" IsVisible="False">
+        </VerticalStackLayout>
+
+        <!-- Loading Indicator -->
+        <ActivityIndicator x:Name="LoadingIndicator" Grid.Row="3" IsRunning="False" IsVisible="False"
+                           Color="{StaticResource Primary}" VerticalOptions="Center" HorizontalOptions="Center" />
+
+        <!-- CTA + Goals List -->
+        <Grid Grid.Row="3" x:Name="ContentContainer" RowDefinitions="Auto,*" RowSpacing="10">
+            <Button Grid.Row="0" Text="➕  Nueva Meta"
+                    BackgroundColor="{StaticResource Primary}"
+                    TextColor="{StaticResource PrimaryDarkText}"
+                    FontAttributes="Bold" FontSize="15"
+                    CornerRadius="14" HeightRequest="48"
+                    HorizontalOptions="Fill"
+                    Clicked="OnCreateGoalClicked" />
+
+            <!-- Empty State -->
+            <VerticalStackLayout Grid.Row="1" x:Name="EmptyStateContainer"
+                                 VerticalOptions="Center" HorizontalOptions="Center"
+                                 Spacing="10" IsVisible="False">
+                <Label Text="🏦" FontSize="52" HorizontalTextAlignment="Center" />
+                <Label Text="¡Empieza tu primera meta!" FontSize="18" FontAttributes="Bold"
+                       TextColor="{StaticResource AppText}" HorizontalTextAlignment="Center" />
+                <Label Text="Define cuánto quieres ahorrar y cuándo&#10;lo quieres lograr. Te ayudaremos a llegar."
+                       FontSize="13" TextColor="{StaticResource AppHint}"
+                       HorizontalTextAlignment="Center" LineBreakMode="WordWrap" />
+            </VerticalStackLayout>
+
+            <!-- Goals List -->
+            <RefreshView Grid.Row="1" x:Name="GoalsRefreshView" Refreshing="OnRefreshing">
+                <CollectionView x:Name="GoalsCollection" SelectionMode="None">
+                    <CollectionView.ItemTemplate>
+                        <DataTemplate>
+                            <Border Padding="14" Margin="0,0,0,10" StrokeShape="RoundRectangle 16"
+                                    BackgroundColor="{Binding CardColor}" Stroke="{StaticResource AppBorder}">
+                                <Border.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="OnGoalTapped" CommandParameter="{Binding Id}" />
+                                </Border.GestureRecognizers>
+                                <Grid RowDefinitions="Auto,Auto,Auto" RowSpacing="8">
+                                    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+                                        <Border WidthRequest="40" HeightRequest="40"
+                                                StrokeShape="RoundRectangle 12" StrokeThickness="0"
+                                                BackgroundColor="White">
+                                            <Label Text="{Binding Icon}" FontSize="20"
+                                                   HorizontalTextAlignment="Center" VerticalTextAlignment="Center"
+                                                   HorizontalOptions="Center" VerticalOptions="Center" />
+                                        </Border>
+                                        <VerticalStackLayout Grid.Column="1" Spacing="1" VerticalOptions="Center">
+                                            <Label Text="{Binding Name}" FontSize="15" FontAttributes="Bold"
+                                                   TextColor="{StaticResource AppText}" LineBreakMode="TailTruncation" />
+                                            <Label Text="{Binding Subtitle}" FontSize="11"
+                                                   TextColor="{StaticResource AppHint}" />
+                                        </VerticalStackLayout>
+                                        <VerticalStackLayout Grid.Column="2" Spacing="1" HorizontalOptions="End">
+                                            <Label Text="{Binding AmountLabel}" FontSize="14" FontAttributes="Bold"
+                                                   TextColor="{StaticResource AppText}" HorizontalTextAlignment="End" />
+                                            <Border StrokeShape="RoundRectangle 8" StrokeThickness="0"
+                                                    BackgroundColor="{Binding StatusBadgeColor}" Padding="6,2"
+                                                    HorizontalOptions="End">
+                                                <Label Text="{Binding StatusBadge}" FontSize="9" FontAttributes="Bold"
+                                                       TextColor="{Binding StatusBadgeTextColor}" />
+                                            </Border>
+                                        </VerticalStackLayout>
+                                    </Grid>
+                                    <!-- Progress Bar -->
+                                    <Grid Grid.Row="1" ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                        <Border HeightRequest="8" StrokeShape="RoundRectangle 4"
+                                                StrokeThickness="0" BackgroundColor="#E0E0E0"
+                                                HorizontalOptions="Fill">
+                                            <Border HeightRequest="8" StrokeShape="RoundRectangle 4"
+                                                    StrokeThickness="0"
+                                                    BackgroundColor="{Binding ProgressColor}"
+                                                    HorizontalOptions="Start"
+                                                    WidthRequest="{Binding ProgressBarWidth}" />
+                                        </Border>
+                                        <Label Grid.Column="1" Text="{Binding PercentLabel}" FontSize="11"
+                                               FontAttributes="Bold" TextColor="{Binding ProgressColor}" />
+                                    </Grid>
+                                    <!-- Bottom info + actions -->
+                                    <Grid Grid.Row="2" ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="6">
+                                        <Label Text="{Binding TimeLabel}" FontSize="10"
+                                               TextColor="{StaticResource AppHint}" VerticalOptions="Center" />
+                                        <Label Grid.Column="1" Text="{Binding SuggestedLabel}" FontSize="10"
+                                               TextColor="{StaticResource Tertiary}" FontAttributes="Bold" VerticalOptions="Center" />
+                                        <Button Grid.Column="2" Text="✏️" WidthRequest="28" HeightRequest="28"
+                                                CornerRadius="14" FontSize="11" Padding="0"
+                                                BackgroundColor="#E9F3FD"
+                                                Clicked="OnEditGoalClicked" CommandParameter="{Binding Id}" />
+                                        <Button Grid.Column="3" Text="🗑️" WidthRequest="28" HeightRequest="28"
+                                                CornerRadius="14" FontSize="11" Padding="0"
+                                                BackgroundColor="#FDE3E5"
+                                                Clicked="OnDeleteGoalClicked" CommandParameter="{Binding Id}" />
+                                    </Grid>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </CollectionView.ItemTemplate>
+                </CollectionView>
+            </RefreshView>
+        </Grid>
+
+        <!-- Create/Edit Overlay -->
+        <Grid x:Name="GoalEditOverlay" Grid.RowSpan="4" BackgroundColor="#44000000"
+              IsVisible="False" ZIndex="10" Padding="16">
+            <Border VerticalOptions="Center" StrokeShape="RoundRectangle 20" Padding="20"
+                    BackgroundColor="White" Stroke="{StaticResource AppBorder}" MaximumWidthRequest="420">
+                <VerticalStackLayout Spacing="14">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <Label x:Name="OverlayTitle" Text="Nueva Meta" FontSize="20" FontAttributes="Bold"
+                               TextColor="{StaticResource AppText}" />
+                        <Button Grid.Column="1" Text="✕" WidthRequest="34" HeightRequest="34"
+                                CornerRadius="17" FontSize="14" Padding="0"
+                                BackgroundColor="{StaticResource AppSurface2}"
+                                TextColor="{StaticResource AppText}"
+                                Clicked="OnOverlayCloseClicked" />
+                    </Grid>
+
+                    <VerticalStackLayout Spacing="4">
+                        <Label Text="Nombre" FontSize="12" FontAttributes="Bold" TextColor="{StaticResource AppHint}" />
+                        <Entry x:Name="GoalNameEntry" Placeholder="Ej: Viaje a Europa"
+                               FontSize="15" MaxLength="100" />
+                    </VerticalStackLayout>
+
+                    <VerticalStackLayout Spacing="4">
+                        <Label Text="Icono" FontSize="12" FontAttributes="Bold" TextColor="{StaticResource AppHint}" />
+                        <Grid ColumnDefinitions="*,*,*,*,*,*" ColumnSpacing="6">
+                            <Border x:Name="Icon0" StrokeShape="RoundRectangle 10" Padding="6" StrokeThickness="2">
+                                <Label Text="🎯" FontSize="20" HorizontalTextAlignment="Center" />
+                                <Border.GestureRecognizers><TapGestureRecognizer Tapped="OnIconSelected" CommandParameter="🎯" /></Border.GestureRecognizers>
+                            </Border>
+                            <Border Grid.Column="1" x:Name="Icon1" StrokeShape="RoundRectangle 10" Padding="6" StrokeThickness="2">
+                                <Label Text="🏠" FontSize="20" HorizontalTextAlignment="Center" />
+                                <Border.GestureRecognizers><TapGestureRecognizer Tapped="OnIconSelected" CommandParameter="🏠" /></Border.GestureRecognizers>
+                            </Border>
+                            <Border Grid.Column="2" x:Name="Icon2" StrokeShape="RoundRectangle 10" Padding="6" StrokeThickness="2">
+                                <Label Text="✈️" FontSize="20" HorizontalTextAlignment="Center" />
+                                <Border.GestureRecognizers><TapGestureRecognizer Tapped="OnIconSelected" CommandParameter="✈️" /></Border.GestureRecognizers>
+                            </Border>
+                            <Border Grid.Column="3" x:Name="Icon3" StrokeShape="RoundRectangle 10" Padding="6" StrokeThickness="2">
+                                <Label Text="🚗" FontSize="20" HorizontalTextAlignment="Center" />
+                                <Border.GestureRecognizers><TapGestureRecognizer Tapped="OnIconSelected" CommandParameter="🚗" /></Border.GestureRecognizers>
+                            </Border>
+                            <Border Grid.Column="4" x:Name="Icon4" StrokeShape="RoundRectangle 10" Padding="6" StrokeThickness="2">
+                                <Label Text="🎓" FontSize="20" HorizontalTextAlignment="Center" />
+                                <Border.GestureRecognizers><TapGestureRecognizer Tapped="OnIconSelected" CommandParameter="🎓" /></Border.GestureRecognizers>
+                            </Border>
+                            <Border Grid.Column="5" x:Name="Icon5" StrokeShape="RoundRectangle 10" Padding="6" StrokeThickness="2">
+                                <Label Text="💎" FontSize="20" HorizontalTextAlignment="Center" />
+                                <Border.GestureRecognizers><TapGestureRecognizer Tapped="OnIconSelected" CommandParameter="💎" /></Border.GestureRecognizers>
+                            </Border>
+                        </Grid>
+                    </VerticalStackLayout>
+
+                    <VerticalStackLayout Spacing="4">
+                        <Label Text="Monto objetivo ($)" FontSize="12" FontAttributes="Bold" TextColor="{StaticResource AppHint}" />
+                        <Entry x:Name="GoalAmountEntry" Placeholder="500.000" Keyboard="Numeric" FontSize="15" />
+                    </VerticalStackLayout>
+
+                    <VerticalStackLayout Spacing="4">
+                        <Label Text="Fecha objetivo" FontSize="12" FontAttributes="Bold" TextColor="{StaticResource AppHint}" />
+                        <Border StrokeShape="RoundRectangle 12"
+                                BackgroundColor="{StaticResource AppSurface2}"
+                                Stroke="{StaticResource AppBorder}" Padding="12,10">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <Label x:Name="GoalDateLabel" Text="Selecciona fecha" FontSize="14"
+                                       TextColor="{StaticResource AppText}" VerticalOptions="Center" />
+                                <Label Grid.Column="1" Text="📅" FontSize="16" VerticalOptions="Center" />
+                            </Grid>
+                            <Border.GestureRecognizers>
+                                <TapGestureRecognizer Tapped="OnPickGoalDateTapped" />
+                            </Border.GestureRecognizers>
+                        </Border>
+                    </VerticalStackLayout>
+
+                    <VerticalStackLayout Spacing="4">
+                        <Label Text="Prioridad" FontSize="12" FontAttributes="Bold" TextColor="{StaticResource AppHint}" />
+                        <Grid ColumnDefinitions="*,*,*" ColumnSpacing="8">
+                            <Button x:Name="PriorityHigh" Text="🔴 Alta" FontSize="12" HeightRequest="36"
+                                    CornerRadius="10" Clicked="OnPrioritySelected" CommandParameter="Alta" />
+                            <Button Grid.Column="1" x:Name="PriorityMedium" Text="🟡 Media" FontSize="12" HeightRequest="36"
+                                    CornerRadius="10" Clicked="OnPrioritySelected" CommandParameter="Media" />
+                            <Button Grid.Column="2" x:Name="PriorityLow" Text="🟢 Baja" FontSize="12" HeightRequest="36"
+                                    CornerRadius="10" Clicked="OnPrioritySelected" CommandParameter="Baja" />
+                        </Grid>
+                    </VerticalStackLayout>
+
+                    <Button x:Name="SaveGoalButton" Text="Guardar Meta"
+                            BackgroundColor="{StaticResource Primary}"
+                            TextColor="{StaticResource PrimaryDarkText}"
+                            FontAttributes="Bold" HeightRequest="46" CornerRadius="14"
+                            Clicked="OnSaveGoalClicked" />
+                </VerticalStackLayout>
+            </Border>
+        </Grid>
+    </Grid>
+</ContentPage>

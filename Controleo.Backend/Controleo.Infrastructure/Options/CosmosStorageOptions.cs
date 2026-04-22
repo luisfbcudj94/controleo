@@ -8,6 +8,7 @@ public sealed class CosmosStorageOptions
     public string BudgetsContainerName { get; set; } = "budgets";
     public string RecurringExpensesContainerName { get; set; } = "recurring_expenses";
     public string SettingsContainerName { get; set; } = "app_settings";
+    public string GoalsContainerName { get; set; } = "goals";
     public string CatalogDocumentId { get; set; } = "catalogs";
     public string[] MovementTypes { get; set; } = [];
     public string[] PaymentMethods { get; set; } = [];

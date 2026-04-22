@@ -1,0 +1,218 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="Controleo.Mobile.Features.SmartScore.SmartScorePage"
+             Title="IA Financiera"
+             BackgroundColor="{StaticResource AppBg}">
+
+    <Grid RowDefinitions="*">
+        <ScrollView>
+            <VerticalStackLayout Padding="16" Spacing="14">
+
+                <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,4">
+                          <Label Text="IA Financiera"
+                           FontSize="28"
+                           FontAttributes="Bold"
+                           FontFamily="OpenSansSemibold"
+                           TextColor="{StaticResource AppText}"
+                           VerticalOptions="Center" />
+                    <Button Grid.Column="1"
+                            Text="&#x2715;"
+                            WidthRequest="36"
+                            HeightRequest="36"
+                            CornerRadius="18"
+                            BackgroundColor="{StaticResource Gray200}"
+                            TextColor="{StaticResource AppText}"
+                            FontSize="14"
+                            Clicked="OnClosePageClicked" />
+                </Grid>
+
+                <Border StrokeShape="RoundRectangle 16" StrokeThickness="0" Padding="14"
+                        BackgroundColor="{StaticResource AccentLight}">
+                    <Border.Stroke>
+                        <LinearGradientBrush>
+                            <GradientStop Color="{StaticResource Primary}" Offset="0" />
+                            <GradientStop Color="{StaticResource AccentLight}" Offset="1" />
+                        </LinearGradientBrush>
+                    </Border.Stroke>
+                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="10">
+                        <Label Text="&#x1F3AF;" FontSize="24" VerticalOptions="Start" />
+                        <VerticalStackLayout Grid.Column="1" Spacing="4">
+                            <Label Text="Tu salud financiera de un vistazo"
+                                   FontSize="14"
+                                   FontAttributes="Bold"
+                                   TextColor="{StaticResource PrimaryDark}" />
+                            <Label Text="Score basado en gastos, presupuestos, obligaciones e ingreso. Actualiza recomendaciones con IA cuando lo necesites."
+                                   FontSize="12"
+                                   TextColor="{StaticResource Gray600}"
+                                   LineBreakMode="WordWrap" />
+                        </VerticalStackLayout>
+                    </Grid>
+                </Border>
+
+                  <Border StrokeShape="RoundRectangle 22" StrokeThickness="1"
+                       BackgroundColor="#0E1B22" Padding="18,20,18,14">
+                      <Border.Stroke>
+                       <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                        <GradientStop Offset="0" Color="#2A414C" />
+                        <GradientStop Offset="1" Color="#1A2E37" />
+                       </LinearGradientBrush>
+                      </Border.Stroke>
+                      <VerticalStackLayout Spacing="6" HorizontalOptions="Center">
+                       <Grid RowDefinitions="Auto,Auto" HorizontalOptions="Center">
+                        <Label Text="Radar IA"
+                            FontSize="11"
+                            TextColor="#91A8B1"
+                            HorizontalTextAlignment="Center"
+                            Margin="0,0,0,4" />
+                        <GraphicsView x:Name="GaugeView"
+                                Grid.Row="1"
+                                WidthRequest="332"
+                                HeightRequest="220"
+                                HorizontalOptions="Center" />
+                       </Grid>
+
+                       <Label x:Name="ScoreValueLabel"
+                           Text="--"
+                           FontSize="50"
+                           FontAttributes="Bold"
+                           HorizontalTextAlignment="Center"
+                           TextColor="#F5F8FA"
+                           Margin="0,-2,0,2" />
+
+                       <Border x:Name="ScoreLevelBadge"
+                            StrokeShape="RoundRectangle 14"
+                            StrokeThickness="0"
+                            BackgroundColor="#F0F4F2"
+                            Padding="16,6"
+                            HorizontalOptions="Center">
+                        <Label x:Name="ScoreLevelLabel"
+                            Text="Calculando..."
+                            FontSize="13"
+                            FontAttributes="Bold"
+                            HorizontalTextAlignment="Center"
+                            TextColor="#38535F" />
+                       </Border>
+
+                       <Label x:Name="ScoreTrendLabel"
+                           FontSize="12"
+                           HorizontalTextAlignment="Center"
+                           TextColor="#C7D4D9"
+                           Margin="0,6,0,0" />
+
+                       <Label x:Name="ScoreConfidenceLabel"
+                           FontSize="11"
+                           HorizontalTextAlignment="Center"
+                           TextColor="#96AAB2" />
+                      </VerticalStackLayout>
+                  </Border>
+
+                <Label x:Name="IncomeHintLabel"
+                       FontSize="12"
+                       TextColor="{StaticResource AppHint}"
+                       LineBreakMode="WordWrap"
+                       Margin="4,0" />
+
+                <Border StrokeShape="RoundRectangle 16" StrokeThickness="0"
+                        BackgroundColor="{StaticResource White}" Padding="12">
+                    <VerticalStackLayout Spacing="8">
+                        <Label Text="Factores principales"
+                               FontSize="15"
+                               FontAttributes="Bold"
+                               TextColor="{StaticResource AppText}" />
+                        <CollectionView x:Name="DriversCollection" SelectionMode="None">
+                            <CollectionView.EmptyView>
+                                <Label Text="Sin factores disponibles para este corte."
+                                       FontSize="11"
+                                       TextColor="{StaticResource AppHint}" />
+                            </CollectionView.EmptyView>
+                            <CollectionView.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8" Margin="0,0,0,6">
+                                        <Label Text="&#x2022;"
+                                               FontSize="12"
+                                               TextColor="{StaticResource Primary}"
+                                               VerticalOptions="Start" />
+                                        <Label Grid.Column="1"
+                                               Text="{Binding Text}"
+                                               FontSize="11"
+                                               TextColor="{StaticResource AppText}"
+                                               LineBreakMode="WordWrap" />
+                                    </Grid>
+                                </DataTemplate>
+                            </CollectionView.ItemTemplate>
+                        </CollectionView>
+                    </VerticalStackLayout>
+                </Border>
+
+                <Border StrokeShape="RoundRectangle 16" StrokeThickness="0"
+                        BackgroundColor="{StaticResource White}" Padding="12">
+                    <VerticalStackLayout Spacing="10">
+                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                            <Label Text="Recomendaciones"
+                                   FontSize="15"
+                                   FontAttributes="Bold"
+                                   TextColor="{StaticResource AppText}"
+                                   VerticalOptions="Center" />
+                            <Button Grid.Column="1"
+                                    Text="Actualizar"
+                                    HeightRequest="34"
+                                    Padding="12,0"
+                                    CornerRadius="10"
+                                    FontSize="11"
+                                    BackgroundColor="{StaticResource AppSurface2}"
+                                    TextColor="{StaticResource AppText}"
+                                    Clicked="OnRefreshRecommendationsClicked" />
+                        </Grid>
+                        <Label x:Name="RecommendationSourceLabel"
+                               FontSize="11"
+                               TextColor="{StaticResource AppHint}" />
+                        <CollectionView x:Name="RecommendationsCollection" SelectionMode="None">
+                            <CollectionView.EmptyView>
+                                <Label Text="Sin recomendaciones disponibles."
+                                       FontSize="12"
+                                       TextColor="{StaticResource AppHint}" />
+                            </CollectionView.EmptyView>
+                            <CollectionView.ItemTemplate>
+                                <DataTemplate>
+                                    <Border StrokeShape="RoundRectangle 14" StrokeThickness="0"
+                                            BackgroundColor="#F7FAF8" Padding="10" Margin="0,0,0,8">
+                                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                                            <Label Text="&#x1F9ED;"
+                                                   FontSize="13"
+                                                   VerticalOptions="Start" />
+                                            <Label Grid.Column="1"
+                                                   Text="{Binding Text}"
+                                                   FontSize="12"
+                                                   TextColor="{StaticResource AppText}"
+                                                   LineBreakMode="WordWrap" />
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </CollectionView.ItemTemplate>
+                        </CollectionView>
+                        <Label x:Name="ScoreHistoryHintLabel"
+                               FontSize="11"
+                               TextColor="{StaticResource AppHint}"
+                               LineBreakMode="WordWrap" />
+                    </VerticalStackLayout>
+                </Border>
+
+                <Label x:Name="StatusLabel"
+                       FontSize="11"
+                       TextColor="{StaticResource AppHint}"
+                       HorizontalTextAlignment="Center"
+                       Margin="0,4,0,16" />
+            </VerticalStackLayout>
+        </ScrollView>
+
+        <Grid x:Name="LoadingOverlay" IsVisible="False" BackgroundColor="#80FFFFFF">
+            <ActivityIndicator IsRunning="True"
+                               Color="{StaticResource Primary}"
+                               WidthRequest="48"
+                               HeightRequest="48"
+                               HorizontalOptions="Center"
+                               VerticalOptions="Center" />
+        </Grid>
+    </Grid>
+</ContentPage>

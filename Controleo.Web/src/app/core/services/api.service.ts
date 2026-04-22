@@ -7,16 +7,25 @@ import {
   AuthSessionResponse,
   BudgetItem,
   BudgetUpsertRequest,
+  ChatHistoryResult,
+  ChatMessageItem,
+  CoachSuggestionsResult,
   DashboardCategoryItem,
   DashboardPaymentMethodItem,
   ExpenseCatalog,
   ExpenseEntryRequest,
   ExpenseItem,
+  GoalAlertItem,
+  GoalContributionRequest,
+  GoalSimulationRequest,
+  GoalSimulationResponse,
+  GoalUpsertRequest,
   OperationResult,
   PagedAdminUsersResult,
   PagedExpenseResult,
   RecurringExpenseItem,
   RecurringExpenseUpsertRequest,
+  SavingsGoalItem,
   UpdateCatalogsRequest
 } from '../models/api.models';
 
@@ -135,5 +144,61 @@ export class ApiService {
 
   endImpersonation(): Observable<OperationResult> {
     return this.http.post<OperationResult>(`${this.baseUrl}/api/management/impersonation/end`, {});
+  }
+
+  // ── Goals ──
+
+  getGoals(): Observable<SavingsGoalItem[]> {
+    return this.http.get<SavingsGoalItem[]>(`${this.baseUrl}/api/goals`);
+  }
+
+  getGoalDetail(id: string): Observable<SavingsGoalItem> {
+    return this.http.get<SavingsGoalItem>(`${this.baseUrl}/api/goals/${encodeURIComponent(id)}`);
+  }
+
+  createGoal(request: GoalUpsertRequest): Observable<OperationResult> {
+    return this.http.post<OperationResult>(`${this.baseUrl}/api/goals`, request);
+  }
+
+  updateGoal(id: string, request: GoalUpsertRequest): Observable<OperationResult> {
+    return this.http.put<OperationResult>(`${this.baseUrl}/api/goals/${encodeURIComponent(id)}`, request);
+  }
+
+  deleteGoal(id: string): Observable<OperationResult> {
+    return this.http.delete<OperationResult>(`${this.baseUrl}/api/goals/${encodeURIComponent(id)}`);
+  }
+
+  addGoalContribution(goalId: string, request: GoalContributionRequest): Observable<OperationResult> {
+    return this.http.post<OperationResult>(`${this.baseUrl}/api/goals/${encodeURIComponent(goalId)}/contributions`, request);
+  }
+
+  deleteGoalContribution(goalId: string, contributionId: string): Observable<OperationResult> {
+    return this.http.delete<OperationResult>(`${this.baseUrl}/api/goals/${encodeURIComponent(goalId)}/contributions/${encodeURIComponent(contributionId)}`);
+  }
+
+  simulateGoal(goalId: string, request: GoalSimulationRequest): Observable<GoalSimulationResponse> {
+    return this.http.post<GoalSimulationResponse>(`${this.baseUrl}/api/goals/${encodeURIComponent(goalId)}/simulate`, request);
+  }
+
+  getGoalAlerts(): Observable<GoalAlertItem[]> {
+    return this.http.get<GoalAlertItem[]>(`${this.baseUrl}/api/goals/alerts`);
+  }
+
+  // ── Coach IA ──
+
+  sendCoachMessage(content: string): Observable<ChatMessageItem> {
+    return this.http.post<ChatMessageItem>(`${this.baseUrl}/api/coach/message`, { content });
+  }
+
+  getCoachHistory(limit: number = 20): Observable<ChatHistoryResult> {
+    return this.http.get<ChatHistoryResult>(`${this.baseUrl}/api/coach/history?limit=${limit}`);
+  }
+
+  clearCoachHistory(): Observable<OperationResult> {
+    return this.http.delete<OperationResult>(`${this.baseUrl}/api/coach/history`);
+  }
+
+  getCoachSuggestions(): Observable<CoachSuggestionsResult> {
+    return this.http.get<CoachSuggestionsResult>(`${this.baseUrl}/api/coach/suggestions`);
   }
 }

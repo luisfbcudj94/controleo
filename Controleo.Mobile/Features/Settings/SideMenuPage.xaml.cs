@@ -8,7 +8,10 @@ public enum SideMenuDestination
     MovementTypes,
     Recurring,
     Reports,
-    Obligations
+    Obligations,
+    SmartScore,
+    Goals,
+    MoneyCoach
 }
 
 public partial class SideMenuPage : ContentPage
@@ -46,6 +49,15 @@ public partial class SideMenuPage : ContentPage
 
     private void OnObligationsTapped(object? sender, TappedEventArgs e)
         => DestinationSelected?.Invoke(this, SideMenuDestination.Obligations);
+
+    private void OnSmartScoreTapped(object? sender, TappedEventArgs e)
+        => DestinationSelected?.Invoke(this, SideMenuDestination.SmartScore);
+
+    private void OnGoalsTapped(object? sender, TappedEventArgs e)
+        => DestinationSelected?.Invoke(this, SideMenuDestination.Goals);
+
+    private void OnMoneyCoachTapped(object? sender, TappedEventArgs e)
+        => DestinationSelected?.Invoke(this, SideMenuDestination.MoneyCoach);
 
     private async void OnConfigurationTapped(object? sender, TappedEventArgs e)
     {

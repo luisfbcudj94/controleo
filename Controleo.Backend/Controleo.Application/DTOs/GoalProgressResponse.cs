@@ -1,0 +1,20 @@
+using Controleo.Domain.Entities;
+namespace Controleo.Application.DTOs;
+public sealed record GoalProgressResponse(
+    string Id,
+    string Name,
+    string Icon,
+    decimal TargetAmount,
+    decimal CurrentAmount,
+    DateOnly TargetDate,
+    string Status,
+    string Priority,
+    decimal ProgressPercent,
+    decimal SuggestedMonthlyContribution,
+    DateOnly? ProjectedCompletionDate,
+    int DaysRemaining,
+    bool IsOnTrack,
+    decimal? MonthlyAvailableSavings,
+    IReadOnlyList<GoalContribution> Contributions,
+    DateTimeOffset CreatedAt,
+    DateTimeOffset UpdatedAt);

@@ -1,0 +1,16 @@
+{
+  "name": "Controleo",
+  "short_name": "Controleo",
+  "description": "Gestión financiera personal",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2e7d32",
+  "icons": [
+    {
+      "src": "favicon.ico",
+      "sizes": "any",
+      "type": "image/x-icon"
+    }
+  ]
+}

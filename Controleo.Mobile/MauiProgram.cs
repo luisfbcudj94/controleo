@@ -55,6 +55,7 @@ public static class MauiProgram
 		builder.Services.AddSingleton<IOfflineDataStore, OfflineDataStore>();
 		builder.Services.AddSingleton<IOfflineSyncService, OfflineSyncService>();
 		builder.Services.AddSingleton<IObligationNotificationService, ObligationNotificationService>();
+		builder.Services.AddSingleton<IGoalNotificationService, GoalNotificationService>();
 		builder.Services.AddSingleton<IMonthContextService, MonthContextService>();
 		builder.Services.AddSingleton<ICatalogColorService, PastelColorHelper>();
 		builder.Services.AddSingleton<IPaymentIconService, PaymentIconService>();

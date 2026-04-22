@@ -22,6 +22,7 @@ public sealed class ExpenseApiFunctions
     private readonly IRecurringExpenseService _recurringService;
     private readonly IObligationService _obligationService;
     private readonly IReportExportService _reportExportService;
+    private readonly IFinancialInsightsService _financialInsightsService;
     private readonly IAccessTokenValidator _tokenValidator;
     private readonly LocalAuthOptions _authOptions;
     private readonly IHostEnvironment _env;
@@ -29,12 +30,13 @@ public sealed class ExpenseApiFunctions
     public ExpenseApiFunctions(
         IExpenseService expenseService, ICatalogService catalogService, IBudgetService budgetService,
         IDashboardService dashboardService, IRecurringExpenseService recurringService, IObligationService obligationService,
-        IReportExportService reportExportService,
+        IReportExportService reportExportService, IFinancialInsightsService financialInsightsService,
         IAccessTokenValidator tokenValidator, IOptions<LocalAuthOptions> authOptions, IHostEnvironment env)
     {
         _expenseService = expenseService; _catalogService = catalogService; _budgetService = budgetService;
         _dashboardService = dashboardService; _recurringService = recurringService; _obligationService = obligationService;
         _reportExportService = reportExportService;
+        _financialInsightsService = financialInsightsService;
         _tokenValidator = tokenValidator; _authOptions = authOptions.Value; _env = env;
     }
 
@@ -130,6 +132,30 @@ public sealed class ExpenseApiFunctions
             return await FunctionHelpers.JsonAsync(req, HttpStatusCode.BadRequest, new OperationResult(false, "Debes enviar secciones y medios de pago."), ct);
         var result = await _catalogService.UpdateCatalogsAsync(user!.UserId, payload, ct);
         return await FunctionHelpers.JsonAsync(req, result.IsSuccess ? HttpStatusCode.OK : HttpStatusCode.BadRequest, result, ct);
+    }
+
+    // ── Profile ──
+
+    [Function("GetProfile")]
+    public async Task<HttpResponseData> GetProfileAsync([HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "profile")] HttpRequestData req, CancellationToken ct)
+    {
+        var (user, err) = await AuthAsync(req, ct); if (err is not null) return err;
+        var profile = await _financialInsightsService.GetUserProfileAsync(user!.UserId, ct);
+        return await FunctionHelpers.JsonAsync(req, HttpStatusCode.OK, profile, ct);
+    }
+
+    [Function("UpdateProfileMonthlyIncome")]
+    public async Task<HttpResponseData> UpdateProfileMonthlyIncomeAsync([HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "profile/monthly-income")] HttpRequestData req, CancellationToken ct)
+    {
+        var (user, err) = await AuthAsync(req, ct); if (err is not null) return err;
+
+        var payload = await FunctionHelpers.ReadBodyAsync<UpdateMonthlyIncomeRequest>(req, ct);
+        if (payload is null)
+            return await FunctionHelpers.JsonAsync(req, HttpStatusCode.BadRequest, new OperationResult(false, "Request inválido."), ct);
+
+        var result = await _financialInsightsService.UpdateMonthlyIncomeAsync(user!.UserId, payload.MonthlyIncome, ct);
+        var status = result.IsSuccess ? HttpStatusCode.OK : HttpStatusCode.BadRequest;
+        return await FunctionHelpers.JsonAsync(req, status, result, ct);
     }
 
     // ── Expenses ──
@@ -281,6 +307,67 @@ public sealed class ExpenseApiFunctions
         {
             var preview = await _reportExportService.BuildPreviewAsync(user!.UserId, startDate, endDate, ct);
             return await FunctionHelpers.JsonAsync(req, HttpStatusCode.OK, preview, ct);
+        }
+        catch (ArgumentException ex)
+        {
+            return await FunctionHelpers.JsonAsync(req, HttpStatusCode.BadRequest, new OperationResult(false, ex.Message), ct);
+        }
+    }
+
+    [Function("GetFinancialScore")]
+    public async Task<HttpResponseData> GetFinancialScoreAsync([HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "reports/financial-score")] HttpRequestData req, CancellationToken ct)
+    {
+        var (user, err) = await AuthAsync(req, ct); if (err is not null) return err;
+        var premiumErr = await EnsurePremiumAsync(req, user!, "Analitica avanzada", ct); if (premiumErr is not null) return premiumErr;
+
+        var q = FunctionHelpers.ParseQuery(req);
+        if (!TryResolveDateRange(q, out var startDate, out var endDate, out var dateError))
+            return await FunctionHelpers.JsonAsync(req, HttpStatusCode.BadRequest, new OperationResult(false, dateError), ct);
+
+        try
+        {
+            var score = await _financialInsightsService.GetFinancialScoreAsync(user!.UserId, startDate, endDate, ct);
+            return await FunctionHelpers.JsonAsync(req, HttpStatusCode.OK, score, ct);
+        }
+        catch (ArgumentException ex)
+        {
+            return await FunctionHelpers.JsonAsync(req, HttpStatusCode.BadRequest, new OperationResult(false, ex.Message), ct);
+        }
+    }
+
+    [Function("GetFinancialScoreHistory")]
+    public async Task<HttpResponseData> GetFinancialScoreHistoryAsync([HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "reports/financial-score/history")] HttpRequestData req, CancellationToken ct)
+    {
+        var (user, err) = await AuthAsync(req, ct); if (err is not null) return err;
+        var premiumErr = await EnsurePremiumAsync(req, user!, "Analitica avanzada", ct); if (premiumErr is not null) return premiumErr;
+
+        var q = FunctionHelpers.ParseQuery(req);
+        var limit = q.TryGetValue("limit", out var rawLimit) && int.TryParse(rawLimit, out var parsedLimit)
+            ? Math.Clamp(parsedLimit, 1, 24)
+            : 6;
+
+        var history = await _financialInsightsService.GetScoreHistoryAsync(user!.UserId, limit, ct);
+        return await FunctionHelpers.JsonAsync(req, HttpStatusCode.OK, history, ct);
+    }
+
+    [Function("GetFinancialRecommendations")]
+    public async Task<HttpResponseData> GetFinancialRecommendationsAsync([HttpTrigger(AuthorizationLevel.Anonymous, "get", Route = "reports/recommendations")] HttpRequestData req, CancellationToken ct)
+    {
+        var (user, err) = await AuthAsync(req, ct); if (err is not null) return err;
+        var premiumErr = await EnsurePremiumAsync(req, user!, "Analitica avanzada", ct); if (premiumErr is not null) return premiumErr;
+
+        var q = FunctionHelpers.ParseQuery(req);
+        if (!TryResolveDateRange(q, out var startDate, out var endDate, out var dateError))
+            return await FunctionHelpers.JsonAsync(req, HttpStatusCode.BadRequest, new OperationResult(false, dateError), ct);
+
+        var forceRefresh = q.TryGetValue("forceRefresh", out var forceRaw)
+            && bool.TryParse(forceRaw, out var parsedForce)
+            && parsedForce;
+
+        try
+        {
+            var recommendations = await _financialInsightsService.GetRecommendationsAsync(user!.UserId, startDate, endDate, forceRefresh, ct);
+            return await FunctionHelpers.JsonAsync(req, HttpStatusCode.OK, recommendations, ct);
         }
         catch (ArgumentException ex)
         {

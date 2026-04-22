@@ -28,7 +28,29 @@ public interface IExpenseApiClient
     Task<PagedObligationResult> GetObligationsPageAsync(int pageNumber, int pageSize, CancellationToken cancellationToken);
     Task<OperationResult> SaveObligationAsync(string? id, ObligationUpsertRequest request, CancellationToken cancellationToken);
     Task<OperationResult> DeleteObligationAsync(string id, CancellationToken cancellationToken);
+    Task<UserProfileResult> GetUserProfileAsync(CancellationToken cancellationToken);
+    Task<OperationResult> UpdateMonthlyIncomeAsync(decimal? monthlyIncome, CancellationToken cancellationToken);
     Task<ReportPreviewResult> GetReportPreviewAsync(DateOnly startDate, DateOnly endDate, CancellationToken cancellationToken);
+    Task<FinancialScoreResult> GetFinancialScoreAsync(DateOnly startDate, DateOnly endDate, CancellationToken cancellationToken);
+    Task<IReadOnlyList<FinancialScoreHistoryItem>> GetFinancialScoreHistoryAsync(int limit, CancellationToken cancellationToken);
+    Task<FinancialRecommendationsResult> GetFinancialRecommendationsAsync(DateOnly startDate, DateOnly endDate, bool forceRefresh, CancellationToken cancellationToken);
     Task<ReportFileDownloadResult> DownloadReportCsvAsync(DateOnly startDate, DateOnly endDate, CancellationToken cancellationToken);
     Task<ReportFileDownloadResult> DownloadReportPdfAsync(DateOnly startDate, DateOnly endDate, CancellationToken cancellationToken);
+
+    // --- Goals ---
+    Task<IReadOnlyList<SavingsGoalItem>> GetGoalsAsync(CancellationToken cancellationToken);
+    Task<SavingsGoalItem?> GetGoalDetailAsync(string goalId, CancellationToken cancellationToken);
+    Task<OperationResult> CreateGoalAsync(GoalUpsertRequest request, CancellationToken cancellationToken);
+    Task<OperationResult> UpdateGoalAsync(string goalId, GoalUpsertRequest request, CancellationToken cancellationToken);
+    Task<OperationResult> DeleteGoalAsync(string goalId, CancellationToken cancellationToken);
+    Task<OperationResult> AddGoalContributionAsync(string goalId, GoalContributionRequest request, CancellationToken cancellationToken);
+    Task<OperationResult> DeleteGoalContributionAsync(string goalId, string contributionId, CancellationToken cancellationToken);
+    Task<GoalSimulationResult?> SimulateGoalAsync(string goalId, GoalSimulationRequest request, CancellationToken cancellationToken);
+    Task<IReadOnlyList<GoalAlertItem>> GetGoalAlertsAsync(CancellationToken cancellationToken);
+
+    // --- Coach IA ---
+    Task<ChatMessageItem?> SendCoachMessageAsync(string content, CancellationToken cancellationToken);
+    Task<ChatHistoryResult> GetCoachHistoryAsync(int limit, CancellationToken cancellationToken);
+    Task<OperationResult> ClearCoachHistoryAsync(CancellationToken cancellationToken);
+    Task<CoachSuggestionsResult> GetCoachSuggestionsAsync(CancellationToken cancellationToken);
 }

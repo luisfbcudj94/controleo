@@ -214,7 +214,8 @@ public sealed class LocalUserAuthService : IUserAuthService
                 isImpersonating,
                 impersonation?.ActorUserId,
                 impersonation?.ActorName,
-                impersonation?.ActorEmail));
+                impersonation?.ActorEmail,
+                user.MonthlyIncome));
     }
 
     private async Task<UserDoc?> TryGetByDocumentIdAsync(string id, CancellationToken ct)
@@ -313,6 +314,7 @@ public sealed class LocalUserAuthService : IUserAuthService
         public bool IsPremium { get; set; }
         public bool IsAdmin { get; set; }
         public bool IsDisabled { get; set; }
+        public decimal? MonthlyIncome { get; set; }
         public string CreatedAt { get; set; } = string.Empty;
         public string UpdatedAt { get; set; } = string.Empty;
         public string LastLoginAt { get; set; } = string.Empty;

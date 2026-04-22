@@ -10,6 +10,9 @@ using Controleo.Mobile.Features.Recurring;
 using Controleo.Mobile.Features.Reports;
 using Controleo.Mobile.Features.Register;
 using Controleo.Mobile.Features.Settings;
+using Controleo.Mobile.Features.SmartScore;
+using Controleo.Mobile.Features.Goals;
+using Controleo.Mobile.Features.MoneyCoach;
 using Controleo.Mobile.Shared.Modals;
 
 namespace Controleo.Mobile;
@@ -216,14 +219,20 @@ public partial class App : Application
 			var obligationNotificationService = _serviceProvider.GetRequiredService<IObligationNotificationService>();
 			var colorService = _serviceProvider.GetRequiredService<ICatalogColorService>();
 			var paymentIconService = _serviceProvider.GetRequiredService<IPaymentIconService>();
+			var goalNotificationService = _serviceProvider.GetRequiredService<IGoalNotificationService>();
 			var currentPage = _mainTabs?.CurrentPage ?? _mainFlyout?.Detail;
 
-			if ((destination == SideMenuDestination.Obligations || destination == SideMenuDestination.Reports)
+			if ((destination == SideMenuDestination.Obligations || destination == SideMenuDestination.Reports || destination == SideMenuDestination.SmartScore || destination == SideMenuDestination.Goals || destination == SideMenuDestination.MoneyCoach)
 				&& !authService.IsCurrentUserPremium)
 			{
-				var featureName = destination == SideMenuDestination.Reports
-					? "Analitica avanzada"
-					: "Obligaciones";
+				var featureName = destination switch
+				{
+					SideMenuDestination.Reports => "Analitica avanzada",
+					SideMenuDestination.SmartScore => "IA Financiera",
+					SideMenuDestination.Goals => "Metas de Ahorro",
+					SideMenuDestination.MoneyCoach => "Coach IA",
+					_ => "Obligaciones"
+				};
 
 				if (currentPage is not null)
 				{
@@ -240,14 +249,17 @@ public partial class App : Application
 
 			Page destinationPage = destination switch
 			{
-				SideMenuDestination.Profile => new ProfilePage(authService),
+				SideMenuDestination.Profile => new ProfilePage(authService, apiClient),
 				SideMenuDestination.Budgets => new BudgetsPage(apiClient, monthContext, colorService),
 				SideMenuDestination.PaymentMethods => new SettingsPage(apiClient, authService, colorService, paymentIconService, SettingsSectionMode.PaymentOnly),
 				SideMenuDestination.MovementTypes => new SettingsPage(apiClient, authService, colorService, paymentIconService, SettingsSectionMode.MovementOnly),
 				SideMenuDestination.Recurring => new RecurringPage(apiClient, colorService, paymentIconService),
 				SideMenuDestination.Reports => new ReportsPage(apiClient),
+				SideMenuDestination.SmartScore => new SmartScorePage(apiClient),
+				SideMenuDestination.MoneyCoach => new MoneyCoachPage(apiClient),
+				SideMenuDestination.Goals => new GoalsPage(apiClient, authService, goalNotificationService),
 				SideMenuDestination.Obligations => new ObligationsPage(apiClient, authService, obligationNotificationService, colorService, paymentIconService),
-				_ => new ProfilePage(authService)
+				_ => new ProfilePage(authService, apiClient)
 			};
 
 			var usePageHeader = destination is SideMenuDestination.Budgets
@@ -255,6 +267,9 @@ public partial class App : Application
 				or SideMenuDestination.MovementTypes
 				or SideMenuDestination.Recurring
 				or SideMenuDestination.Reports
+				or SideMenuDestination.SmartScore
+				or SideMenuDestination.MoneyCoach
+				or SideMenuDestination.Goals
 				or SideMenuDestination.Obligations;
 
 			// Use modal navigation — completely independent of tab stacks, no orphan/crash risk
@@ -271,6 +286,7 @@ public partial class App : Application
 					SideMenuDestination.MovementTypes => "Tipos de gasto",
 					SideMenuDestination.Recurring => "Gastos recurrentes",
 					SideMenuDestination.Reports => "Analitica avanzada",
+						SideMenuDestination.SmartScore => "IA Financiera",
 					SideMenuDestination.Obligations => "Obligaciones",
 					_ => ""
 				};
@@ -333,6 +349,85 @@ public partial class App : Application
 				}
 			}
 		};
+	}
+
+	private static ContentPage CreateCoachLauncherPage()
+	{
+		return new ContentPage
+		{
+			BackgroundColor = GetColor("AppBg", "#F4F7F5"),
+			Content = new Grid
+			{
+				Children =
+				{
+					new VerticalStackLayout
+					{
+						VerticalOptions = LayoutOptions.Center,
+						HorizontalOptions = LayoutOptions.Center,
+						Spacing = 8,
+						Children =
+						{
+							new Label { Text = "🤖", FontSize = 36, HorizontalTextAlignment = TextAlignment.Center },
+							new Label
+							{
+								Text = "Abriendo Coach IA...",
+								TextColor = GetColor("AppHint", "#7A9183"),
+								HorizontalOptions = LayoutOptions.Center,
+								HorizontalTextAlignment = TextAlignment.Center,
+								FontSize = 14
+							}
+						}
+					}
+				}
+			}
+		};
+	}
+
+	private async void OpenCoachModal()
+	{
+		try
+		{
+			var authService = _serviceProvider.GetRequiredService<IAuthService>();
+			var apiClient = _serviceProvider.GetRequiredService<IExpenseApiClient>();
+			var currentPage = _mainTabs?.CurrentPage ?? _mainFlyout?.Detail;
+
+			// Restore last content tab
+			var fallbackTab = _lastContentTab
+				?? _mainTabs?.Children.OfType<NavigationPage>().FirstOrDefault();
+			if (fallbackTab is not null && _mainTabs is not null)
+			{
+				_mainTabs.Dispatcher.Dispatch(() => _mainTabs.CurrentPage = fallbackTab);
+			}
+
+			await Task.Delay(100);
+
+			if (!authService.IsCurrentUserPremium)
+			{
+				if (currentPage is not null)
+				{
+					await StyledResultModalPage.ShowAsync(
+						currentPage,
+						false,
+						"Funcionalidad Premium",
+						"Coach IA está disponible solo para usuarios premium. Activa premium para desbloquear esta funcionalidad.",
+						autoCloseMilliseconds: 0);
+				}
+				return;
+			}
+
+			var coachPage = new MoneyCoachPage(apiClient);
+			NavigationPage.SetHasNavigationBar(coachPage, false);
+			var modalNav = new NavigationPage(coachPage);
+
+			if (currentPage is not null)
+			{
+				await currentPage.Navigation.PushModalAsync(modalNav);
+			}
+		}
+		catch (Exception ex)
+		{
+			System.Diagnostics.Debug.WriteLine($"[CoachTab] Error: {ex.Message}");
+		}
 	}
 
 	private static void ApplySavedTheme()

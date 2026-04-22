@@ -70,6 +70,16 @@
 					<div class="ms-label">{{ monthLabel }}</div>
 				</div>
 
+				@if (pushNotif.isSupported()) {
+					<button
+						class="tb-btn"
+						[class.notif-active]="pushNotif.isActive()"
+						type="button"
+						(click)="togglePushNotifications()"
+						[title]="pushNotif.isActive() ? 'Detener notificaciones' : 'Activar notificaciones'">
+						{{ pushNotif.isActive() ? '🔔' : '🔕' }}
+					</button>
+				}
 				<a class="tb-btn primary desktop-only" [routerLink]="'/registrar'">＋ Nuevo gasto</a>
 			</div>
 		</header>
